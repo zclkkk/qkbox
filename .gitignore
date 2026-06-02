@@ -1,1 +1,10 @@
-.temp/*
+bin/
+dist/
+.temp/
+.task/
+apps/desktop/.task/
+node_modules/
+apps/desktop/frontend/node_modules/
+apps/desktop/frontend/dist/
+*.log
+*.syso

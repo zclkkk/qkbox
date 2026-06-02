@@ -1,0 +1,18 @@
+{
+  "name": "qkbox",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "check": "npm run frontend:check && npm run frontend:build && npm run go:test && npm run go:vet && wails3 doctor",
+    "test": "npm run go:test",
+    "build": "npm run build:qkboxd && npm run build:desktop",
+    "go:fmt": "gofmt -w apps cmd core internal platform shared",
+    "go:test": "go test ./...",
+    "go:vet": "go vet ./...",
+    "frontend:install": "npm --prefix apps/desktop/frontend install",
+    "frontend:check": "wails3 task -dir apps/desktop generate:bindings && npm --prefix apps/desktop/frontend run check",
+    "frontend:build": "wails3 task -dir apps/desktop build:frontend",
+    "build:qkboxd": "wails3 task build:qkboxd",
+    "build:desktop": "wails3 task -dir apps/desktop build"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@qkbox/desktop-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --mode production",
+    "build:dev": "vite build --minify false --mode development",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@lucide/svelte": "1.17.0",
+    "@wailsio/runtime": "3.0.0-alpha.79",
+    "bits-ui": "2.18.1",
+    "svelte": "5.56.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.1.2",
+    "svelte-check": "4.5.0",
+    "typescript": "6.0.3",
+    "vite": "8.0.16"
+  }
+}

@@ -1,0 +1,64 @@
+version: '3'
+
+vars:
+  APP_NAME: qkbox
+  BIN_DIR: ../../bin
+  PACKAGE_MANAGER: npm
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+
+tasks:
+  install:frontend:
+    summary: Installs frontend dependencies
+    dir: frontend
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules
+    cmds:
+      - npm install
+
+  generate:bindings:
+    summary: Generates Wails TypeScript bindings
+    deps:
+      - task: go:mod:tidy
+    cmds:
+      - wails3 generate bindings -clean=true
+
+  build:frontend:
+    summary: Builds the Svelte frontend
+    deps:
+      - task: install:frontend
+      - task: generate:bindings
+    dir: frontend
+    cmds:
+      - npm run build -q
+
+  build:
+    summary: Builds the desktop app
+    deps:
+      - task: build:frontend
+    cmds:
+      - go build -trimpath -buildvcs=false -o "{{.BIN_DIR}}/{{.APP_NAME}}{{exeExt}}" .
+
+  dev:
+    summary: Runs frontend dev server and Wails app in dev mode
+    deps:
+      - task: install:frontend
+      - task: generate:bindings
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  frontend:dev:
+    summary: Runs the Svelte frontend dev server
+    deps:
+      - task: install:frontend
+    dir: frontend
+    cmds:
+      - npm run dev -- --port {{.VITE_PORT}} --strictPort
+
+  go:mod:tidy:
+    internal: true
+    dir: ../..
+    cmds:
+      - go mod tidy

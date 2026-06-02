@@ -1,0 +1,39 @@
+version: '3'
+
+info:
+  companyName: "qkbox"
+  productName: "qkbox"
+  productIdentifier: "dev.qkbox.app"
+  description: "qkbox desktop client"
+  copyright: "(c) 2026, qkbox contributors"
+  comments: "qkbox desktop client"
+  version: "0.1.0"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+      - "*.js"
+      - "*.ts"
+    git_ignore: true
+  executes:
+    - cmd: wails3 task build
+      type: blocking
+    - cmd: wails3 task frontend:dev
+      type: background
+    - cmd: ../../bin/qkbox
+      type: primary
+
+fileAssociations:

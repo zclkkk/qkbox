@@ -1,0 +1,27 @@
+version: '3'
+
+tasks:
+  check:
+    summary: Runs the local Phase 0/1 verification suite
+    cmds:
+      - npm run check
+
+  test:
+    summary: Runs Go tests
+    cmds:
+      - npm run test
+
+  build:
+    summary: Builds qkboxd and the Wails desktop app
+    cmds:
+      - npm run build
+
+  build:qkboxd:
+    summary: Builds the user-scope qkboxd executable
+    cmds:
+      - go build -trimpath -buildvcs=false -o "bin/qkboxd{{exeExt}}" ./cmd/qkboxd
+
+  desktop:dev:
+    summary: Runs the desktop app in Wails dev mode
+    cmds:
+      - wails3 task -dir apps/desktop dev

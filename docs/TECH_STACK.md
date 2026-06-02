@@ -33,7 +33,7 @@ Svelte 5
 TypeScript
 Vite
 bits-ui
-lucide-svelte
+@lucide/svelte
 npm
 local Node.js
 ```
@@ -121,8 +121,7 @@ IPC 认证采用 OS 访问控制 + pre-shared token 两层，跨平台对称。�
 {
   "id": "req_123",
   "method": "engine.getStatus",
-  "params": {},
-  "deadline_ms": 5000
+  "params": {}
 }
 ```
 
