@@ -56,6 +56,61 @@ func TestStructuredErrorJSONShape(t *testing.T) {
 	}
 }
 
+func TestNewMethodRegistryEntries(t *testing.T) {
+	newMethods := []string{
+		MethodCreateProfile, MethodUpdateProfileDraft, MethodDeleteProfile,
+		MethodListProfiles, MethodGetProfile,
+		MethodValidateProfileDraft, MethodGetProfileDiagnostics,
+		MethodCreateProfileSnapshot, MethodActivateProfileSnapshot,
+		MethodGetActiveProfile, MethodGetActiveSnapshot,
+		MethodListSnapshots, MethodRollbackToSnapshot,
+	}
+	for _, m := range newMethods {
+		if _, ok := MethodRegistry[m]; !ok {
+			t.Fatalf("missing %s in method registry", m)
+		}
+	}
+}
+
+func TestCreateProfileReplyJSONShape(t *testing.T) {
+	reply := CreateProfileReply{}
+	got, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"profile"`, `"id"`, `"name"`, `"created_at"`, `"updated_at"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
+func TestSnapshotJSONShape(t *testing.T) {
+	reply := CreateProfileSnapshotReply{}
+	got, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"snapshot"`, `"profile_id"`, `"validation_status"`, `"created_at"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
+func TestDiagnosticsJSONShape(t *testing.T) {
+	reply := ValidateProfileDraftReply{}
+	got, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"diagnostics"`, `"profile_id"`, `"status"`, `"entries"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
 func contains(value, needle string) bool {
 	return strings.Contains(value, needle)
 }

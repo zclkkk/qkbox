@@ -9,6 +9,18 @@ const (
 	ErrorIPCTransport          = "IPC_TRANSPORT"
 	ErrorDaemonUnavailable     = "IPC_DAEMON_UNAVAILABLE"
 	ErrorDaemonLaunchFailed    = "IPC_DAEMON_LAUNCH_FAILED"
+
+	ErrorProfileNotFound     = "PROFILE_NOT_FOUND"
+	ErrorProfileNameEmpty    = "PROFILE_NAME_EMPTY"
+	ErrorProfileContentEmpty = "PROFILE_CONTENT_EMPTY"
+	ErrorProfileHasSnapshot  = "PROFILE_HAS_ACTIVE_SNAPSHOT"
+
+	ErrorSnapshotNotFound       = "SNAPSHOT_NOT_FOUND"
+	ErrorSnapshotCreateFailed   = "SNAPSHOT_CREATE_FAILED"
+	ErrorSnapshotAlreadyActive  = "SNAPSHOT_ALREADY_ACTIVE"
+
+	ErrorConfigValidationFailed = "CONFIG_VALIDATION_FAILED"
+	ErrorConfigInvalidJSON      = "CONFIG_INVALID_JSON"
 )
 
 type StructuredError struct {
