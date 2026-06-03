@@ -10,15 +10,6 @@ import (
 	"github.com/zclkkk/qkbox/shared/model"
 )
 
-func (db *DB) InsertSnapshot(s *model.Snapshot, contentID string, diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON []byte) error {
-	_, err := db.conn.Exec(
-		`INSERT INTO snapshots (id, profile_id, content_id, validation_status, diagnostics_json, runtime_summary_json, required_capabilities_json, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.ID, s.ProfileID, contentID, string(s.ValidationStatus), diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON, s.CreatedAt,
-	)
-	return err
-}
-
 func (db *DB) GetSnapshot(id string) (*model.Snapshot, string, error) {
 	var s model.Snapshot
 	var contentID string
@@ -70,25 +61,14 @@ func (db *DB) ListSnapshots(profileID string) ([]model.SnapshotSummary, error) {
 }
 
 func (db *DB) GetActiveSnapshot() (*model.Snapshot, string, error) {
-	var snapshotID sql.NullString
-	err := db.conn.QueryRow(
-		`SELECT active_snapshot_id FROM profiles WHERE active_snapshot_id IS NOT NULL LIMIT 1`,
-	).Scan(&snapshotID)
-	if err == sql.ErrNoRows {
-		return nil, "", nil
-	}
+	snapshotID, err := db.GetActiveSnapshotID()
 	if err != nil {
 		return nil, "", err
 	}
-	if !snapshotID.Valid {
+	if snapshotID == "" {
 		return nil, "", nil
 	}
-	return db.GetSnapshot(snapshotID.String)
-}
-
-func (db *DB) DeleteSnapshotsByProfile(profileID string) error {
-	_, err := db.conn.Exec(`DELETE FROM snapshots WHERE profile_id = ?`, profileID)
-	return err
+	return db.GetSnapshot(snapshotID)
 }
 
 func NewSnapshotID() string {
@@ -97,12 +77,19 @@ func NewSnapshotID() string {
 	return fmt.Sprintf("snp_%s", hex.EncodeToString(b))
 }
 
-func (db *DB) DeleteSnapshotsByProfileTx(tx *sql.Tx, profileID string) error {
+func (db *DB) CreateSnapshotWithContentTx(tx *sql.Tx, s *model.Snapshot, content *EncryptedContent, diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON []byte) error {
+	if err := db.insertContentTx(tx, content); err != nil {
+		return err
+	}
+	return db.insertSnapshotTx(tx, s, content.ID, diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON)
+}
+
+func (db *DB) deleteSnapshotsByProfileTx(tx *sql.Tx, profileID string) error {
 	_, err := tx.Exec(`DELETE FROM snapshots WHERE profile_id = ?`, profileID)
 	return err
 }
 
-func (db *DB) InsertSnapshotTx(tx *sql.Tx, s *model.Snapshot, contentID string, diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON []byte) error {
+func (db *DB) insertSnapshotTx(tx *sql.Tx, s *model.Snapshot, contentID string, diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON []byte) error {
 	_, err := tx.Exec(
 		`INSERT INTO snapshots (id, profile_id, content_id, validation_status, diagnostics_json, runtime_summary_json, required_capabilities_json, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

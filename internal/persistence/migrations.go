@@ -7,7 +7,6 @@ var migrations = []string{
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		draft_content_id TEXT,
-		active_snapshot_id TEXT,
 		created_at INTEGER NOT NULL,
 		updated_at INTEGER NOT NULL
 	);`,
@@ -36,6 +35,16 @@ var migrations = []string{
 		key TEXT PRIMARY KEY,
 		value BLOB NOT NULL
 	);`,
+
+	`CREATE TABLE IF NOT EXISTS runtime_state (
+		id INTEGER PRIMARY KEY CHECK (id = 1),
+		active_snapshot_id TEXT REFERENCES snapshots(id) ON DELETE SET NULL,
+		updated_at INTEGER NOT NULL
+	);`,
+
+	`INSERT INTO runtime_state (id, active_snapshot_id, updated_at)
+	 SELECT 1, NULL, 0
+	 WHERE NOT EXISTS (SELECT 1 FROM runtime_state WHERE id = 1);`,
 }
 
 func (db *DB) migrate() error {

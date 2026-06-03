@@ -191,6 +191,78 @@ func TestSnapshotLifecycle(t *testing.T) {
 	}
 }
 
+func TestActiveSnapshotSwitchesAcrossProfiles(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	first, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    "first",
+		Content: `{"inbounds":[],"outbounds":[{"type":"direct"}]}`,
+	})
+	if err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	firstSnap, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: first.Profile.ID})
+	if err != nil {
+		t.Fatalf("snapshot first: %v", err)
+	}
+
+	second, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    "second",
+		Content: `{"inbounds":[],"outbounds":[{"type":"block"}]}`,
+	})
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	secondSnap, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: second.Profile.ID})
+	if err != nil {
+		t.Fatalf("snapshot second: %v", err)
+	}
+
+	if _, err = svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: firstSnap.Snapshot.ID}); err != nil {
+		t.Fatalf("activate first: %v", err)
+	}
+	if _, err = svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: secondSnap.Snapshot.ID}); err != nil {
+		t.Fatalf("activate second: %v", err)
+	}
+
+	activeProfile, err := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
+	if err != nil {
+		t.Fatalf("get active profile: %v", err)
+	}
+	if activeProfile.Profile == nil || activeProfile.Profile.ID != second.Profile.ID {
+		t.Fatalf("active profile = %+v", activeProfile.Profile)
+	}
+
+	activeSnapshot, err := svc.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
+	if err != nil {
+		t.Fatalf("get active snapshot: %v", err)
+	}
+	if activeSnapshot.Snapshot == nil || activeSnapshot.Snapshot.ID != secondSnap.Snapshot.ID {
+		t.Fatalf("active snapshot = %+v", activeSnapshot.Snapshot)
+	}
+
+	profiles, err := svc.ListProfiles(ctx, api.ListProfilesRequest{})
+	if err != nil {
+		t.Fatalf("list profiles: %v", err)
+	}
+	activeCount := 0
+	for _, profile := range profiles.Profiles {
+		if profile.HasActiveSnapshot {
+			activeCount++
+			if profile.ID != second.Profile.ID {
+				t.Fatalf("unexpected active profile summary: %+v", profile)
+			}
+			if profile.ActiveSnapshotID == nil || *profile.ActiveSnapshotID != secondSnap.Snapshot.ID {
+				t.Fatalf("active snapshot id = %+v", profile.ActiveSnapshotID)
+			}
+		}
+	}
+	if activeCount != 1 {
+		t.Fatalf("active profile count = %d", activeCount)
+	}
+}
+
 func TestValidationBlocksInvalidSnapshot(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()

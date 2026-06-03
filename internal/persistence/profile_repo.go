@@ -10,22 +10,19 @@ import (
 	"github.com/zclkkk/qkbox/shared/model"
 )
 
-func (db *DB) InsertProfile(p *model.Profile) error {
-	_, err := db.conn.Exec(
-		`INSERT INTO profiles (id, name, draft_content_id, active_snapshot_id, created_at, updated_at)
-		 VALUES (?, ?, NULL, NULL, ?, ?)`,
-		p.ID, p.Name, p.CreatedAt, p.UpdatedAt,
-	)
-	return err
-}
-
 func (db *DB) GetProfile(id string) (*model.Profile, error) {
 	var p model.Profile
-	var draftContentID, activeSnapshotID sql.NullString
+	var activeSnapshotID sql.NullString
 	err := db.conn.QueryRow(
-		`SELECT id, name, draft_content_id, active_snapshot_id, created_at, updated_at
-		 FROM profiles WHERE id = ?`, id,
-	).Scan(&p.ID, &p.Name, &draftContentID, &activeSnapshotID, &p.CreatedAt, &p.UpdatedAt)
+		`SELECT p.id, p.name,
+		        CASE WHEN s.profile_id = p.id THEN rs.active_snapshot_id ELSE NULL END,
+		        p.created_at, p.updated_at
+		 FROM profiles p
+		 LEFT JOIN runtime_state rs ON rs.id = 1
+		 LEFT JOIN snapshots s ON s.id = rs.active_snapshot_id
+		 WHERE p.id = ?`,
+		id,
+	).Scan(&p.ID, &p.Name, &activeSnapshotID, &p.CreatedAt, &p.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -38,31 +35,15 @@ func (db *DB) GetProfile(id string) (*model.Profile, error) {
 	return &p, nil
 }
 
-func (db *DB) UpdateProfileDraftContent(profileID, contentID string) error {
-	now := time.Now().UnixMilli()
-	_, err := db.conn.Exec(
-		`UPDATE profiles SET draft_content_id = ?, updated_at = ? WHERE id = ?`,
-		contentID, now, profileID,
-	)
-	return err
-}
-
-func (db *DB) UpdateProfileActiveSnapshot(profileID string, snapshotID *string) error {
-	now := time.Now().UnixMilli()
-	var id sql.NullString
-	if snapshotID != nil {
-		id = sql.NullString{String: *snapshotID, Valid: true}
-	}
-	_, err := db.conn.Exec(
-		`UPDATE profiles SET active_snapshot_id = ?, updated_at = ? WHERE id = ?`,
-		id, now, profileID,
-	)
-	return err
-}
-
 func (db *DB) ListProfiles() ([]model.ProfileSummary, error) {
 	rows, err := db.conn.Query(
-		`SELECT id, name, draft_content_id, active_snapshot_id, created_at, updated_at FROM profiles ORDER BY created_at`,
+		`SELECT p.id, p.name, p.draft_content_id,
+		        CASE WHEN s.profile_id = p.id THEN rs.active_snapshot_id ELSE NULL END,
+		        p.created_at, p.updated_at
+		 FROM profiles p
+		 LEFT JOIN runtime_state rs ON rs.id = 1
+		 LEFT JOIN snapshots s ON s.id = rs.active_snapshot_id
+		 ORDER BY p.created_at`,
 	)
 	if err != nil {
 		return nil, err
@@ -86,11 +67,6 @@ func (db *DB) ListProfiles() ([]model.ProfileSummary, error) {
 	return profiles, rows.Err()
 }
 
-func (db *DB) DeleteProfile(id string) error {
-	_, err := db.conn.Exec(`DELETE FROM profiles WHERE id = ?`, id)
-	return err
-}
-
 func (db *DB) GetProfileDraftContentID(profileID string) (string, error) {
 	var contentID sql.NullString
 	err := db.conn.QueryRow(
@@ -108,30 +84,16 @@ func (db *DB) GetProfileDraftContentID(profileID string) (string, error) {
 	return contentID.String, nil
 }
 
-func (db *DB) GetProfileDraftContentIDTx(tx *sql.Tx, profileID string) (string, error) {
-	var contentID sql.NullString
-	err := tx.QueryRow(
-		`SELECT draft_content_id FROM profiles WHERE id = ?`, profileID,
-	).Scan(&contentID)
-	if err == sql.ErrNoRows {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	if !contentID.Valid {
-		return "", nil
-	}
-	return contentID.String, nil
-}
-
 func (db *DB) GetActiveProfile() (*model.Profile, error) {
 	var p model.Profile
-	var draftContentID, activeSnapshotID sql.NullString
+	var activeSnapshotID sql.NullString
 	err := db.conn.QueryRow(
-		`SELECT id, name, draft_content_id, active_snapshot_id, created_at, updated_at
-		 FROM profiles WHERE active_snapshot_id IS NOT NULL LIMIT 1`,
-	).Scan(&p.ID, &p.Name, &draftContentID, &activeSnapshotID, &p.CreatedAt, &p.UpdatedAt)
+		`SELECT p.id, p.name, rs.active_snapshot_id, p.created_at, p.updated_at
+		 FROM runtime_state rs
+		 JOIN snapshots s ON s.id = rs.active_snapshot_id
+		 JOIN profiles p ON p.id = s.profile_id
+		 WHERE rs.id = 1 AND rs.active_snapshot_id IS NOT NULL`,
+	).Scan(&p.ID, &p.Name, &activeSnapshotID, &p.CreatedAt, &p.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -150,16 +112,49 @@ func NewProfileID() string {
 	return fmt.Sprintf("prf_%s", hex.EncodeToString(b))
 }
 
-func (db *DB) InsertProfileTx(tx *sql.Tx, p *model.Profile) error {
+func (db *DB) CreateProfileWithDraftTx(tx *sql.Tx, p *model.Profile, content *EncryptedContent) error {
+	if err := db.insertProfileTx(tx, p); err != nil {
+		return err
+	}
+	if err := db.insertContentTx(tx, content); err != nil {
+		return err
+	}
+	return db.updateProfileDraftContentTx(tx, p.ID, content.ID)
+}
+
+func (db *DB) ReplaceDraftContentTx(tx *sql.Tx, profileID string, content *EncryptedContent) error {
+	if err := db.deleteContentBySourceTx(tx, "draft", profileID); err != nil {
+		return err
+	}
+	if err := db.insertContentTx(tx, content); err != nil {
+		return err
+	}
+	return db.updateProfileDraftContentTx(tx, profileID, content.ID)
+}
+
+func (db *DB) DeleteProfileGraphTx(tx *sql.Tx, profileID string) error {
+	if err := db.deleteSnapshotsByProfileTx(tx, profileID); err != nil {
+		return err
+	}
+	if err := db.deleteContentBySourceTx(tx, "draft", profileID); err != nil {
+		return err
+	}
+	if err := db.deleteContentBySourceTx(tx, "snapshot", profileID); err != nil {
+		return err
+	}
+	return db.deleteProfileTx(tx, profileID)
+}
+
+func (db *DB) insertProfileTx(tx *sql.Tx, p *model.Profile) error {
 	_, err := tx.Exec(
-		`INSERT INTO profiles (id, name, draft_content_id, active_snapshot_id, created_at, updated_at)
-		 VALUES (?, ?, NULL, NULL, ?, ?)`,
+		`INSERT INTO profiles (id, name, draft_content_id, created_at, updated_at)
+		 VALUES (?, ?, NULL, ?, ?)`,
 		p.ID, p.Name, p.CreatedAt, p.UpdatedAt,
 	)
 	return err
 }
 
-func (db *DB) UpdateProfileDraftContentTx(tx *sql.Tx, profileID, contentID string) error {
+func (db *DB) updateProfileDraftContentTx(tx *sql.Tx, profileID, contentID string) error {
 	now := time.Now().UnixMilli()
 	_, err := tx.Exec(
 		`UPDATE profiles SET draft_content_id = ?, updated_at = ? WHERE id = ?`,
@@ -168,25 +163,7 @@ func (db *DB) UpdateProfileDraftContentTx(tx *sql.Tx, profileID, contentID strin
 	return err
 }
 
-func (db *DB) UpdateProfileActiveSnapshotTx(tx *sql.Tx, profileID string, snapshotID *string) error {
-	now := time.Now().UnixMilli()
-	var id sql.NullString
-	if snapshotID != nil {
-		id = sql.NullString{String: *snapshotID, Valid: true}
-	}
-	_, err := tx.Exec(
-		`UPDATE profiles SET active_snapshot_id = ?, updated_at = ? WHERE id = ?`,
-		id, now, profileID,
-	)
-	return err
-}
-
-func (db *DB) ClearAllActiveSnapshotsTx(tx *sql.Tx) error {
-	_, err := tx.Exec(`UPDATE profiles SET active_snapshot_id = NULL WHERE active_snapshot_id IS NOT NULL`)
-	return err
-}
-
-func (db *DB) DeleteProfileTx(tx *sql.Tx, id string) error {
+func (db *DB) deleteProfileTx(tx *sql.Tx, id string) error {
 	_, err := tx.Exec(`DELETE FROM profiles WHERE id = ?`, id)
 	return err
 }

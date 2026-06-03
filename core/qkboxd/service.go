@@ -62,11 +62,13 @@ func (s *Service) CreateProfile(_ context.Context, req api.CreateProfileRequest)
 		UpdatedAt: now,
 	}
 
+	draftContent, err := s.encryptedContent("draft", profile.ID, req.Content, now)
+	if err != nil {
+		return api.CreateProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+	}
+
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		if err := s.db.InsertProfileTx(tx, &profile); err != nil {
-			return err
-		}
-		return s.storeDraftContentTx(tx, profile.ID, req.Content)
+		return s.db.CreateProfileWithDraftTx(tx, &profile, draftContent)
 	}); err != nil {
 		return api.CreateProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
@@ -90,11 +92,13 @@ func (s *Service) UpdateProfileDraft(_ context.Context, req api.UpdateProfileDra
 		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
 	}
 
+	draftContent, err := s.encryptedContent("draft", req.ProfileID, req.Content, time.Now().UnixMilli())
+	if err != nil {
+		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+	}
+
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		if err := s.db.DeleteContentBySourceTx(tx, "draft", req.ProfileID); err != nil {
-			return err
-		}
-		return s.storeDraftContentTx(tx, req.ProfileID, req.Content)
+		return s.db.ReplaceDraftContentTx(tx, req.ProfileID, draftContent)
 	}); err != nil {
 		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
@@ -122,16 +126,7 @@ func (s *Service) DeleteProfile(_ context.Context, req api.DeleteProfileRequest)
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		if err := s.db.DeleteSnapshotsByProfileTx(tx, req.ProfileID); err != nil {
-			return err
-		}
-		if err := s.db.DeleteContentBySourceTx(tx, "draft", req.ProfileID); err != nil {
-			return err
-		}
-		if err := s.db.DeleteContentBySourceTx(tx, "snapshot", req.ProfileID); err != nil {
-			return err
-		}
-		return s.db.DeleteProfileTx(tx, req.ProfileID)
+		return s.db.DeleteProfileGraphTx(tx, req.ProfileID)
 	}); err != nil {
 		return api.DeleteProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
@@ -276,13 +271,11 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 		}
 	}
 
-	snapIV, snapCT, err := qkboxcrypto.Encrypt(s.key, []byte(content))
+	diagJSON, err := json.Marshal(diag.Entries)
 	if err != nil {
 		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
 
-	snapshotContentID := persistence.NewContentID()
-	diagJSON, _ := json.Marshal(diag.Entries)
 	snapshot := model.Snapshot{
 		ID:               persistence.NewSnapshotID(),
 		ProfileID:        req.ProfileID,
@@ -290,19 +283,13 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 		Diagnostics:      diag.Entries,
 		CreatedAt:        time.Now().UnixMilli(),
 	}
+	snapshotContent, err := s.encryptedContent("snapshot", req.ProfileID, content, snapshot.CreatedAt)
+	if err != nil {
+		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		if err := s.db.InsertContentTx(tx, &persistence.EncryptedContent{
-			ID:         snapshotContentID,
-			SourceType: "snapshot",
-			SourceID:   req.ProfileID,
-			IV:         snapIV,
-			Ciphertext: snapCT,
-			CreatedAt:  snapshot.CreatedAt,
-		}); err != nil {
-			return err
-		}
-		return s.db.InsertSnapshotTx(tx, &snapshot, snapshotContentID, diagJSON, nil, nil)
+		return s.db.CreateSnapshotWithContentTx(tx, &snapshot, snapshotContent, diagJSON, nil, nil)
 	}); err != nil {
 		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
@@ -320,10 +307,7 @@ func (s *Service) ActivateProfileSnapshot(_ context.Context, req api.ActivatePro
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		if err := s.db.ClearAllActiveSnapshotsTx(tx); err != nil {
-			return err
-		}
-		return s.db.UpdateProfileActiveSnapshotTx(tx, snapshot.ProfileID, &snapshot.ID)
+		return s.db.SetActiveSnapshotTx(tx, snapshot.ID)
 	}); err != nil {
 		return api.ActivateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
@@ -368,10 +352,7 @@ func (s *Service) RollbackToSnapshot(_ context.Context, req api.RollbackToSnapsh
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		if err := s.db.ClearAllActiveSnapshotsTx(tx); err != nil {
-			return err
-		}
-		return s.db.UpdateProfileActiveSnapshotTx(tx, snapshot.ProfileID, &snapshot.ID)
+		return s.db.SetActiveSnapshotTx(tx, snapshot.ID)
 	}); err != nil {
 		return api.RollbackToSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
@@ -381,23 +362,19 @@ func (s *Service) RollbackToSnapshot(_ context.Context, req api.RollbackToSnapsh
 
 // helpers
 
-func (s *Service) storeDraftContentTx(tx *sql.Tx, profileID, content string) error {
+func (s *Service) encryptedContent(sourceType, sourceID, content string, createdAt int64) (*persistence.EncryptedContent, error) {
 	iv, ct, err := qkboxcrypto.Encrypt(s.key, []byte(content))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	contentID := persistence.NewContentID()
-	if err := s.db.InsertContentTx(tx, &persistence.EncryptedContent{
-		ID:         contentID,
-		SourceType: "draft",
-		SourceID:   profileID,
+	return &persistence.EncryptedContent{
+		ID:         persistence.NewContentID(),
+		SourceType: sourceType,
+		SourceID:   sourceID,
 		IV:         iv,
 		Ciphertext: ct,
-		CreatedAt:  time.Now().UnixMilli(),
-	}); err != nil {
-		return err
-	}
-	return s.db.UpdateProfileDraftContentTx(tx, profileID, contentID)
+		CreatedAt:  createdAt,
+	}, nil
 }
 
 func (s *Service) decryptContent(contentID string) (string, error) {
