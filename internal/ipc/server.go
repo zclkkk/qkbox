@@ -29,6 +29,11 @@ type Handler interface {
 	GetActiveSnapshot(context.Context, api.GetActiveSnapshotRequest) (api.GetActiveSnapshotReply, *api.StructuredError)
 	ListSnapshots(context.Context, api.ListSnapshotsRequest) (api.ListSnapshotsReply, *api.StructuredError)
 	RollbackToSnapshot(context.Context, api.RollbackToSnapshotRequest) (api.RollbackToSnapshotReply, *api.StructuredError)
+
+	// Engine lifecycle
+	EngineStart(context.Context, api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError)
+	EngineStop(context.Context, api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError)
+	EngineGetStatus(context.Context, api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError)
 }
 
 type Server struct {
@@ -102,6 +107,13 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		dispatch(conn, req, s.handler.ListSnapshots, ctx)
 	case api.MethodRollbackToSnapshot:
 		dispatch(conn, req, s.handler.RollbackToSnapshot, ctx)
+
+	case api.MethodEngineStart:
+		dispatch(conn, req, s.handler.EngineStart, ctx)
+	case api.MethodEngineStop:
+		dispatch(conn, req, s.handler.EngineStop, ctx)
+	case api.MethodEngineGetStatus:
+		dispatch(conn, req, s.handler.EngineGetStatus, ctx)
 
 	default:
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown IPC method.", "qkboxd", false))

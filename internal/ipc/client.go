@@ -81,6 +81,20 @@ func (c *Client) RollbackToSnapshot(ctx context.Context, req api.RollbackToSnaps
 	return do[api.RollbackToSnapshotRequest, api.RollbackToSnapshotReply](c, ctx, api.MethodRollbackToSnapshot, req)
 }
 
+// Engine lifecycle
+
+func (c *Client) EngineStart(ctx context.Context, req api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError) {
+	return do[api.EngineStartRequest, api.EngineStartReply](c, ctx, api.MethodEngineStart, req)
+}
+
+func (c *Client) EngineStop(ctx context.Context, req api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError) {
+	return do[api.EngineStopRequest, api.EngineStopReply](c, ctx, api.MethodEngineStop, req)
+}
+
+func (c *Client) EngineGetStatus(ctx context.Context, req api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError) {
+	return do[api.EngineGetStatusRequest, api.EngineGetStatusReply](c, ctx, api.MethodEngineGetStatus, req)
+}
+
 // generic dispatch
 
 func do[Req any, Reply any](c *Client, ctx context.Context, method string, req Req) (Reply, *api.StructuredError) {

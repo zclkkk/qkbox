@@ -164,3 +164,62 @@ func TestDaemonValidationBlocksInvalidSnapshot(t *testing.T) {
 		t.Fatalf("code = %s", structured.Code)
 	}
 }
+
+func TestDaemonEngineLifecycle(t *testing.T) {
+	client := startDaemon(t)
+	ctx := context.Background()
+
+	// 1. Create profile with minimal direct config
+	createReply, structured := client.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    "engine-test",
+		Content: `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`,
+	})
+	if structured != nil {
+		t.Fatalf("create: %v", structured)
+	}
+	pid := createReply.Profile.ID
+
+	// 2. Create snapshot
+	snapReply, structured := client.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
+	if structured != nil {
+		t.Fatalf("snapshot: %v", structured)
+	}
+	sid := snapReply.Snapshot.ID
+
+	// 3. Activate snapshot
+	_, structured = client.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: sid})
+	if structured != nil {
+		t.Fatalf("activate: %v", structured)
+	}
+
+	// 4. Start Engine
+	_, structured = client.EngineStart(ctx, api.EngineStartRequest{})
+	if structured != nil {
+		t.Fatalf("engine start: %v", structured)
+	}
+
+	// 5. Get Status
+	statusReply, structured := client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
+	if structured != nil {
+		t.Fatalf("engine get status: %v", structured)
+	}
+	if statusReply.Status.State != "STARTED" {
+		t.Fatalf("expected STARTED, got %s", statusReply.Status.State)
+	}
+
+	// 6. Stop Engine
+	_, structured = client.EngineStop(ctx, api.EngineStopRequest{})
+	if structured != nil {
+		t.Fatalf("engine stop: %v", structured)
+	}
+
+	// 7. Get Status
+	statusReply, structured = client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
+	if structured != nil {
+		t.Fatalf("engine get status: %v", structured)
+	}
+	if statusReply.Status.State != "IDLE" {
+		t.Fatalf("expected IDLE, got %s", statusReply.Status.State)
+	}
+}
+

@@ -19,6 +19,11 @@ const (
 	MethodGetActiveSnapshot       = "getActiveSnapshot"
 	MethodListSnapshots           = "listSnapshots"
 	MethodRollbackToSnapshot      = "rollbackToSnapshot"
+
+	// Engine
+	MethodEngineStart     = "engine.start"
+	MethodEngineStop      = "engine.stop"
+	MethodEngineGetStatus = "engine.getStatus"
 )
 
 var MethodRegistry = map[string]struct{}{
@@ -36,4 +41,8 @@ var MethodRegistry = map[string]struct{}{
 	MethodGetActiveSnapshot:       {},
 	MethodListSnapshots:           {},
 	MethodRollbackToSnapshot:      {},
+
+	MethodEngineStart:     {},
+	MethodEngineStop:      {},
+	MethodEngineGetStatus: {},
 }

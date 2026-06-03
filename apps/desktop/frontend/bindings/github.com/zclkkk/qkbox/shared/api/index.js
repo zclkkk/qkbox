@@ -5,6 +5,13 @@
 export {
     Capability,
     CapabilityState,
+    EngineGetStatusReply,
+    EngineGetStatusResult,
+    EngineStartReply,
+    EngineStartResult,
+    EngineStatus,
+    EngineStopReply,
+    EngineStopResult,
     HelloReply,
     HelloResult,
     StructuredError

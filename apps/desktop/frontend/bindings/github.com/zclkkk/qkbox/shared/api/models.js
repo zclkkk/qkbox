@@ -69,6 +69,265 @@ export const CapabilityState = {
     CapabilityUnsupported: "unsupported",
 };
 
+export class EngineGetStatusReply {
+    /**
+     * Creates a new EngineGetStatusReply instance.
+     * @param {Partial<EngineGetStatusReply>} [$$source = {}] - The source object to create the EngineGetStatusReply.
+     */
+    constructor($$source = {}) {
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {EngineStatus}
+             */
+            this["status"] = (new EngineStatus());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineGetStatusReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineGetStatusReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField0_0($$parsedSource["status"]);
+        }
+        return new EngineGetStatusReply(/** @type {Partial<EngineGetStatusReply>} */($$parsedSource));
+    }
+}
+
+export class EngineGetStatusResult {
+    /**
+     * Creates a new EngineGetStatusResult instance.
+     * @param {Partial<EngineGetStatusResult>} [$$source = {}] - The source object to create the EngineGetStatusResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineGetStatusReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineGetStatusResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineGetStatusResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineGetStatusResult(/** @type {Partial<EngineGetStatusResult>} */($$parsedSource));
+    }
+}
+
+export class EngineStartReply {
+    /**
+     * Creates a new EngineStartReply instance.
+     * @param {Partial<EngineStartReply>} [$$source = {}] - The source object to create the EngineStartReply.
+     */
+    constructor($$source = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineStartReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineStartReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineStartReply(/** @type {Partial<EngineStartReply>} */($$parsedSource));
+    }
+}
+
+export class EngineStartResult {
+    /**
+     * Creates a new EngineStartResult instance.
+     * @param {Partial<EngineStartResult>} [$$source = {}] - The source object to create the EngineStartResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineStartReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineStartResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineStartResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineStartResult(/** @type {Partial<EngineStartResult>} */($$parsedSource));
+    }
+}
+
+export class EngineStatus {
+    /**
+     * Creates a new EngineStatus instance.
+     * @param {Partial<EngineStatus>} [$$source = {}] - The source object to create the EngineStatus.
+     */
+    constructor($$source = {}) {
+        if (!("state" in $$source)) {
+            /**
+             * @member
+             * @type {model$0.EngineState}
+             */
+            this["state"] = model$0.EngineState.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["active_snapshot_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["started_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_code"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_message"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineStatus instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineStatus}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineStatus(/** @type {Partial<EngineStatus>} */($$parsedSource));
+    }
+}
+
+export class EngineStopReply {
+    /**
+     * Creates a new EngineStopReply instance.
+     * @param {Partial<EngineStopReply>} [$$source = {}] - The source object to create the EngineStopReply.
+     */
+    constructor($$source = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineStopReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineStopReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineStopReply(/** @type {Partial<EngineStopReply>} */($$parsedSource));
+    }
+}
+
+export class EngineStopResult {
+    /**
+     * Creates a new EngineStopResult instance.
+     * @param {Partial<EngineStopResult>} [$$source = {}] - The source object to create the EngineStopResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineStopReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineStopResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineStopResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineStopResult(/** @type {Partial<EngineStopResult>} */($$parsedSource));
+    }
+}
+
 export class HelloReply {
     /**
      * Creates a new HelloReply instance.
@@ -141,9 +400,9 @@ export class HelloReply {
      * @returns {HelloReply}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType0;
-        const $$createField6_0 = $$createType2;
-        const $$createField7_0 = $$createType2;
+        const $$createField5_0 = $$createType9;
+        const $$createField6_0 = $$createType11;
+        const $$createField7_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("platform" in $$parsedSource) {
             $$parsedSource["platform"] = $$createField5_0($$parsedSource["platform"]);
@@ -188,8 +447,8 @@ export class HelloResult {
      * @returns {HelloResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType4;
-        const $$createField1_0 = $$createType6;
+        const $$createField0_0 = $$createType13;
+        const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
             $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
@@ -272,10 +531,17 @@ export class StructuredError {
 }
 
 // Private type creation functions
-const $$createType0 = model$0.Platform.createFrom;
-const $$createType1 = Capability.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = HelloReply.createFrom;
+const $$createType0 = EngineStatus.createFrom;
+const $$createType1 = EngineGetStatusReply.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = StructuredError.createFrom;
 const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = StructuredError.createFrom;
+const $$createType5 = EngineStartReply.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = EngineStopReply.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = model$0.Platform.createFrom;
+const $$createType10 = Capability.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = HelloReply.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);

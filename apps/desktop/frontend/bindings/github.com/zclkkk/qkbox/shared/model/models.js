@@ -6,6 +6,25 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const EngineState = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    EngineStateUninitialized: "UNINITIALIZED",
+    EngineStateIdle: "IDLE",
+    EngineStateValidating: "VALIDATING",
+    EngineStateStarting: "STARTING",
+    EngineStateStarted: "STARTED",
+    EngineStateStopping: "STOPPING",
+    EngineStateFatal: "FATAL",
+};
+
 export class Platform {
     /**
      * Creates a new Platform instance.

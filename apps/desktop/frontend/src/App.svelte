@@ -3,6 +3,7 @@
   import { Activity, CircleAlert, Cpu, PlugZap, RefreshCw, ShieldCheck } from "@lucide/svelte";
   import { BridgeService } from "../bindings/github.com/zclkkk/qkbox/apps/desktop";
   import { type Capability, type HelloReply } from "../bindings/github.com/zclkkk/qkbox/shared/api/models";
+  import { type EngineStatus } from "../bindings/github.com/zclkkk/qkbox/shared/api";
 
   type View = "engine" | "platform" | "diagnostics";
 
@@ -11,6 +12,7 @@
   let error = $state<string | null>(null);
   let activeView = $state<View>("engine");
   let lastChecked = $state<string>("Never");
+  let engineStatus = $state<any>(null);
 
   async function bootstrap() {
     loading = true;
@@ -27,9 +29,30 @@
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       reply = null;
-    } finally {
-      loading = false;
     }
+    
+    try {
+      const stResult = await BridgeService.EngineGetStatus();
+      if (!stResult.error && stResult.reply) {
+        engineStatus = stResult.reply.status;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    loading = false;
+  }
+
+  async function startEngine() {
+    loading = true;
+    await BridgeService.EngineStart();
+    await bootstrap();
+  }
+
+  async function stopEngine() {
+    loading = true;
+    await BridgeService.EngineStop();
+    await bootstrap();
   }
 
   function show(view: View) {
@@ -94,6 +117,19 @@
 
       <section class="columns">
         {#if activeView === "engine"}
+          <section class="panel">
+            <h2>Engine Status</h2>
+            <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+              <span class="state" data-state={engineStatus?.state}>{engineStatus?.state || "UNKNOWN"}</span>
+              <button onclick={startEngine} disabled={loading || engineStatus?.state === "STARTED" || engineStatus?.state === "STARTING"}>Start</button>
+              <button onclick={stopEngine} disabled={loading || engineStatus?.state === "IDLE" || engineStatus?.state === "UNINITIALIZED"}>Stop</button>
+            </div>
+            {#if engineStatus?.last_error_message}
+              <div class="notice error">
+                <strong>{engineStatus.last_error_code}</strong>: {engineStatus.last_error_message}
+              </div>
+            {/if}
+          </section>
           {@render capabilityList("Runtime", reply.runtime_capabilities)}
         {:else if activeView === "platform"}
           {@render capabilityList("Platform", reply.platform_capabilities)}

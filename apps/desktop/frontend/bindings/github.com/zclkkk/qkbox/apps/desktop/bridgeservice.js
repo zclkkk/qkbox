@@ -11,13 +11,43 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as api$0 from "../../shared/api/models.js";
 
 /**
- * @returns {$CancellablePromise<api$0.HelloResult>}
+ * @returns {$CancellablePromise<api$0.EngineGetStatusResult>}
  */
-export function Hello() {
-    return $Call.ByID(1026108960).then(/** @type {($result: any) => any} */(($result) => {
+export function EngineGetStatus() {
+    return $Call.ByID(4219929464).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType0($result);
     }));
 }
 
+/**
+ * @returns {$CancellablePromise<api$0.EngineStartResult>}
+ */
+export function EngineStart() {
+    return $Call.ByID(3171975010).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.EngineStopResult>}
+ */
+export function EngineStop() {
+    return $Call.ByID(3329435234).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType2($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.HelloResult>}
+ */
+export function Hello() {
+    return $Call.ByID(1026108960).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
 // Private type creation functions
-const $$createType0 = api$0.HelloResult.createFrom;
+const $$createType0 = api$0.EngineGetStatusResult.createFrom;
+const $$createType1 = api$0.EngineStartResult.createFrom;
+const $$createType2 = api$0.EngineStopResult.createFrom;
+const $$createType3 = api$0.HelloResult.createFrom;

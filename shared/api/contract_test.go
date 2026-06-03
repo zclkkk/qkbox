@@ -114,3 +114,27 @@ func TestDiagnosticsJSONShape(t *testing.T) {
 func contains(value, needle string) bool {
 	return strings.Contains(value, needle)
 }
+
+func TestEngineStatusJSONShape(t *testing.T) {
+	status := EngineStatus{}
+	got, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"state"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
+func TestEngineMethodRegistry(t *testing.T) {
+	newMethods := []string{
+		MethodEngineStart, MethodEngineStop, MethodEngineGetStatus,
+	}
+	for _, m := range newMethods {
+		if _, ok := MethodRegistry[m]; !ok {
+			t.Fatalf("missing %s in method registry", m)
+		}
+	}
+}

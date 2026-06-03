@@ -21,6 +21,16 @@ const (
 
 	ErrorConfigValidationFailed = "CONFIG_VALIDATION_FAILED"
 	ErrorConfigInvalidJSON      = "CONFIG_INVALID_JSON"
+
+	ErrorEngineNoActiveSnapshot   = "ENGINE_NO_ACTIVE_SNAPSHOT"
+	ErrorEngineAlreadyStarted     = "ENGINE_ALREADY_STARTED"
+	ErrorEngineNotStarted         = "ENGINE_NOT_STARTED"
+	ErrorEngineBusy               = "ENGINE_BUSY"
+	ErrorEngineRunning            = "ENGINE_RUNNING"
+
+	ErrorSingboxAdapterConfigFailed = "SINGBOX_ADAPTER_CONFIG_FAILED"
+	ErrorSingboxAdapterStartFailed  = "SINGBOX_ADAPTER_START_FAILED"
+	ErrorSingboxAdapterStopFailed   = "SINGBOX_ADAPTER_STOP_FAILED"
 )
 
 type StructuredError struct {

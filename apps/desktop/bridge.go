@@ -51,6 +51,32 @@ func (b *BridgeService) Hello(ctx context.Context) api.HelloResult {
 	return api.HelloResult{Reply: &reply}
 }
 
+// Engine lifecycle
+
+func (b *BridgeService) EngineStart(ctx context.Context) api.EngineStartResult {
+	reply, structured := b.client.EngineStart(ctx, api.EngineStartRequest{})
+	if structured != nil {
+		return api.EngineStartResult{Error: structured}
+	}
+	return api.EngineStartResult{Reply: &reply}
+}
+
+func (b *BridgeService) EngineStop(ctx context.Context) api.EngineStopResult {
+	reply, structured := b.client.EngineStop(ctx, api.EngineStopRequest{})
+	if structured != nil {
+		return api.EngineStopResult{Error: structured}
+	}
+	return api.EngineStopResult{Reply: &reply}
+}
+
+func (b *BridgeService) EngineGetStatus(ctx context.Context) api.EngineGetStatusResult {
+	reply, structured := b.client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
+	if structured != nil {
+		return api.EngineGetStatusResult{Error: structured}
+	}
+	return api.EngineGetStatusResult{Reply: &reply}
+}
+
 func launchQKBoxD() error {
 	path, err := findQKBoxD()
 	if err != nil {
