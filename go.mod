@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
+	github.com/sagernet/sing v0.8.11-0.20260514110501-905ad103a4df
 	github.com/sagernet/sing-box v1.14.0-alpha.27.0.20260602101833-467c3b505b2b
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.97
 	golang.org/x/tools v0.44.0
@@ -131,7 +132,6 @@ require (
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
 	github.com/sagernet/nftables v0.3.0-mod.2 // indirect
 	github.com/sagernet/quic-go v0.59.0-sing-box-mod.4 // indirect
-	github.com/sagernet/sing v0.8.11-0.20260514110501-905ad103a4df // indirect
 	github.com/sagernet/sing-cloudflared v0.1.0 // indirect
 	github.com/sagernet/sing-mux v0.3.4 // indirect
 	github.com/sagernet/sing-quic v0.6.2-0.20260525051024-9467ede27fb7 // indirect

@@ -12,7 +12,23 @@
   let error = $state<string | null>(null);
   let activeView = $state<View>("engine");
   let lastChecked = $state<string>("Never");
-  let engineStatus = $state<any>(null);
+  let engineStatus = $state<EngineStatus | null>(null);
+  let engineError = $state<string | null>(null);
+
+  function formatStructuredError(err: { code: string; message: string }) {
+    return `${err.code}: ${err.message}`;
+  }
+
+  async function refreshEngineStatus() {
+    const stResult = await BridgeService.EngineGetStatus();
+    if (stResult.error) {
+      engineError = formatStructuredError(stResult.error);
+      return;
+    }
+    if (stResult.reply) {
+      engineStatus = stResult.reply.status;
+    }
+  }
 
   async function bootstrap() {
     loading = true;
@@ -30,14 +46,11 @@
       error = err instanceof Error ? err.message : String(err);
       reply = null;
     }
-    
+
     try {
-      const stResult = await BridgeService.EngineGetStatus();
-      if (!stResult.error && stResult.reply) {
-        engineStatus = stResult.reply.status;
-      }
+      await refreshEngineStatus();
     } catch (e) {
-      console.error(e);
+      engineError = e instanceof Error ? e.message : String(e);
     }
 
     loading = false;
@@ -45,14 +58,34 @@
 
   async function startEngine() {
     loading = true;
-    await BridgeService.EngineStart();
-    await bootstrap();
+    engineError = null;
+    try {
+      const result = await BridgeService.EngineStart();
+      if (result.error) {
+        engineError = formatStructuredError(result.error);
+      }
+      await refreshEngineStatus();
+    } catch (err) {
+      engineError = err instanceof Error ? err.message : String(err);
+    } finally {
+      loading = false;
+    }
   }
 
   async function stopEngine() {
     loading = true;
-    await BridgeService.EngineStop();
-    await bootstrap();
+    engineError = null;
+    try {
+      const result = await BridgeService.EngineStop();
+      if (result.error) {
+        engineError = formatStructuredError(result.error);
+      }
+      await refreshEngineStatus();
+    } catch (err) {
+      engineError = err instanceof Error ? err.message : String(err);
+    } finally {
+      loading = false;
+    }
   }
 
   function show(view: View) {
@@ -121,9 +154,17 @@
             <h2>Engine Status</h2>
             <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
               <span class="state" data-state={engineStatus?.state}>{engineStatus?.state || "UNKNOWN"}</span>
-              <button onclick={startEngine} disabled={loading || engineStatus?.state === "STARTED" || engineStatus?.state === "STARTING"}>Start</button>
-              <button onclick={stopEngine} disabled={loading || engineStatus?.state === "IDLE" || engineStatus?.state === "UNINITIALIZED"}>Stop</button>
+              <button type="button" onclick={startEngine} disabled={loading || engineStatus?.state === "STARTED" || engineStatus?.state === "STARTING" || engineStatus?.state === "STOPPING" || engineStatus?.state === "FATAL"}>Start</button>
+              <button type="button" onclick={stopEngine} disabled={loading || engineStatus?.state === "IDLE" || engineStatus?.state === "UNINITIALIZED" || engineStatus?.state === "STARTING" || engineStatus?.state === "STOPPING"}>Stop</button>
             </div>
+            {#if engineStatus?.active_snapshot_id}
+              <p>Active snapshot {engineStatus.active_snapshot_id}</p>
+            {/if}
+            {#if engineError}
+              <div class="notice error">
+                <span>{engineError}</span>
+              </div>
+            {/if}
             {#if engineStatus?.last_error_message}
               <div class="notice error">
                 <strong>{engineStatus.last_error_code}</strong>: {engineStatus.last_error_message}

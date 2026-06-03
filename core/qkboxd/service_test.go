@@ -21,7 +21,9 @@ func newTestService(t *testing.T) *Service {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewService(db, key)
+	svc := NewService(context.Background(), db, key)
+	t.Cleanup(func() { _ = svc.Close() })
+	return svc
 }
 
 func TestHelloReturnsCapabilityShells(t *testing.T) {
@@ -353,6 +355,111 @@ func TestValidationBlocksNonArrayFields(t *testing.T) {
 	if err.Code != api.ErrorConfigValidationFailed {
 		t.Fatalf("code = %s", err.Code)
 	}
+}
+
+func TestEngineStartWithoutActiveSnapshot(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	_, err := svc.EngineStart(ctx, api.EngineStartRequest{})
+	if err == nil || err.Code != api.ErrorEngineNoActiveSnapshot {
+		t.Fatalf("expected ENGINE_NO_ACTIVE_SNAPSHOT, got %v", err)
+	}
+	status, statusErr := svc.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
+	if statusErr != nil {
+		t.Fatalf("status: %v", statusErr)
+	}
+	if status.Status.LastErrorCode != api.ErrorEngineNoActiveSnapshot {
+		t.Fatalf("last error = %s", status.Status.LastErrorCode)
+	}
+}
+
+func TestEngineStartUsesSnapshotContentNotDraft(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	fake := &fakeAdapter{}
+	svc.engine.adapterFactory = func() EngineAdapter {
+		return fake
+	}
+
+	snapshotContent := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"snapshot"}]}`
+	draftContent := `{"inbounds":[],"outbounds":[{"type":"block","tag":"draft"}]}`
+	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    "engine-content",
+		Content: snapshotContent,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	pid := createReply.Profile.ID
+
+	snapReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if _, err := svc.UpdateProfileDraft(ctx, api.UpdateProfileDraftRequest{ProfileID: pid, Content: draftContent}); err != nil {
+		t.Fatalf("update draft: %v", err)
+	}
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapReply.Snapshot.ID}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+
+	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
+		t.Fatalf("engine start: %v", err)
+	}
+	if fake.configJSON != snapshotContent {
+		t.Fatalf("engine used %q, want snapshot content %q", fake.configJSON, snapshotContent)
+	}
+}
+
+func TestEngineStartBlocksActiveSnapshotMutationWhileStarting(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	fake := &fakeAdapter{startedCh: started, releaseStart: release}
+	svc.engine.adapterFactory = func() EngineAdapter {
+		return fake
+	}
+
+	first := createValidSnapshot(t, svc, ctx, "first")
+	second := createValidSnapshot(t, svc, ctx, "second")
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: first}); err != nil {
+		t.Fatalf("activate first: %v", err)
+	}
+
+	done := make(chan *api.StructuredError, 1)
+	go func() {
+		_, err := svc.EngineStart(ctx, api.EngineStartRequest{})
+		done <- err
+	}()
+
+	waitFor(t, started)
+	_, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: second})
+	if err == nil || err.Code != api.ErrorEngineRunning {
+		t.Fatalf("expected ENGINE_RUNNING, got %v", err)
+	}
+
+	close(release)
+	if err := waitResult(t, done); err != nil {
+		t.Fatalf("engine start: %v", err)
+	}
+}
+
+func createValidSnapshot(t *testing.T, svc *Service, ctx context.Context, name string) string {
+	t.Helper()
+	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    name,
+		Content: `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`,
+	})
+	if err != nil {
+		t.Fatalf("create %s: %v", name, err)
+	}
+	snapReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: createReply.Profile.ID})
+	if err != nil {
+		t.Fatalf("snapshot %s: %v", name, err)
+	}
+	return snapReply.Snapshot.ID
 }
 
 func TestContentIsEncrypted(t *testing.T) {

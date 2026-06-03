@@ -20,8 +20,12 @@ type Service struct {
 	engine *EngineController
 }
 
-func NewService(db *persistence.DB, key []byte) *Service {
-	return &Service{db: db, key: key, engine: NewEngineController()}
+func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte) *Service {
+	return &Service{db: db, key: key, engine: NewEngineController(runtimeCtx)}
+}
+
+func (s *Service) Close() error {
+	return s.engine.Shutdown()
 }
 
 // Hello (existing)
@@ -372,32 +376,35 @@ func (s *Service) RollbackToSnapshot(_ context.Context, req api.RollbackToSnapsh
 // Engine lifecycle
 
 func (s *Service) EngineStart(_ context.Context, _ api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError) {
+	if sErr := s.engine.Start(s.loadEngineStartTarget); sErr != nil {
+		return api.EngineStartReply{}, sErr
+	}
+	return api.EngineStartReply{}, nil
+}
+
+func (s *Service) loadEngineStartTarget() (EngineStartTarget, *api.StructuredError) {
 	activeSnapshotID, err := s.db.GetActiveSnapshotID()
 	if err != nil {
-		return api.EngineStartReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
 	if activeSnapshotID == "" {
-		return api.EngineStartReply{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot to start.", "qkboxd", true)
+		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot to start.", "qkboxd", true)
 	}
 
 	_, contentID, err := s.db.GetSnapshot(activeSnapshotID)
 	if err != nil {
-		return api.EngineStartReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
 	if contentID == "" {
-		return api.EngineStartReply{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "Active snapshot has no content.", "qkboxd", true)
+		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "Active snapshot has no content.", "qkboxd", true)
 	}
 
 	configJSON, err := s.decryptContent(contentID)
 	if err != nil {
-		return api.EngineStartReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt snapshot content: "+err.Error(), "qkboxd", false)
+		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt snapshot content: "+err.Error(), "qkboxd", false)
 	}
 
-	if sErr := s.engine.Start(configJSON, activeSnapshotID); sErr != nil {
-		return api.EngineStartReply{}, sErr
-	}
-
-	return api.EngineStartReply{}, nil
+	return EngineStartTarget{SnapshotID: activeSnapshotID, ConfigJSON: configJSON}, nil
 }
 
 func (s *Service) EngineStop(_ context.Context, _ api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError) {
@@ -408,7 +415,15 @@ func (s *Service) EngineStop(_ context.Context, _ api.EngineStopRequest) (api.En
 }
 
 func (s *Service) EngineGetStatus(_ context.Context, _ api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError) {
-	return api.EngineGetStatusReply{Status: s.engine.GetStatus()}, nil
+	status := s.engine.GetStatus()
+	if status.State == model.EngineStateIdle || status.State == model.EngineStateUninitialized {
+		activeSnapshotID, err := s.db.GetActiveSnapshotID()
+		if err != nil {
+			return api.EngineGetStatusReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		}
+		status.ActiveSnapshotID = activeSnapshotID
+	}
+	return api.EngineGetStatusReply{Status: status}, nil
 }
 
 // helpers

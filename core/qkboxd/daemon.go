@@ -38,5 +38,8 @@ func Run(ctx context.Context) error {
 	}
 	defer listener.Close()
 
-	return ipc.NewServer(NewService(db, key)).Serve(ctx, listener)
+	service := NewService(ctx, db, key)
+	defer service.Close()
+
+	return ipc.NewServer(service).Serve(ctx, listener)
 }
