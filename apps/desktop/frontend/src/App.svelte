@@ -2,26 +2,7 @@
   import { onMount } from "svelte";
   import { Activity, CircleAlert, Cpu, PlugZap, RefreshCw, ShieldCheck } from "@lucide/svelte";
   import { BridgeService } from "../bindings/github.com/zclkkk/qkbox/apps/desktop";
-
-  type Capability = {
-    name: string;
-    state: string;
-    reason?: string;
-  };
-
-  type HelloReply = {
-    api_version: string;
-    min_supported_api_version: string;
-    schema_revision: string;
-    app_version: string;
-    qkboxd_version: string;
-    platform: {
-      os: string;
-      arch: string;
-    };
-    runtime_capabilities: Capability[];
-    platform_capabilities: Capability[];
-  };
+  import { type Capability, type HelloReply } from "../bindings/github.com/zclkkk/qkbox/shared/api/models";
 
   type View = "engine" | "platform" | "diagnostics";
 

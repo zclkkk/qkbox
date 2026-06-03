@@ -60,6 +60,7 @@ func launchQKBoxD() error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	cmd.Stdin = nil
+	prepareDetachedCmd(cmd)
 	return cmd.Start()
 }
 
