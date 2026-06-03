@@ -98,6 +98,44 @@ App-update coordination signals
 
 `qkboxd` 不应为了持有用户 profile 或 secret 而以 root、LocalSystem 或机器级 service 身份运行。
 
+### qkboxd 生命周期
+
+qkboxd 同时拥有系统托盘图标，使用纯 Go systray 实现（无 WebView 依赖）。
+
+GUI 关闭窗口时进程完全退出，不留后台。qkboxd 通过托盘图标保持用户可见性。
+
+```text
+用户点击托盘图标
+  -> qkboxd spawn GUI 进程
+  -> GUI 连接 qkboxd IPC，显示窗口
+
+用户关闭 GUI 窗口
+  -> GUI 通知 qkboxd 断开连接
+  -> GUI 进程完全退出
+
+用户右键托盘 -> 退出
+  -> qkboxd 关闭 runtime
+  -> qkboxd 退出，托盘图标消失
+```
+
+托盘右键退出是用户显式操作，不需要额外确认弹窗。
+
+qkboxd 异常退出规则：
+
+```text
+GUI 正常断开（发了 disconnect 通知）
+  -> qkboxd 立即清理连接状态
+
+GUI 异常断开（连接中断，未发通知）
+  -> qkboxd 进入 grace period (60s)
+  -> 期间有新 GUI 连接 -> 接管，继续运行
+  -> 到期无新 GUI 连接 -> 关闭 runtime，退出
+```
+
+OS shutdown 时 qkboxd 收到系统信号，关闭 runtime 后干净退出。
+
+qkboxd 不自行重启 runtime。runtime fatal 转为 FATAL 状态，等待 GUI 或用户操作。
+
 ### RuntimeOwner
 
 RuntimeOwner 是实际持有 sing-box runtime 的组件。
@@ -466,6 +504,28 @@ macOS / Linux
 ```
 
 product build 不允许未鉴权 TCP control port。
+
+IPC 认证采用 OS 访问控制 + pre-shared token 两层，跨平台对称：
+
+```text
+OS 访问控制层
+  Windows: Named Pipe DACL，仅 grant 当前用户 SID
+  Unix: socket 文件权限 + SO_PEERCRED 验证 UID
+
+应用认证层
+  IPC 连接建立后，第一帧必须为 pre-shared token
+  token 不匹配则 provider 立即断开连接
+```
+
+token 管理：
+
+```text
+安装 provider 时生成随机 token (32 bytes)
+写入 provider 配置（root/Admin 只读）
+同时写入 qkboxd 可读副本（user 只读）
+```
+
+Provider ↔ qkboxd 之间认证方式相同，不引入平台特有的进程身份验证。
 
 结构化错误：
 
