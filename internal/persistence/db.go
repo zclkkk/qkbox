@@ -38,3 +38,15 @@ func Open(stateDir string) (*DB, error) {
 func (db *DB) Close() error {
 	return db.conn.Close()
 }
+
+func (db *DB) WithTx(fn func(tx *sql.Tx) error) error {
+	tx, err := db.conn.Begin()
+	if err != nil {
+		return err
+	}
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}

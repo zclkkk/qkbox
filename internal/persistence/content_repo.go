@@ -26,6 +26,15 @@ func (db *DB) InsertContent(c *EncryptedContent) error {
 	return err
 }
 
+func (db *DB) InsertContentTx(tx *sql.Tx, c *EncryptedContent) error {
+	_, err := tx.Exec(
+		`INSERT INTO encrypted_content (id, source_type, source_id, iv, ciphertext, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		c.ID, c.SourceType, c.SourceID, c.IV, c.Ciphertext, c.CreatedAt,
+	)
+	return err
+}
+
 func (db *DB) GetContent(id string) (*EncryptedContent, error) {
 	var c EncryptedContent
 	err := db.conn.QueryRow(
@@ -48,6 +57,14 @@ func (db *DB) DeleteContent(id string) error {
 
 func (db *DB) DeleteContentBySource(sourceType, sourceID string) error {
 	_, err := db.conn.Exec(
+		`DELETE FROM encrypted_content WHERE source_type = ? AND source_id = ?`,
+		sourceType, sourceID,
+	)
+	return err
+}
+
+func (db *DB) DeleteContentBySourceTx(tx *sql.Tx, sourceType, sourceID string) error {
+	_, err := tx.Exec(
 		`DELETE FROM encrypted_content WHERE source_type = ? AND source_id = ?`,
 		sourceType, sourceID,
 	)

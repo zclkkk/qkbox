@@ -96,3 +96,17 @@ func NewSnapshotID() string {
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("snp_%s", hex.EncodeToString(b))
 }
+
+func (db *DB) DeleteSnapshotsByProfileTx(tx *sql.Tx, profileID string) error {
+	_, err := tx.Exec(`DELETE FROM snapshots WHERE profile_id = ?`, profileID)
+	return err
+}
+
+func (db *DB) InsertSnapshotTx(tx *sql.Tx, s *model.Snapshot, contentID string, diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON []byte) error {
+	_, err := tx.Exec(
+		`INSERT INTO snapshots (id, profile_id, content_id, validation_status, diagnostics_json, runtime_summary_json, required_capabilities_json, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.ID, s.ProfileID, contentID, string(s.ValidationStatus), diagnosticsJSON, runtimeSummaryJSON, requiredCapsJSON, s.CreatedAt,
+	)
+	return err
+}

@@ -108,6 +108,23 @@ func (db *DB) GetProfileDraftContentID(profileID string) (string, error) {
 	return contentID.String, nil
 }
 
+func (db *DB) GetProfileDraftContentIDTx(tx *sql.Tx, profileID string) (string, error) {
+	var contentID sql.NullString
+	err := tx.QueryRow(
+		`SELECT draft_content_id FROM profiles WHERE id = ?`, profileID,
+	).Scan(&contentID)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if !contentID.Valid {
+		return "", nil
+	}
+	return contentID.String, nil
+}
+
 func (db *DB) GetActiveProfile() (*model.Profile, error) {
 	var p model.Profile
 	var draftContentID, activeSnapshotID sql.NullString
@@ -131,4 +148,45 @@ func NewProfileID() string {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("prf_%s", hex.EncodeToString(b))
+}
+
+func (db *DB) InsertProfileTx(tx *sql.Tx, p *model.Profile) error {
+	_, err := tx.Exec(
+		`INSERT INTO profiles (id, name, draft_content_id, active_snapshot_id, created_at, updated_at)
+		 VALUES (?, ?, NULL, NULL, ?, ?)`,
+		p.ID, p.Name, p.CreatedAt, p.UpdatedAt,
+	)
+	return err
+}
+
+func (db *DB) UpdateProfileDraftContentTx(tx *sql.Tx, profileID, contentID string) error {
+	now := time.Now().UnixMilli()
+	_, err := tx.Exec(
+		`UPDATE profiles SET draft_content_id = ?, updated_at = ? WHERE id = ?`,
+		contentID, now, profileID,
+	)
+	return err
+}
+
+func (db *DB) UpdateProfileActiveSnapshotTx(tx *sql.Tx, profileID string, snapshotID *string) error {
+	now := time.Now().UnixMilli()
+	var id sql.NullString
+	if snapshotID != nil {
+		id = sql.NullString{String: *snapshotID, Valid: true}
+	}
+	_, err := tx.Exec(
+		`UPDATE profiles SET active_snapshot_id = ?, updated_at = ? WHERE id = ?`,
+		id, now, profileID,
+	)
+	return err
+}
+
+func (db *DB) ClearAllActiveSnapshotsTx(tx *sql.Tx) error {
+	_, err := tx.Exec(`UPDATE profiles SET active_snapshot_id = NULL WHERE active_snapshot_id IS NOT NULL`)
+	return err
+}
+
+func (db *DB) DeleteProfileTx(tx *sql.Tx, id string) error {
+	_, err := tx.Exec(`DELETE FROM profiles WHERE id = ?`, id)
+	return err
 }

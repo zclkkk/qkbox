@@ -223,6 +223,36 @@ func TestValidationBlocksInvalidSnapshot(t *testing.T) {
 	}
 }
 
+func TestValidationBlocksEmptyObject(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    "empty-obj",
+		Content: `{}`,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	pid := createReply.Profile.ID
+
+	validReply, err := svc.ValidateProfileDraft(ctx, api.ValidateProfileDraftRequest{ProfileID: pid})
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if validReply.Diagnostics.Status != "invalid" {
+		t.Fatalf("expected invalid for empty object, got %s", validReply.Diagnostics.Status)
+	}
+
+	_, err = svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
+	if err == nil {
+		t.Fatal("expected snapshot blocked for empty object")
+	}
+	if err.Code != api.ErrorConfigValidationFailed {
+		t.Fatalf("code = %s", err.Code)
+	}
+}
+
 func TestContentIsEncrypted(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()

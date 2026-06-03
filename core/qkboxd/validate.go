@@ -37,17 +37,17 @@ func validateContent(content string) model.Diagnostics {
 
 	if _, exists := obj["inbounds"]; !exists {
 		entries = append(entries, model.ValidationDiagnostic{
-			Severity: model.SeverityWarning,
+			Severity: model.SeverityError,
 			Field:    "inbounds",
-			Message:  "Missing 'inbounds' field.",
+			Message:  "Missing required 'inbounds' field.",
 		})
 	}
 
 	if _, exists := obj["outbounds"]; !exists {
 		entries = append(entries, model.ValidationDiagnostic{
-			Severity: model.SeverityWarning,
+			Severity: model.SeverityError,
 			Field:    "outbounds",
-			Message:  "Missing 'outbounds' field.",
+			Message:  "Missing required 'outbounds' field.",
 		})
 	}
 
