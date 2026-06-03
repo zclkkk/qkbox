@@ -35,21 +35,8 @@ func validateContent(content string) model.Diagnostics {
 		}
 	}
 
-	if _, exists := obj["inbounds"]; !exists {
-		entries = append(entries, model.ValidationDiagnostic{
-			Severity: model.SeverityError,
-			Field:    "inbounds",
-			Message:  "Missing required 'inbounds' field.",
-		})
-	}
-
-	if _, exists := obj["outbounds"]; !exists {
-		entries = append(entries, model.ValidationDiagnostic{
-			Severity: model.SeverityError,
-			Field:    "outbounds",
-			Message:  "Missing required 'outbounds' field.",
-		})
-	}
+	validateArrayField(obj, "inbounds", &entries)
+	validateArrayField(obj, "outbounds", &entries)
 
 	status := model.ValidationStatusValid
 	for _, e := range entries {
@@ -62,5 +49,24 @@ func validateContent(content string) model.Diagnostics {
 	return model.Diagnostics{
 		Status:  status,
 		Entries: entries,
+	}
+}
+
+func validateArrayField(obj map[string]interface{}, field string, entries *[]model.ValidationDiagnostic) {
+	val, exists := obj[field]
+	if !exists {
+		*entries = append(*entries, model.ValidationDiagnostic{
+			Severity: model.SeverityError,
+			Field:    field,
+			Message:  "Missing required '" + field + "' field.",
+		})
+		return
+	}
+	if _, ok := val.([]interface{}); !ok {
+		*entries = append(*entries, model.ValidationDiagnostic{
+			Severity: model.SeverityError,
+			Field:    field,
+			Message:  "'" + field + "' must be an array.",
+		})
 	}
 }

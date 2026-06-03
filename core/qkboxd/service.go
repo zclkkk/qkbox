@@ -91,18 +91,21 @@ func (s *Service) UpdateProfileDraft(_ context.Context, req api.UpdateProfileDra
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		oldContentID, _ := s.db.GetProfileDraftContentIDTx(tx, req.ProfileID)
-		if oldContentID != "" {
-			if err := s.db.DeleteContentBySourceTx(tx, "draft", req.ProfileID); err != nil {
-				return err
-			}
+		if err := s.db.DeleteContentBySourceTx(tx, "draft", req.ProfileID); err != nil {
+			return err
 		}
 		return s.storeDraftContentTx(tx, req.ProfileID, req.Content)
 	}); err != nil {
 		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
 
-	profile, _ = s.db.GetProfile(req.ProfileID)
+	profile, err = s.db.GetProfile(req.ProfileID)
+	if err != nil {
+		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+	}
+	if profile == nil {
+		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile disappeared after update.", "qkboxd", false)
+	}
 	return api.UpdateProfileDraftReply{Profile: *profile}, nil
 }
 
