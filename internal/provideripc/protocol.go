@@ -38,6 +38,7 @@ type StatusReply struct {
 }
 
 var MethodRegistry = map[string]struct{}{
+	MethodAuth:            {},
 	MethodGetStatus:       {},
 	MethodPrepareFeature:  {},
 	MethodRunRepairAction: {},

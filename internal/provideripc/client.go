@@ -36,13 +36,14 @@ func do[Req any, Reply any](c *Client, ctx context.Context, method string, req R
 	if c.config == nil {
 		return zero[Reply](), api.NewStructuredError(api.ErrorPlatformProviderUnavailable, "Privileged provider config is missing.", "provider", true)
 	}
-	if c.dial == nil {
-		c.dial = Dial
-	}
 	ctx, cancel := context.WithTimeout(ctx, defaultCallTimeout)
 	defer cancel()
 
-	conn, err := c.dial(ctx, c.config.Endpoint)
+	dial := c.dial
+	if dial == nil {
+		dial = Dial
+	}
+	conn, err := dial(ctx, c.config.Endpoint)
 	if err != nil {
 		return zero[Reply](), api.NewStructuredError(api.ErrorPlatformProviderUnavailable, err.Error(), "provider", true)
 	}

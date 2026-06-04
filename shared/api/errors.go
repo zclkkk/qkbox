@@ -9,6 +9,7 @@ const (
 	ErrorIPCTransport          = "IPC_TRANSPORT"
 	ErrorDaemonUnavailable     = "IPC_DAEMON_UNAVAILABLE"
 	ErrorDaemonLaunchFailed    = "IPC_DAEMON_LAUNCH_FAILED"
+	ErrorInternal              = "INTERNAL"
 
 	ErrorProfileNotFound     = "PROFILE_NOT_FOUND"
 	ErrorProfileNameEmpty    = "PROFILE_NAME_EMPTY"

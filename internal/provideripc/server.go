@@ -2,6 +2,7 @@ package provideripc
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net"
@@ -125,7 +126,7 @@ func (s *Server) authenticate(conn net.Conn) bool {
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "provider", true))
 		return false
 	}
-	if auth.Token == "" || auth.Token != s.token {
+	if auth.Token == "" || subtle.ConstantTimeCompare([]byte(auth.Token), []byte(s.token)) != 1 {
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorPlatformProviderAuthFailed, "Privileged provider authentication failed.", "provider", false))
 		return false
 	}

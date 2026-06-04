@@ -1754,6 +1754,7 @@ export const ReloadOutcome = {
     $zero: "",
 
     ReloadOutcomeSuccess: "success",
+    ReloadOutcomeFailedTargetLoad: "failed_target_load",
     ReloadOutcomeFailedValidation: "failed_validation",
     ReloadOutcomeFailedPermission: "failed_permission",
     ReloadOutcomeFailedPlatformPrepare: "failed_platform_prepare",

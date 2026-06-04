@@ -141,6 +141,14 @@ func providerStatusReason(status api.PrivilegedProviderStatus) string {
 	return "Privileged provider is unavailable."
 }
 
+func qkboxdInternalError(err error) *api.StructuredError {
+	return qkboxdInternalErrorMessage(err.Error())
+}
+
+func qkboxdInternalErrorMessage(message string) *api.StructuredError {
+	return api.NewStructuredError(api.ErrorInternal, message, "qkboxd", false)
+}
+
 // Profile CRUD
 
 func (s *Service) CreateProfile(_ context.Context, req api.CreateProfileRequest) (api.CreateProfileReply, *api.StructuredError) {
@@ -161,13 +169,13 @@ func (s *Service) CreateProfile(_ context.Context, req api.CreateProfileRequest)
 
 	draftContent, err := s.encryptedContent("draft", profile.ID, req.Content, now)
 	if err != nil {
-		return api.CreateProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileReply{}, qkboxdInternalError(err)
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.CreateProfileWithDraftTx(tx, &profile, draftContent)
 	}); err != nil {
-		return api.CreateProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileReply{}, qkboxdInternalError(err)
 	}
 
 	return api.CreateProfileReply{Profile: profile}, nil
@@ -183,7 +191,7 @@ func (s *Service) UpdateProfileDraft(_ context.Context, req api.UpdateProfileDra
 
 	profile, err := s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
 		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
@@ -191,18 +199,18 @@ func (s *Service) UpdateProfileDraft(_ context.Context, req api.UpdateProfileDra
 
 	draftContent, err := s.encryptedContent("draft", req.ProfileID, req.Content, time.Now().UnixMilli())
 	if err != nil {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.ReplaceDraftContentTx(tx, req.ProfileID, draftContent)
 	}); err != nil {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
 	}
 
 	profile, err = s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
 		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile disappeared after update.", "qkboxd", false)
@@ -213,7 +221,7 @@ func (s *Service) UpdateProfileDraft(_ context.Context, req api.UpdateProfileDra
 func (s *Service) DeleteProfile(_ context.Context, req api.DeleteProfileRequest) (api.DeleteProfileReply, *api.StructuredError) {
 	profile, err := s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.DeleteProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.DeleteProfileReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
 		return api.DeleteProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
@@ -225,7 +233,7 @@ func (s *Service) DeleteProfile(_ context.Context, req api.DeleteProfileRequest)
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.DeleteProfileGraphTx(tx, req.ProfileID)
 	}); err != nil {
-		return api.DeleteProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.DeleteProfileReply{}, qkboxdInternalError(err)
 	}
 
 	return api.DeleteProfileReply{}, nil
@@ -234,7 +242,7 @@ func (s *Service) DeleteProfile(_ context.Context, req api.DeleteProfileRequest)
 func (s *Service) ListProfiles(_ context.Context, _ api.ListProfilesRequest) (api.ListProfilesReply, *api.StructuredError) {
 	profiles, err := s.db.ListProfiles()
 	if err != nil {
-		return api.ListProfilesReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.ListProfilesReply{}, qkboxdInternalError(err)
 	}
 	if profiles == nil {
 		profiles = []model.ProfileSummary{}
@@ -245,7 +253,7 @@ func (s *Service) ListProfiles(_ context.Context, _ api.ListProfilesRequest) (ap
 func (s *Service) GetProfile(_ context.Context, req api.GetProfileRequest) (api.GetProfileReply, *api.StructuredError) {
 	profile, err := s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.GetProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.GetProfileReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
 		return api.GetProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
@@ -254,12 +262,12 @@ func (s *Service) GetProfile(_ context.Context, req api.GetProfileRequest) (api.
 	reply := api.GetProfileReply{Profile: *profile}
 	contentID, err := s.db.GetProfileDraftContentID(req.ProfileID)
 	if err != nil {
-		return api.GetProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.GetProfileReply{}, qkboxdInternalError(err)
 	}
 	if contentID != "" {
 		content, err := s.decryptContent(contentID)
 		if err != nil {
-			return api.GetProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt draft content: "+err.Error(), "qkboxd", false)
+			return api.GetProfileReply{}, qkboxdInternalErrorMessage("Failed to decrypt draft content: " + err.Error())
 		}
 		reply.Content = content
 	}
@@ -271,7 +279,7 @@ func (s *Service) GetProfile(_ context.Context, req api.GetProfileRequest) (api.
 func (s *Service) ValidateProfileDraft(_ context.Context, req api.ValidateProfileDraftRequest) (api.ValidateProfileDraftReply, *api.StructuredError) {
 	profile, err := s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.ValidateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.ValidateProfileDraftReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
 		return api.ValidateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
@@ -279,7 +287,7 @@ func (s *Service) ValidateProfileDraft(_ context.Context, req api.ValidateProfil
 
 	contentID, err := s.db.GetProfileDraftContentID(req.ProfileID)
 	if err != nil {
-		return api.ValidateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.ValidateProfileDraftReply{}, qkboxdInternalError(err)
 	}
 	if contentID == "" {
 		return api.ValidateProfileDraftReply{Diagnostics: model.Diagnostics{
@@ -294,7 +302,7 @@ func (s *Service) ValidateProfileDraft(_ context.Context, req api.ValidateProfil
 
 	content, err := s.decryptContent(contentID)
 	if err != nil {
-		return api.ValidateProfileDraftReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt content: "+err.Error(), "qkboxd", false)
+		return api.ValidateProfileDraftReply{}, qkboxdInternalErrorMessage("Failed to decrypt content: " + err.Error())
 	}
 
 	diag := validateContent(content)
@@ -306,7 +314,7 @@ func (s *Service) ValidateProfileDraft(_ context.Context, req api.ValidateProfil
 func (s *Service) GetProfileDiagnostics(_ context.Context, req api.GetProfileDiagnosticsRequest) (api.GetProfileDiagnosticsReply, *api.StructuredError) {
 	profile, err := s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.GetProfileDiagnosticsReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.GetProfileDiagnosticsReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
 		return api.GetProfileDiagnosticsReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
@@ -314,7 +322,7 @@ func (s *Service) GetProfileDiagnostics(_ context.Context, req api.GetProfileDia
 
 	contentID, err := s.db.GetProfileDraftContentID(req.ProfileID)
 	if err != nil {
-		return api.GetProfileDiagnosticsReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.GetProfileDiagnosticsReply{}, qkboxdInternalError(err)
 	}
 	if contentID == "" {
 		return api.GetProfileDiagnosticsReply{Diagnostics: model.Diagnostics{
@@ -325,7 +333,7 @@ func (s *Service) GetProfileDiagnostics(_ context.Context, req api.GetProfileDia
 
 	content, err := s.decryptContent(contentID)
 	if err != nil {
-		return api.GetProfileDiagnosticsReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt content: "+err.Error(), "qkboxd", false)
+		return api.GetProfileDiagnosticsReply{}, qkboxdInternalErrorMessage("Failed to decrypt content: " + err.Error())
 	}
 
 	diag := validateContent(content)
@@ -337,7 +345,7 @@ func (s *Service) GetProfileDiagnostics(_ context.Context, req api.GetProfileDia
 func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfileSnapshotRequest) (api.CreateProfileSnapshotReply, *api.StructuredError) {
 	profile, err := s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
 		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
@@ -345,7 +353,7 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 
 	contentID, err := s.db.GetProfileDraftContentID(req.ProfileID)
 	if err != nil {
-		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 	if contentID == "" {
 		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorSnapshotCreateFailed, "Profile has no draft content.", "qkboxd", true)
@@ -353,7 +361,7 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 
 	content, err := s.decryptContent(contentID)
 	if err != nil {
-		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt content: "+err.Error(), "qkboxd", false)
+		return api.CreateProfileSnapshotReply{}, qkboxdInternalErrorMessage("Failed to decrypt content: " + err.Error())
 	}
 
 	diag := validateContent(content)
@@ -370,12 +378,12 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 
 	diagJSON, err := json.Marshal(diag.Entries)
 	if err != nil {
-		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 	requiredCapabilities := extractRequiredCapabilities(content)
 	requiredCapabilitiesJSON, err := json.Marshal(requiredCapabilities)
 	if err != nil {
-		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 
 	snapshot := model.Snapshot{
@@ -388,13 +396,13 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 	}
 	snapshotContent, err := s.encryptedContent("snapshot", req.ProfileID, content, snapshot.CreatedAt)
 	if err != nil {
-		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.CreateSnapshotWithContentTx(tx, &snapshot, snapshotContent, diagJSON, nil, requiredCapabilitiesJSON)
 	}); err != nil {
-		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.CreateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 
 	return api.CreateProfileSnapshotReply{Snapshot: snapshot}, nil
@@ -410,7 +418,7 @@ func (s *Service) ActivateProfileSnapshot(_ context.Context, req api.ActivatePro
 
 	snapshot, _, err := s.db.GetSnapshot(req.SnapshotID)
 	if err != nil {
-		return api.ActivateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.ActivateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 	if snapshot == nil {
 		return api.ActivateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorSnapshotNotFound, "Snapshot not found.", "qkboxd", true)
@@ -419,7 +427,7 @@ func (s *Service) ActivateProfileSnapshot(_ context.Context, req api.ActivatePro
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.SetActiveSnapshotTx(tx, snapshot.ID)
 	}); err != nil {
-		return api.ActivateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.ActivateProfileSnapshotReply{}, qkboxdInternalError(err)
 	}
 
 	return api.ActivateProfileSnapshotReply{}, nil
@@ -428,7 +436,7 @@ func (s *Service) ActivateProfileSnapshot(_ context.Context, req api.ActivatePro
 func (s *Service) GetActiveProfile(_ context.Context, _ api.GetActiveProfileRequest) (api.GetActiveProfileReply, *api.StructuredError) {
 	profile, err := s.db.GetActiveProfile()
 	if err != nil {
-		return api.GetActiveProfileReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.GetActiveProfileReply{}, qkboxdInternalError(err)
 	}
 	return api.GetActiveProfileReply{Profile: profile}, nil
 }
@@ -436,7 +444,7 @@ func (s *Service) GetActiveProfile(_ context.Context, _ api.GetActiveProfileRequ
 func (s *Service) GetActiveSnapshot(_ context.Context, _ api.GetActiveSnapshotRequest) (api.GetActiveSnapshotReply, *api.StructuredError) {
 	snapshot, _, err := s.db.GetActiveSnapshot()
 	if err != nil {
-		return api.GetActiveSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.GetActiveSnapshotReply{}, qkboxdInternalError(err)
 	}
 	return api.GetActiveSnapshotReply{Snapshot: snapshot}, nil
 }
@@ -444,7 +452,7 @@ func (s *Service) GetActiveSnapshot(_ context.Context, _ api.GetActiveSnapshotRe
 func (s *Service) ListSnapshots(_ context.Context, req api.ListSnapshotsRequest) (api.ListSnapshotsReply, *api.StructuredError) {
 	snapshots, err := s.db.ListSnapshots(req.ProfileID)
 	if err != nil {
-		return api.ListSnapshotsReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.ListSnapshotsReply{}, qkboxdInternalError(err)
 	}
 	if snapshots == nil {
 		snapshots = []model.SnapshotSummary{}
@@ -462,7 +470,7 @@ func (s *Service) RollbackToSnapshot(_ context.Context, req api.RollbackToSnapsh
 
 	snapshot, _, err := s.db.GetSnapshot(req.SnapshotID)
 	if err != nil {
-		return api.RollbackToSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.RollbackToSnapshotReply{}, qkboxdInternalError(err)
 	}
 	if snapshot == nil {
 		return api.RollbackToSnapshotReply{}, api.NewStructuredError(api.ErrorSnapshotNotFound, "Snapshot not found.", "qkboxd", true)
@@ -471,7 +479,7 @@ func (s *Service) RollbackToSnapshot(_ context.Context, req api.RollbackToSnapsh
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.SetActiveSnapshotTx(tx, snapshot.ID)
 	}); err != nil {
-		return api.RollbackToSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return api.RollbackToSnapshotReply{}, qkboxdInternalError(err)
 	}
 
 	return api.RollbackToSnapshotReply{}, nil
@@ -494,7 +502,7 @@ func (s *Service) EngineStart(ctx context.Context, _ api.EngineStartRequest) (ap
 func (s *Service) loadActiveEngineStartTarget(ctx context.Context) (EngineStartTarget, *api.StructuredError) {
 	activeSnapshotID, err := s.db.GetActiveSnapshotID()
 	if err != nil {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return EngineStartTarget{}, qkboxdInternalError(err)
 	}
 	if activeSnapshotID == "" {
 		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot to start.", "qkboxd", true)
@@ -523,7 +531,7 @@ func (s *Service) startPreparedSnapshotTarget(ctx context.Context, snapshotID st
 func (s *Service) loadEngineStartTargetByID(snapshotID string) (EngineStartTarget, *api.StructuredError) {
 	snapshot, contentID, err := s.db.GetSnapshot(snapshotID)
 	if err != nil {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return EngineStartTarget{}, qkboxdInternalError(err)
 	}
 	if snapshot == nil {
 		return EngineStartTarget{}, api.NewStructuredError(api.ErrorSnapshotNotFound, "Snapshot not found.", "qkboxd", true)
@@ -534,7 +542,7 @@ func (s *Service) loadEngineStartTargetByID(snapshotID string) (EngineStartTarge
 
 	configJSON, err := s.decryptContent(contentID)
 	if err != nil {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt snapshot content: "+err.Error(), "qkboxd", false)
+		return EngineStartTarget{}, qkboxdInternalErrorMessage("Failed to decrypt snapshot content: " + err.Error())
 	}
 
 	return EngineStartTarget{SnapshotID: snapshotID, ConfigJSON: configJSON}, nil
@@ -558,7 +566,7 @@ func (s *Service) EngineGetStatus(_ context.Context, _ api.EngineGetStatusReques
 	if status.State == model.EngineStateIdle || status.State == model.EngineStateUninitialized {
 		activeSnapshotID, err := s.db.GetActiveSnapshotID()
 		if err != nil {
-			return api.EngineGetStatusReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+			return api.EngineGetStatusReply{}, qkboxdInternalError(err)
 		}
 		status.ActiveSnapshotID = activeSnapshotID
 	}
@@ -583,7 +591,7 @@ func (s *Service) EngineReload(ctx context.Context, req api.EngineReloadRequest)
 		var err error
 		previousSnapshotID, err = s.db.GetActiveSnapshotID()
 		if err != nil {
-			return reply, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+			return reply, qkboxdInternalError(err)
 		}
 	}
 	reply.PreviousSnapshotID = previousSnapshotID
@@ -591,7 +599,7 @@ func (s *Service) EngineReload(ctx context.Context, req api.EngineReloadRequest)
 
 	target, structured := s.loadEngineStartTargetByID(req.SnapshotID)
 	if structured != nil {
-		reply.Outcome = api.ReloadOutcomeFailedRuntimeStart
+		reply.Outcome = reloadOutcomeForTargetLoadFailure(structured)
 		reply.Failure = structured
 		return reply, nil
 	}
@@ -647,7 +655,7 @@ func (s *Service) EngineReload(ctx context.Context, req api.EngineReloadRequest)
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.SetActiveSnapshotTx(tx, target.SnapshotID)
 	}); err != nil {
-		reply.Failure = api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		reply.Failure = qkboxdInternalError(err)
 		if stopErr := s.engine.Stop(); stopErr != nil {
 			reply.Outcome = api.ReloadOutcomeDegraded
 			reply.CleanupFailure = stopErr
@@ -666,6 +674,18 @@ func (s *Service) EngineReload(ctx context.Context, req api.EngineReloadRequest)
 	reply.Outcome = api.ReloadOutcomeSuccess
 	reply.ActiveSnapshotID = target.SnapshotID
 	return reply, nil
+}
+
+func reloadOutcomeForTargetLoadFailure(err *api.StructuredError) api.ReloadOutcome {
+	if err == nil {
+		return api.ReloadOutcomeFailedTargetLoad
+	}
+	switch err.Code {
+	case api.ErrorSnapshotNotFound, api.ErrorEngineNoActiveSnapshot:
+		return api.ReloadOutcomeFailedValidation
+	default:
+		return api.ReloadOutcomeFailedTargetLoad
+	}
 }
 
 func (s *Service) EngineSubscribeStatus(ctx context.Context, _ api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
@@ -765,7 +785,7 @@ func (s *Service) decryptContent(contentID string) (string, error) {
 func (s *Service) prepareSnapshotCapabilities(ctx context.Context, snapshotID, configJSON string) *api.StructuredError {
 	snapshot, _, err := s.db.GetSnapshot(snapshotID)
 	if err != nil {
-		return api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		return qkboxdInternalError(err)
 	}
 	required := []string{}
 	if snapshot != nil && len(snapshot.RequiredCapabilities) > 0 {

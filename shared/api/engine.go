@@ -37,6 +37,7 @@ type ReloadOutcome string
 
 const (
 	ReloadOutcomeSuccess               ReloadOutcome = "success"
+	ReloadOutcomeFailedTargetLoad      ReloadOutcome = "failed_target_load"
 	ReloadOutcomeFailedValidation      ReloadOutcome = "failed_validation"
 	ReloadOutcomeFailedPermission      ReloadOutcome = "failed_permission"
 	ReloadOutcomeFailedPlatformPrepare ReloadOutcome = "failed_platform_prepare"

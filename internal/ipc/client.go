@@ -168,13 +168,14 @@ func (c *Client) PlatformSetSystemProxyEnabled(ctx context.Context, req api.SetS
 // generic dispatch
 
 func do[Req any, Reply any](c *Client, ctx context.Context, method string, req Req) (Reply, *api.StructuredError) {
-	if c.dial == nil {
-		c.dial = Dial
-	}
 	ctx, cancel := context.WithTimeout(ctx, defaultCallTimeout)
 	defer cancel()
 
-	conn, err := c.dial(ctx)
+	dial := c.dial
+	if dial == nil {
+		dial = Dial
+	}
+	conn, err := dial(ctx)
 	if err != nil {
 		return zero[Reply](), api.NewStructuredError(api.ErrorIPCTransport, err.Error(), "ipc", true)
 	}
@@ -209,10 +210,11 @@ func zero[T any]() T {
 }
 
 func openSubscription[Req any](c *Client, ctx context.Context, method string, req Req) (<-chan EventFrame, *api.StructuredError) {
-	if c.dial == nil {
-		c.dial = Dial
+	dial := c.dial
+	if dial == nil {
+		dial = Dial
 	}
-	conn, err := c.dial(ctx)
+	conn, err := dial(ctx)
 	if err != nil {
 		return nil, api.NewStructuredError(api.ErrorIPCTransport, err.Error(), "ipc", true)
 	}

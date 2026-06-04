@@ -2,6 +2,7 @@ package qkboxd
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -792,6 +793,67 @@ func TestEngineReloadSwitchesActiveSnapshotAfterTargetStarts(t *testing.T) {
 	}
 	if len(*adapters) < 2 || (*adapters)[1].configJSON == "" || (*adapters)[1].configJSON == (*adapters)[0].configJSON {
 		t.Fatalf("adapter configs = %+v", *adapters)
+	}
+}
+
+func TestEngineReloadMissingTargetSnapshotIsValidationFailure(t *testing.T) {
+	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
+	ctx := context.Background()
+	installAdapterSequence(svc)
+
+	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: "snp_missing"})
+	if structured != nil {
+		t.Fatalf("reload: %v", structured)
+	}
+	if reply.Outcome != api.ReloadOutcomeFailedValidation {
+		t.Fatalf("outcome = %s", reply.Outcome)
+	}
+	if reply.Failure == nil || reply.Failure.Code != api.ErrorSnapshotNotFound {
+		t.Fatalf("failure = %+v", reply.Failure)
+	}
+}
+
+func TestEngineReloadTargetLoadInternalFailureIsNotValidation(t *testing.T) {
+	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
+	ctx := context.Background()
+	installAdapterSequence(svc)
+
+	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
+	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
+	_, targetContentID, err := svc.db.GetSnapshot(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.db.WithTx(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`UPDATE encrypted_content SET ciphertext = ? WHERE id = ?`, []byte("corrupt"), targetContentID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
+	if structured != nil {
+		t.Fatalf("reload: %v", structured)
+	}
+	if reply.Outcome != api.ReloadOutcomeFailedTargetLoad {
+		t.Fatalf("outcome = %s", reply.Outcome)
+	}
+	if reply.Failure == nil || reply.Failure.Code != api.ErrorInternal {
+		t.Fatalf("failure = %+v", reply.Failure)
 	}
 }
 
