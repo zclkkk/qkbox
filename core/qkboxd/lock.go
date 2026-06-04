@@ -17,11 +17,26 @@ func AcquireUserLock() (*UserLock, error) {
 		return nil, err
 	}
 	path := filepath.Join(dir, "qkboxd.lock")
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
+		return nil, err
+	}
+	if err := lockFile(file); err != nil {
+		_ = file.Close()
 		return nil, fmt.Errorf("qkboxd already appears to be running for this user: %w", err)
 	}
+	if err := file.Truncate(0); err != nil {
+		_ = unlockFile(file)
+		_ = file.Close()
+		return nil, err
+	}
+	if _, err := file.Seek(0, 0); err != nil {
+		_ = unlockFile(file)
+		_ = file.Close()
+		return nil, err
+	}
 	if _, err := fmt.Fprintf(file, "%d\n", os.Getpid()); err != nil {
+		_ = unlockFile(file)
 		_ = file.Close()
 		_ = os.Remove(path)
 		return nil, err
@@ -35,6 +50,7 @@ func (l *UserLock) Release() {
 		return
 	}
 	if l.file != nil {
+		_ = unlockFile(l.file)
 		_ = l.file.Close()
 	}
 	if l.path != "" {
