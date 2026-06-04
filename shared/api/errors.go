@@ -15,22 +15,29 @@ const (
 	ErrorProfileContentEmpty = "PROFILE_CONTENT_EMPTY"
 	ErrorProfileHasSnapshot  = "PROFILE_HAS_ACTIVE_SNAPSHOT"
 
-	ErrorSnapshotNotFound       = "SNAPSHOT_NOT_FOUND"
-	ErrorSnapshotCreateFailed   = "SNAPSHOT_CREATE_FAILED"
-	ErrorSnapshotAlreadyActive  = "SNAPSHOT_ALREADY_ACTIVE"
+	ErrorSnapshotNotFound      = "SNAPSHOT_NOT_FOUND"
+	ErrorSnapshotCreateFailed  = "SNAPSHOT_CREATE_FAILED"
+	ErrorSnapshotAlreadyActive = "SNAPSHOT_ALREADY_ACTIVE"
 
 	ErrorConfigValidationFailed = "CONFIG_VALIDATION_FAILED"
 	ErrorConfigInvalidJSON      = "CONFIG_INVALID_JSON"
 
-	ErrorEngineNoActiveSnapshot   = "ENGINE_NO_ACTIVE_SNAPSHOT"
-	ErrorEngineAlreadyStarted     = "ENGINE_ALREADY_STARTED"
-	ErrorEngineNotStarted         = "ENGINE_NOT_STARTED"
-	ErrorEngineBusy               = "ENGINE_BUSY"
-	ErrorEngineRunning            = "ENGINE_RUNNING"
+	ErrorEngineNoActiveSnapshot = "ENGINE_NO_ACTIVE_SNAPSHOT"
+	ErrorEngineAlreadyStarted   = "ENGINE_ALREADY_STARTED"
+	ErrorEngineNotStarted       = "ENGINE_NOT_STARTED"
+	ErrorEngineBusy             = "ENGINE_BUSY"
+	ErrorEngineRunning          = "ENGINE_RUNNING"
 
 	ErrorSingboxAdapterConfigFailed = "SINGBOX_ADAPTER_CONFIG_FAILED"
 	ErrorSingboxAdapterStartFailed  = "SINGBOX_ADAPTER_START_FAILED"
 	ErrorSingboxAdapterStopFailed   = "SINGBOX_ADAPTER_STOP_FAILED"
+
+	ErrorObservabilityUnavailable  = "OBSERVABILITY_UNAVAILABLE"
+	ErrorObservabilityUnsupported  = "OBSERVABILITY_UNSUPPORTED"
+	ErrorObservabilityDegraded     = "OBSERVABILITY_DEGRADED"
+	ErrorRuntimeGroupNotFound      = "RUNTIME_GROUP_NOT_FOUND"
+	ErrorRuntimeOutboundNotFound   = "RUNTIME_OUTBOUND_NOT_FOUND"
+	ErrorRuntimeConnectionNotFound = "RUNTIME_CONNECTION_NOT_FOUND"
 )
 
 type StructuredError struct {

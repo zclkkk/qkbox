@@ -2,6 +2,7 @@ package qkboxd
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,14 +13,25 @@ import (
 func startDaemon(t *testing.T) *ipc.Client {
 	t.Helper()
 	t.Setenv("QKBOX_STATE_DIR", t.TempDir())
+	t.Setenv("QKBOX_IPC_ENDPOINT_ID", fmt.Sprintf("test-%d", time.Now().UnixNano()))
 
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- Run(ctx)
 	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-errCh:
+			if err != nil {
+				t.Errorf("qkboxd exit: %v", err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Error("qkboxd did not stop")
+		}
+	})
 
 	readyCtx, readyCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer readyCancel()
@@ -222,4 +234,3 @@ func TestDaemonEngineLifecycle(t *testing.T) {
 		t.Fatalf("expected IDLE, got %s", statusReply.Status.State)
 	}
 }
-

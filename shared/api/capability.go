@@ -18,12 +18,14 @@ type Capability struct {
 
 func RuntimeCapabilityShell() []Capability {
 	return []Capability{
-		{Name: "RUNTIME_LIFECYCLE", State: CapabilityUnavailable, Reason: "Implemented in Phase 4."},
-		{Name: "LOG_SOURCE", State: CapabilityUnavailable, Reason: "Implemented in Phase 5."},
-		{Name: "TRAFFIC_SOURCE", State: CapabilityUnavailable, Reason: "Implemented in Phase 6."},
-		{Name: "CONNECTION_SOURCE", State: CapabilityUnavailable, Reason: "Implemented in Phase 6."},
-		{Name: "GROUP_SOURCE", State: CapabilityUnavailable, Reason: "Implemented in Phase 6."},
-		{Name: "URL_TEST_SOURCE", State: CapabilityUnavailable, Reason: "Implemented in Phase 6."},
+		{Name: "RUNTIME_LIFECYCLE", State: CapabilityAvailable},
+		{Name: "STATUS_STREAM", State: CapabilityAvailable},
+		{Name: "LOG_SOURCE", State: CapabilityAvailable},
+		{Name: "TRAFFIC_SOURCE", State: CapabilityUnavailable, Reason: "Engine is not started."},
+		{Name: "CONNECTION_SOURCE", State: CapabilityUnavailable, Reason: "Engine is not started."},
+		{Name: "GROUP_SOURCE", State: CapabilityUnavailable, Reason: "Engine is not started."},
+		{Name: "SELECT_OUTBOUND", State: CapabilityUnavailable, Reason: "Engine is not started."},
+		{Name: "URL_TEST_SOURCE", State: CapabilityUnavailable, Reason: "Engine is not started."},
 	}
 }
 

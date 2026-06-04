@@ -1,11 +1,29 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Events } from "@wailsio/runtime";
   import { Activity, CircleAlert, Cpu, PlugZap, RefreshCw, ShieldCheck } from "@lucide/svelte";
   import { BridgeService } from "../bindings/github.com/zclkkk/qkbox/apps/desktop";
-  import { type Capability, type HelloReply } from "../bindings/github.com/zclkkk/qkbox/shared/api/models";
-  import { type EngineStatus } from "../bindings/github.com/zclkkk/qkbox/shared/api";
+  import {
+    type Capability,
+    type EngineStatus,
+    type HelloReply,
+    type OutboundGroup
+  } from "../bindings/github.com/zclkkk/qkbox/shared/api/models";
 
   type View = "engine" | "platform" | "diagnostics";
+  type RuntimeLogEntry = { seq: number; timestamp: number; source: string; level: string; message: string };
+  type TrafficSnapshot = { timestamp: number; upload_total: number; download_total: number; upload_rate: number; download_rate: number };
+  type RuntimeConnection = {
+    id: string;
+    network: string;
+    source: string;
+    destination: string;
+    host?: string;
+    outbound?: string;
+    upload: number;
+    download: number;
+  };
+  type ConnectionSnapshot = { timestamp: number; upload_total: number; download_total: number; connections: RuntimeConnection[] };
 
   let loading = $state(true);
   let reply = $state<HelloReply | null>(null);
@@ -14,9 +32,28 @@
   let lastChecked = $state<string>("Never");
   let engineStatus = $state<EngineStatus | null>(null);
   let engineError = $state<string | null>(null);
+  let runtimeCapabilities = $state<Capability[]>([]);
+  let logs = $state<RuntimeLogEntry[]>([]);
+  let traffic = $state<TrafficSnapshot | null>(null);
+  let connections = $state<ConnectionSnapshot | null>(null);
+  let groups = $state<OutboundGroup[]>([]);
 
   function formatStructuredError(err: { code: string; message: string }) {
     return `${err.code}: ${err.message}`;
+  }
+
+  function formatBytes(value: number) {
+    if (value < 1024) {
+      return `${value} B`;
+    }
+    if (value < 1024 * 1024) {
+      return `${(value / 1024).toFixed(1)} KiB`;
+    }
+    return `${(value / 1024 / 1024).toFixed(1)} MiB`;
+  }
+
+  function engineStarted() {
+    return engineStatus?.state === "STARTED";
   }
 
   async function refreshEngineStatus() {
@@ -30,6 +67,27 @@
     }
   }
 
+  async function refreshRuntimeCapabilities() {
+    const result = await BridgeService.EngineGetRuntimeCapabilities();
+    if (result.error) {
+      engineError = formatStructuredError(result.error);
+      return;
+    }
+    runtimeCapabilities = result.reply?.capabilities ?? [];
+  }
+
+  async function refreshGroups() {
+    const result = await BridgeService.EngineListGroups();
+    if (result.error) {
+      if (result.error.code !== "ENGINE_NOT_STARTED") {
+        engineError = formatStructuredError(result.error);
+      }
+      groups = [];
+      return;
+    }
+    groups = result.reply?.groups ?? [];
+  }
+
   async function bootstrap() {
     loading = true;
     error = null;
@@ -40,6 +98,7 @@
         reply = null;
       } else {
         reply = result.reply as HelloReply;
+        runtimeCapabilities = reply.runtime_capabilities;
         lastChecked = new Date().toLocaleTimeString();
       }
     } catch (err) {
@@ -49,6 +108,8 @@
 
     try {
       await refreshEngineStatus();
+      await refreshRuntimeCapabilities();
+      await refreshGroups();
     } catch (e) {
       engineError = e instanceof Error ? e.message : String(e);
     }
@@ -65,6 +126,8 @@
         engineError = formatStructuredError(result.error);
       }
       await refreshEngineStatus();
+      await refreshRuntimeCapabilities();
+      await refreshGroups();
     } catch (err) {
       engineError = err instanceof Error ? err.message : String(err);
     } finally {
@@ -81,6 +144,8 @@
         engineError = formatStructuredError(result.error);
       }
       await refreshEngineStatus();
+      await refreshRuntimeCapabilities();
+      await refreshGroups();
     } catch (err) {
       engineError = err instanceof Error ? err.message : String(err);
     } finally {
@@ -92,8 +157,63 @@
     activeView = view;
   }
 
+  async function selectOutbound(groupTag: string, outboundTag: string) {
+    engineError = null;
+    const result = await BridgeService.EngineSelectOutbound({ group_tag: groupTag, outbound_tag: outboundTag });
+    if (result.error) {
+      engineError = formatStructuredError(result.error);
+      return;
+    }
+    await refreshGroups();
+  }
+
+  async function urlTest(groupTag: string) {
+    engineError = null;
+    const result = await BridgeService.EngineURLTest({ group_tag: groupTag, timeout_ms: 10000 });
+    if (result.error) {
+      engineError = formatStructuredError(result.error);
+      return;
+    }
+    await refreshGroups();
+  }
+
+  async function closeAllConnections() {
+    engineError = null;
+    const result = await BridgeService.EngineCloseAllConnections();
+    if (result.error) {
+      engineError = formatStructuredError(result.error);
+    }
+  }
+
   onMount(() => {
     void bootstrap();
+    const offStatus = Events.On("qkbox.engine.status", (event) => {
+      engineStatus = event.data as EngineStatus;
+    });
+    const offLog = Events.On("qkbox.engine.log", (event) => {
+      logs = [...logs.slice(-127), event.data as RuntimeLogEntry];
+    });
+    const offTraffic = Events.On("qkbox.engine.traffic", (event) => {
+      traffic = event.data as TrafficSnapshot;
+    });
+    const offConnections = Events.On("qkbox.engine.connections", (event) => {
+      connections = event.data as ConnectionSnapshot;
+    });
+    const offBridgeError = Events.On("qkbox.engine.eventBridgeError", (event) => {
+      const err = event.data as { code?: string; message?: string };
+      if (err?.code && err.code !== "ENGINE_NOT_STARTED" && err.code !== "OBSERVABILITY_UNAVAILABLE") {
+        engineError = `${err.code}: ${err.message ?? ""}`;
+      }
+    });
+    void BridgeService.StartRuntimeEventBridge();
+    return () => {
+      offStatus();
+      offLog();
+      offTraffic();
+      offConnections();
+      offBridgeError();
+      void BridgeService.StopRuntimeEventBridge();
+    };
   });
 </script>
 
@@ -171,7 +291,87 @@
               </div>
             {/if}
           </section>
-          {@render capabilityList("Runtime", reply.runtime_capabilities)}
+          <section class="panel">
+            <h2>Traffic</h2>
+            {#if engineStarted() && traffic}
+              <div class="metrics">
+                <div><span class="label">Upload</span><strong>{formatBytes(traffic.upload_total)}</strong></div>
+                <div><span class="label">Download</span><strong>{formatBytes(traffic.download_total)}</strong></div>
+                <div><span class="label">Up rate</span><strong>{formatBytes(traffic.upload_rate)}/s</strong></div>
+                <div><span class="label">Down rate</span><strong>{formatBytes(traffic.download_rate)}/s</strong></div>
+              </div>
+            {:else if engineStarted()}
+              <p class="empty">Waiting for traffic source</p>
+            {:else}
+              <p class="empty">Traffic source unavailable</p>
+            {/if}
+          </section>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Connections</h2>
+              <button type="button" onclick={closeAllConnections} disabled={!engineStarted() || !connections?.connections?.length}>Close all</button>
+            </div>
+            {#if engineStarted() && connections}
+              <div class="connection-list">
+                {#each connections.connections as connection}
+                  <div class="connection-row">
+                    <strong>{connection.host || connection.destination || connection.id}</strong>
+                    <span>{connection.network} / {connection.outbound || "unknown"} / {formatBytes(connection.upload)}/{formatBytes(connection.download)}</span>
+                  </div>
+                {:else}
+                  <p class="empty">No active connections</p>
+                {/each}
+              </div>
+            {:else if engineStarted()}
+              <p class="empty">Waiting for connection source</p>
+            {:else}
+              <p class="empty">Connection source unavailable</p>
+            {/if}
+          </section>
+          <section class="panel">
+            <h2>Outbound Groups</h2>
+            {#if engineStarted()}
+              <div class="group-list">
+                {#each groups as group}
+                  <div class="group-row">
+                    <div class="panel-title">
+                      <strong>{group.tag}</strong>
+                      {#if group.type === "urltest"}
+                        <button type="button" onclick={() => urlTest(group.tag)}>URLTest</button>
+                      {/if}
+                    </div>
+                    <span class="label">{group.type} / selected {group.selected}</span>
+                    <div class="outbound-options">
+                      {#each group.outbounds as outbound}
+                        {#if group.type === "selector"}
+                          <button type="button" class:active={outbound.tag === group.selected} onclick={() => selectOutbound(group.tag, outbound.tag)}>
+                            {outbound.tag}
+                          </button>
+                        {:else}
+                          <span class:active={outbound.tag === group.selected}>{outbound.tag}</span>
+                        {/if}
+                      {/each}
+                    </div>
+                  </div>
+                {:else}
+                  <p class="empty">No runtime groups</p>
+                {/each}
+              </div>
+            {:else}
+              <p class="empty">Runtime groups unavailable</p>
+            {/if}
+          </section>
+          <section class="panel">
+            <h2>Logs</h2>
+            <div class="logs">
+              {#each logs as entry}
+                <div><span>{entry.level}</span>{entry.message}</div>
+              {:else}
+                <p class="empty">No logs</p>
+              {/each}
+            </div>
+          </section>
+          {@render capabilityList("Runtime", runtimeCapabilities)}
         {:else if activeView === "platform"}
           {@render capabilityList("Platform", reply.platform_capabilities)}
         {:else}

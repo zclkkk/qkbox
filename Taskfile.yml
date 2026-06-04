@@ -19,7 +19,7 @@ tasks:
   build:qkboxd:
     summary: Builds the user-scope qkboxd executable
     cmds:
-      - go build -trimpath -buildvcs=false -o "bin/qkboxd{{exeExt}}" ./cmd/qkboxd
+      - go build -tags with_clash_api -trimpath -buildvcs=false -o "bin/qkboxd{{exeExt}}" ./cmd/qkboxd
 
   desktop:dev:
     summary: Runs the desktop app in Wails dev mode

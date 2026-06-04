@@ -2,19 +2,24 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/zclkkk/qkbox/internal/ipc"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
 type BridgeService struct {
-	client *ipc.Client
+	client      *ipc.Client
+	eventMu     sync.Mutex
+	eventCancel context.CancelFunc
 }
 
 func NewBridgeService() *BridgeService {
@@ -75,6 +80,135 @@ func (b *BridgeService) EngineGetStatus(ctx context.Context) api.EngineGetStatus
 		return api.EngineGetStatusResult{Error: structured}
 	}
 	return api.EngineGetStatusResult{Reply: &reply}
+}
+
+func (b *BridgeService) StartRuntimeEventBridge(ctx context.Context) api.RuntimeEventBridgeStartResult {
+	hello := b.Hello(ctx)
+	if hello.Error != nil {
+		return api.RuntimeEventBridgeStartResult{Error: hello.Error}
+	}
+
+	b.eventMu.Lock()
+	if b.eventCancel != nil {
+		b.eventCancel()
+	}
+	bridgeCtx, cancel := context.WithCancel(context.Background())
+	b.eventCancel = cancel
+	b.eventMu.Unlock()
+
+	subscriptions := []func(context.Context) (<-chan ipc.EventFrame, *api.StructuredError){
+		func(ctx context.Context) (<-chan ipc.EventFrame, *api.StructuredError) {
+			return b.client.EngineSubscribeStatus(ctx, api.EngineSubscribeStatusRequest{})
+		},
+		func(ctx context.Context) (<-chan ipc.EventFrame, *api.StructuredError) {
+			return b.client.EngineSubscribeLogs(ctx, api.EngineSubscribeLogsRequest{})
+		},
+		func(ctx context.Context) (<-chan ipc.EventFrame, *api.StructuredError) {
+			return b.client.EngineSubscribeTraffic(ctx, api.EngineSubscribeTrafficRequest{})
+		},
+		func(ctx context.Context) (<-chan ipc.EventFrame, *api.StructuredError) {
+			return b.client.EngineSubscribeConnections(ctx, api.EngineSubscribeConnectionsRequest{})
+		},
+	}
+	for _, open := range subscriptions {
+		events, structured := open(bridgeCtx)
+		if structured != nil {
+			cancel()
+			return api.RuntimeEventBridgeStartResult{Error: structured}
+		}
+		go forwardRuntimeEvents(bridgeCtx, events)
+	}
+	return api.RuntimeEventBridgeStartResult{Reply: &api.RuntimeEventBridgeStartReply{}}
+}
+
+func (b *BridgeService) StopRuntimeEventBridge(context.Context) api.RuntimeEventBridgeStopResult {
+	b.eventMu.Lock()
+	if b.eventCancel != nil {
+		b.eventCancel()
+		b.eventCancel = nil
+	}
+	b.eventMu.Unlock()
+	return api.RuntimeEventBridgeStopResult{Reply: &api.RuntimeEventBridgeStopReply{}}
+}
+
+func (b *BridgeService) EngineGetRuntimeCapabilities(ctx context.Context) api.EngineGetRuntimeCapabilitiesResult {
+	reply, structured := b.client.EngineGetRuntimeCapabilities(ctx, api.EngineGetRuntimeCapabilitiesRequest{})
+	if structured != nil {
+		return api.EngineGetRuntimeCapabilitiesResult{Error: structured}
+	}
+	return api.EngineGetRuntimeCapabilitiesResult{Reply: &reply}
+}
+
+func (b *BridgeService) EngineListGroups(ctx context.Context) api.EngineListGroupsResult {
+	reply, structured := b.client.EngineListGroups(ctx, api.EngineListGroupsRequest{})
+	if structured != nil {
+		return api.EngineListGroupsResult{Error: structured}
+	}
+	return api.EngineListGroupsResult{Reply: &reply}
+}
+
+func (b *BridgeService) EngineSelectOutbound(ctx context.Context, req api.EngineSelectOutboundRequest) api.EngineSelectOutboundResult {
+	reply, structured := b.client.EngineSelectOutbound(ctx, req)
+	if structured != nil {
+		return api.EngineSelectOutboundResult{Error: structured}
+	}
+	return api.EngineSelectOutboundResult{Reply: &reply}
+}
+
+func (b *BridgeService) EngineURLTest(ctx context.Context, req api.EngineURLTestRequest) api.EngineURLTestResult {
+	reply, structured := b.client.EngineURLTest(ctx, req)
+	if structured != nil {
+		return api.EngineURLTestResult{Error: structured}
+	}
+	return api.EngineURLTestResult{Reply: &reply}
+}
+
+func (b *BridgeService) EngineCloseConnection(ctx context.Context, req api.EngineCloseConnectionRequest) api.EngineCloseConnectionResult {
+	reply, structured := b.client.EngineCloseConnection(ctx, req)
+	if structured != nil {
+		return api.EngineCloseConnectionResult{Error: structured}
+	}
+	return api.EngineCloseConnectionResult{Reply: &reply}
+}
+
+func (b *BridgeService) EngineCloseAllConnections(ctx context.Context) api.EngineCloseAllConnectionsResult {
+	reply, structured := b.client.EngineCloseAllConnections(ctx, api.EngineCloseAllConnectionsRequest{})
+	if structured != nil {
+		return api.EngineCloseAllConnectionsResult{Error: structured}
+	}
+	return api.EngineCloseAllConnectionsResult{Reply: &reply}
+}
+
+func forwardRuntimeEvents(ctx context.Context, events <-chan ipc.EventFrame) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
+			emitRuntimeEvent(event)
+		}
+	}
+}
+
+func emitRuntimeEvent(frame ipc.EventFrame) {
+	if frame.Error != nil {
+		application.Get().Event.Emit(api.EventEngineEventBridgeError, frame.Error)
+		return
+	}
+	if frame.Event == "" {
+		return
+	}
+	var payload interface{}
+	if len(frame.Data) > 0 {
+		if err := json.Unmarshal(frame.Data, &payload); err != nil {
+			application.Get().Event.Emit(api.EventEngineEventBridgeError, api.NewStructuredError(api.ErrorIPCTransport, err.Error(), "desktop", true))
+			return
+		}
+	}
+	application.Get().Event.Emit(frame.Event, payload)
 }
 
 func launchQKBoxD() error {

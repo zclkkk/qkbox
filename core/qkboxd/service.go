@@ -18,10 +18,12 @@ type Service struct {
 	db     *persistence.DB
 	key    []byte
 	engine *EngineController
+	events *RuntimeEventHub
 }
 
 func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte) *Service {
-	return &Service{db: db, key: key, engine: NewEngineController(runtimeCtx)}
+	events := NewRuntimeEventHub()
+	return &Service{db: db, key: key, events: events, engine: NewEngineController(runtimeCtx, events)}
 }
 
 func (s *Service) Close() error {
@@ -44,7 +46,7 @@ func (s *Service) Hello(_ context.Context, req api.HelloRequest) (api.HelloReply
 			OS:   runtime.GOOS,
 			Arch: runtime.GOARCH,
 		},
-		RuntimeCapabilities:  api.RuntimeCapabilityShell(),
+		RuntimeCapabilities:  s.engine.RuntimeCapabilities(),
 		PlatformCapabilities: api.PlatformCapabilityShell(),
 	}, nil
 }
@@ -424,6 +426,68 @@ func (s *Service) EngineGetStatus(_ context.Context, _ api.EngineGetStatusReques
 		status.ActiveSnapshotID = activeSnapshotID
 	}
 	return api.EngineGetStatusReply{Status: status}, nil
+}
+
+func (s *Service) EngineSubscribeStatus(ctx context.Context, _ api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+	return s.events.SubscribeStatus(ctx), nil
+}
+
+func (s *Service) EngineSubscribeLogs(ctx context.Context, _ api.EngineSubscribeLogsRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+	return s.events.SubscribeLogs(ctx), nil
+}
+
+func (s *Service) EngineSubscribeTraffic(ctx context.Context, _ api.EngineSubscribeTrafficRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+	return s.engine.SubscribeTraffic(ctx), nil
+}
+
+func (s *Service) EngineSubscribeConnections(ctx context.Context, _ api.EngineSubscribeConnectionsRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+	return s.engine.SubscribeConnections(ctx), nil
+}
+
+func (s *Service) EngineGetRuntimeCapabilities(_ context.Context, _ api.EngineGetRuntimeCapabilitiesRequest) (api.EngineGetRuntimeCapabilitiesReply, *api.StructuredError) {
+	return api.EngineGetRuntimeCapabilitiesReply{Capabilities: s.engine.RuntimeCapabilities()}, nil
+}
+
+func (s *Service) EngineListGroups(_ context.Context, _ api.EngineListGroupsRequest) (api.EngineListGroupsReply, *api.StructuredError) {
+	groups, err := s.engine.ListGroups()
+	if err != nil {
+		return api.EngineListGroupsReply{}, err
+	}
+	return api.EngineListGroupsReply{Groups: groups}, nil
+}
+
+func (s *Service) EngineSelectOutbound(_ context.Context, req api.EngineSelectOutboundRequest) (api.EngineSelectOutboundReply, *api.StructuredError) {
+	group, err := s.engine.SelectOutbound(req.GroupTag, req.OutboundTag)
+	if err != nil {
+		return api.EngineSelectOutboundReply{}, err
+	}
+	return api.EngineSelectOutboundReply{Group: group}, nil
+}
+
+func (s *Service) EngineURLTest(ctx context.Context, req api.EngineURLTestRequest) (api.EngineURLTestReply, *api.StructuredError) {
+	timeout := 10 * time.Second
+	if req.TimeoutMS > 0 {
+		timeout = time.Duration(req.TimeoutMS) * time.Millisecond
+	}
+	results, err := s.engine.URLTest(ctx, req.GroupTag, timeout)
+	if err != nil {
+		return api.EngineURLTestReply{}, err
+	}
+	return api.EngineURLTestReply{Results: results}, nil
+}
+
+func (s *Service) EngineCloseConnection(_ context.Context, req api.EngineCloseConnectionRequest) (api.EngineCloseConnectionReply, *api.StructuredError) {
+	if err := s.engine.CloseConnection(req.ConnectionID); err != nil {
+		return api.EngineCloseConnectionReply{}, err
+	}
+	return api.EngineCloseConnectionReply{}, nil
+}
+
+func (s *Service) EngineCloseAllConnections(_ context.Context, _ api.EngineCloseAllConnectionsRequest) (api.EngineCloseAllConnectionsReply, *api.StructuredError) {
+	if err := s.engine.CloseAllConnections(); err != nil {
+		return api.EngineCloseAllConnectionsReply{}, err
+	}
+	return api.EngineCloseAllConnectionsReply{}, nil
 }
 
 // helpers

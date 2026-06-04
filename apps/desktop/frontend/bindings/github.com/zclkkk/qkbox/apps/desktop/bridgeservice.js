@@ -11,11 +11,58 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as api$0 from "../../shared/api/models.js";
 
 /**
+ * @returns {$CancellablePromise<api$0.EngineCloseAllConnectionsResult>}
+ */
+export function EngineCloseAllConnections() {
+    return $Call.ByID(3927402430).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType0($result);
+    }));
+}
+
+/**
+ * @param {api$0.EngineCloseConnectionRequest} req
+ * @returns {$CancellablePromise<api$0.EngineCloseConnectionResult>}
+ */
+export function EngineCloseConnection(req) {
+    return $Call.ByID(4199505442, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.EngineGetRuntimeCapabilitiesResult>}
+ */
+export function EngineGetRuntimeCapabilities() {
+    return $Call.ByID(2142958192).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType2($result);
+    }));
+}
+
+/**
  * @returns {$CancellablePromise<api$0.EngineGetStatusResult>}
  */
 export function EngineGetStatus() {
     return $Call.ByID(4219929464).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType0($result);
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.EngineListGroupsResult>}
+ */
+export function EngineListGroups() {
+    return $Call.ByID(2435842894).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType4($result);
+    }));
+}
+
+/**
+ * @param {api$0.EngineSelectOutboundRequest} req
+ * @returns {$CancellablePromise<api$0.EngineSelectOutboundResult>}
+ */
+export function EngineSelectOutbound(req) {
+    return $Call.ByID(1847711966, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType5($result);
     }));
 }
 
@@ -24,7 +71,7 @@ export function EngineGetStatus() {
  */
 export function EngineStart() {
     return $Call.ByID(3171975010).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType6($result);
     }));
 }
 
@@ -33,7 +80,17 @@ export function EngineStart() {
  */
 export function EngineStop() {
     return $Call.ByID(3329435234).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
+        return $$createType7($result);
+    }));
+}
+
+/**
+ * @param {api$0.EngineURLTestRequest} req
+ * @returns {$CancellablePromise<api$0.EngineURLTestResult>}
+ */
+export function EngineURLTest(req) {
+    return $Call.ByID(3295221719, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType8($result);
     }));
 }
 
@@ -42,12 +99,38 @@ export function EngineStop() {
  */
 export function Hello() {
     return $Call.ByID(1026108960).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType9($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.RuntimeEventBridgeStartResult>}
+ */
+export function StartRuntimeEventBridge() {
+    return $Call.ByID(2560008773).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType10($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.RuntimeEventBridgeStopResult>}
+ */
+export function StopRuntimeEventBridge() {
+    return $Call.ByID(3118977417).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType11($result);
     }));
 }
 
 // Private type creation functions
-const $$createType0 = api$0.EngineGetStatusResult.createFrom;
-const $$createType1 = api$0.EngineStartResult.createFrom;
-const $$createType2 = api$0.EngineStopResult.createFrom;
-const $$createType3 = api$0.HelloResult.createFrom;
+const $$createType0 = api$0.EngineCloseAllConnectionsResult.createFrom;
+const $$createType1 = api$0.EngineCloseConnectionResult.createFrom;
+const $$createType2 = api$0.EngineGetRuntimeCapabilitiesResult.createFrom;
+const $$createType3 = api$0.EngineGetStatusResult.createFrom;
+const $$createType4 = api$0.EngineListGroupsResult.createFrom;
+const $$createType5 = api$0.EngineSelectOutboundResult.createFrom;
+const $$createType6 = api$0.EngineStartResult.createFrom;
+const $$createType7 = api$0.EngineStopResult.createFrom;
+const $$createType8 = api$0.EngineURLTestResult.createFrom;
+const $$createType9 = api$0.HelloResult.createFrom;
+const $$createType10 = api$0.RuntimeEventBridgeStartResult.createFrom;
+const $$createType11 = api$0.RuntimeEventBridgeStopResult.createFrom;

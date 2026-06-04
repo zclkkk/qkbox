@@ -131,10 +131,41 @@ func TestEngineStatusJSONShape(t *testing.T) {
 func TestEngineMethodRegistry(t *testing.T) {
 	newMethods := []string{
 		MethodEngineStart, MethodEngineStop, MethodEngineGetStatus,
+		MethodEngineSubscribeStatus, MethodEngineSubscribeLogs,
+		MethodEngineSubscribeTraffic, MethodEngineSubscribeConnections,
+		MethodEngineGetRuntimeCapabilities, MethodEngineListGroups,
+		MethodEngineSelectOutbound, MethodEngineURLTest,
+		MethodEngineCloseConnection, MethodEngineCloseAllConnections,
 	}
 	for _, m := range newMethods {
 		if _, ok := MethodRegistry[m]; !ok {
 			t.Fatalf("missing %s in method registry", m)
+		}
+	}
+}
+
+func TestRuntimeObservabilityJSONShape(t *testing.T) {
+	values := []interface{}{
+		RuntimeLogEntry{},
+		TrafficSnapshot{},
+		ConnectionSnapshot{},
+		OutboundGroup{},
+		URLTestResult{},
+	}
+	needles := []string{
+		`"message"`,
+		`"upload_total"`,
+		`"connections"`,
+		`"outbounds"`,
+		`"outbound"`,
+	}
+	for i, value := range values {
+		got, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !contains(string(got), needles[i]) {
+			t.Fatalf("expected %s in %s", needles[i], got)
 		}
 	}
 }

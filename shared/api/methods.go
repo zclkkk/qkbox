@@ -4,11 +4,11 @@ const (
 	MethodHello = "hello"
 
 	// Profile CRUD
-	MethodCreateProfile     = "createProfile"
+	MethodCreateProfile      = "createProfile"
 	MethodUpdateProfileDraft = "updateProfileDraft"
-	MethodDeleteProfile     = "deleteProfile"
-	MethodListProfiles      = "listProfiles"
-	MethodGetProfile        = "getProfile"
+	MethodDeleteProfile      = "deleteProfile"
+	MethodListProfiles       = "listProfiles"
+	MethodGetProfile         = "getProfile"
 
 	// Snapshot lifecycle
 	MethodValidateProfileDraft    = "validateProfileDraft"
@@ -21,9 +21,19 @@ const (
 	MethodRollbackToSnapshot      = "rollbackToSnapshot"
 
 	// Engine
-	MethodEngineStart     = "engine.start"
-	MethodEngineStop      = "engine.stop"
-	MethodEngineGetStatus = "engine.getStatus"
+	MethodEngineStart                  = "engine.start"
+	MethodEngineStop                   = "engine.stop"
+	MethodEngineGetStatus              = "engine.getStatus"
+	MethodEngineSubscribeStatus        = "engine.subscribeStatus"
+	MethodEngineSubscribeLogs          = "engine.subscribeLogs"
+	MethodEngineSubscribeTraffic       = "engine.subscribeTraffic"
+	MethodEngineSubscribeConnections   = "engine.subscribeConnections"
+	MethodEngineGetRuntimeCapabilities = "engine.getRuntimeCapabilities"
+	MethodEngineListGroups             = "engine.listGroups"
+	MethodEngineSelectOutbound         = "engine.selectOutbound"
+	MethodEngineURLTest                = "engine.urlTest"
+	MethodEngineCloseConnection        = "engine.closeConnection"
+	MethodEngineCloseAllConnections    = "engine.closeAllConnections"
 )
 
 var MethodRegistry = map[string]struct{}{
@@ -42,7 +52,17 @@ var MethodRegistry = map[string]struct{}{
 	MethodListSnapshots:           {},
 	MethodRollbackToSnapshot:      {},
 
-	MethodEngineStart:     {},
-	MethodEngineStop:      {},
-	MethodEngineGetStatus: {},
+	MethodEngineStart:                  {},
+	MethodEngineStop:                   {},
+	MethodEngineGetStatus:              {},
+	MethodEngineSubscribeStatus:        {},
+	MethodEngineSubscribeLogs:          {},
+	MethodEngineSubscribeTraffic:       {},
+	MethodEngineSubscribeConnections:   {},
+	MethodEngineGetRuntimeCapabilities: {},
+	MethodEngineListGroups:             {},
+	MethodEngineSelectOutbound:         {},
+	MethodEngineURLTest:                {},
+	MethodEngineCloseConnection:        {},
+	MethodEngineCloseAllConnections:    {},
 }

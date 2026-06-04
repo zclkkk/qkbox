@@ -17,3 +17,10 @@ type Response struct {
 	Result json.RawMessage      `json:"result,omitempty"`
 	Error  *api.StructuredError `json:"error,omitempty"`
 }
+
+type EventFrame struct {
+	ID    string               `json:"id,omitempty"`
+	Event string               `json:"event"`
+	Data  json.RawMessage      `json:"data,omitempty"`
+	Error *api.StructuredError `json:"error,omitempty"`
+}

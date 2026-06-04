@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 )
 
 type fakeBox struct {
@@ -24,7 +27,7 @@ func (f *fakeBox) Close() error {
 func TestAdapterClosesBoxWhenStartFails(t *testing.T) {
 	box := &fakeBox{startErr: errors.New("start failed")}
 	adapter := &Adapter{
-		newBox: func(context.Context, string) (boxHandle, error) {
+		newBox: func(context.Context, string, log.PlatformWriter) (boxHandle, error) {
 			return box, nil
 		},
 	}
@@ -38,5 +41,17 @@ func TestAdapterClosesBoxWhenStartFails(t *testing.T) {
 	}
 	if adapter.b != nil {
 		t.Fatal("failed box must not be retained")
+	}
+}
+
+func TestDisableExternalClashController(t *testing.T) {
+	options := option.Options{
+		Experimental: &option.ExperimentalOptions{
+			ClashAPI: &option.ClashAPIOptions{ExternalController: "127.0.0.1:9090"},
+		},
+	}
+	disableExternalClashController(&options)
+	if options.Experimental.ClashAPI.ExternalController != "" {
+		t.Fatalf("external controller = %q", options.Experimental.ClashAPI.ExternalController)
 	}
 }

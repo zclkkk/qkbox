@@ -34,6 +34,16 @@ type Handler interface {
 	EngineStart(context.Context, api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError)
 	EngineStop(context.Context, api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError)
 	EngineGetStatus(context.Context, api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError)
+	EngineSubscribeStatus(context.Context, api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
+	EngineSubscribeLogs(context.Context, api.EngineSubscribeLogsRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
+	EngineSubscribeTraffic(context.Context, api.EngineSubscribeTrafficRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
+	EngineSubscribeConnections(context.Context, api.EngineSubscribeConnectionsRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
+	EngineGetRuntimeCapabilities(context.Context, api.EngineGetRuntimeCapabilitiesRequest) (api.EngineGetRuntimeCapabilitiesReply, *api.StructuredError)
+	EngineListGroups(context.Context, api.EngineListGroupsRequest) (api.EngineListGroupsReply, *api.StructuredError)
+	EngineSelectOutbound(context.Context, api.EngineSelectOutboundRequest) (api.EngineSelectOutboundReply, *api.StructuredError)
+	EngineURLTest(context.Context, api.EngineURLTestRequest) (api.EngineURLTestReply, *api.StructuredError)
+	EngineCloseConnection(context.Context, api.EngineCloseConnectionRequest) (api.EngineCloseConnectionReply, *api.StructuredError)
+	EngineCloseAllConnections(context.Context, api.EngineCloseAllConnectionsRequest) (api.EngineCloseAllConnectionsReply, *api.StructuredError)
 }
 
 type Server struct {
@@ -114,9 +124,67 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		dispatch(conn, req, s.handler.EngineStop, ctx)
 	case api.MethodEngineGetStatus:
 		dispatch(conn, req, s.handler.EngineGetStatus, ctx)
+	case api.MethodEngineSubscribeStatus:
+		serveSubscription(conn, req, s.handler.EngineSubscribeStatus, ctx)
+	case api.MethodEngineSubscribeLogs:
+		serveSubscription(conn, req, s.handler.EngineSubscribeLogs, ctx)
+	case api.MethodEngineSubscribeTraffic:
+		serveSubscription(conn, req, s.handler.EngineSubscribeTraffic, ctx)
+	case api.MethodEngineSubscribeConnections:
+		serveSubscription(conn, req, s.handler.EngineSubscribeConnections, ctx)
+	case api.MethodEngineGetRuntimeCapabilities:
+		dispatch(conn, req, s.handler.EngineGetRuntimeCapabilities, ctx)
+	case api.MethodEngineListGroups:
+		dispatch(conn, req, s.handler.EngineListGroups, ctx)
+	case api.MethodEngineSelectOutbound:
+		dispatch(conn, req, s.handler.EngineSelectOutbound, ctx)
+	case api.MethodEngineURLTest:
+		dispatch(conn, req, s.handler.EngineURLTest, ctx)
+	case api.MethodEngineCloseConnection:
+		dispatch(conn, req, s.handler.EngineCloseConnection, ctx)
+	case api.MethodEngineCloseAllConnections:
+		dispatch(conn, req, s.handler.EngineCloseAllConnections, ctx)
 
 	default:
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown IPC method.", "qkboxd", false))
+	}
+}
+
+func serveSubscription[Req any](conn net.Conn, req Request, fn func(context.Context, Req) (<-chan api.RuntimeEvent, *api.StructuredError), ctx context.Context) {
+	var params Req
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", true))
+		return
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	events, structured := fn(subCtx, params)
+	if structured != nil {
+		writeError(conn, req.ID, structured)
+		return
+	}
+	writeResult(conn, req.ID, api.SubscriptionAck{})
+
+	go func() {
+		var discard Request
+		_ = ReadFrame(conn, &discard)
+		cancel()
+	}()
+
+	for {
+		select {
+		case <-subCtx.Done():
+			return
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
+			if err := writeEvent(conn, req.ID, event); err != nil {
+				return
+			}
+		}
 	}
 }
 
@@ -145,4 +213,17 @@ func writeResult(conn net.Conn, id string, value interface{}) {
 
 func writeError(conn net.Conn, id string, err *api.StructuredError) {
 	_ = WriteFrame(conn, Response{ID: id, Error: err})
+}
+
+func writeEvent(conn net.Conn, id string, event api.RuntimeEvent) error {
+	frame := EventFrame{ID: id, Event: event.Event, Error: event.Error}
+	if event.Data != nil {
+		payload, err := json.Marshal(event.Data)
+		if err != nil {
+			frame.Error = api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		} else {
+			frame.Data = payload
+		}
+	}
+	return WriteFrame(conn, frame)
 }

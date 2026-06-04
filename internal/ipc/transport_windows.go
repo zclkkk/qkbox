@@ -5,6 +5,7 @@ package ipc
 import (
 	"context"
 	"net"
+	"os"
 	"os/user"
 	"regexp"
 	"time"
@@ -27,10 +28,14 @@ func Endpoint() string {
 }
 
 func pipeName() string {
-	current, err := user.Current()
 	identity := "unknown"
-	if err == nil && current.Uid != "" {
-		identity = current.Uid
+	if endpointID := os.Getenv("QKBOX_IPC_ENDPOINT_ID"); endpointID != "" {
+		identity = endpointID
+	} else {
+		current, err := user.Current()
+		if err == nil && current.Uid != "" {
+			identity = current.Uid
+		}
 	}
 	identity = regexp.MustCompile(`[^A-Za-z0-9]+`).ReplaceAllString(identity, "_")
 	return `\\.\pipe\qkbox-` + identity + `-qkboxd`

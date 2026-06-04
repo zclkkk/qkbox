@@ -50,8 +50,40 @@ func (f *fakeAdapter) Stop() error {
 	return nil
 }
 
+func (f *fakeAdapter) RuntimeCapabilities() []api.Capability {
+	return api.RuntimeCapabilityShell()
+}
+
+func (f *fakeAdapter) TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError) {
+	return api.TrafficSnapshot{}, nil
+}
+
+func (f *fakeAdapter) ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError) {
+	return api.ConnectionSnapshot{}, nil
+}
+
+func (f *fakeAdapter) ListGroups() ([]api.OutboundGroup, *api.StructuredError) {
+	return nil, nil
+}
+
+func (f *fakeAdapter) SelectOutbound(string, string) (api.OutboundGroup, *api.StructuredError) {
+	return api.OutboundGroup{}, nil
+}
+
+func (f *fakeAdapter) URLTest(context.Context, string, time.Duration) ([]api.URLTestResult, *api.StructuredError) {
+	return nil, nil
+}
+
+func (f *fakeAdapter) CloseConnection(string) *api.StructuredError {
+	return nil
+}
+
+func (f *fakeAdapter) CloseAllConnections() *api.StructuredError {
+	return nil
+}
+
 func TestEngineController_StartStopTransitions(t *testing.T) {
-	ctrl := NewEngineController(context.Background())
+	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 	fake := &fakeAdapter{}
 	ctrl.adapterFactory = func() EngineAdapter {
 		return fake
@@ -116,7 +148,7 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 }
 
 func TestEngineController_AdapterStartFailure(t *testing.T) {
-	ctrl := NewEngineController(context.Background())
+	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 	fake := &fakeAdapter{startErr: errors.New("boom")}
 	ctrl.adapterFactory = func() EngineAdapter {
 		return fake
@@ -137,7 +169,7 @@ func TestEngineController_AdapterStartFailure(t *testing.T) {
 }
 
 func TestEngineController_StartIsObservableWhileAdapterStarts(t *testing.T) {
-	ctrl := NewEngineController(context.Background())
+	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 	started := make(chan struct{})
 	release := make(chan struct{})
 	fake := &fakeAdapter{startedCh: started, releaseStart: release}
@@ -173,7 +205,7 @@ func TestEngineController_StartIsObservableWhileAdapterStarts(t *testing.T) {
 }
 
 func TestEngineController_LoadFailureReturnsToIdle(t *testing.T) {
-	ctrl := NewEngineController(context.Background())
+	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 
 	err := ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
 		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot.", "qkboxd", true)
@@ -191,7 +223,7 @@ func TestEngineController_LoadFailureReturnsToIdle(t *testing.T) {
 }
 
 func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
-	ctrl := NewEngineController(context.Background())
+	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 	fake := &fakeAdapter{stopErr: errors.New("stop failed")}
 	ctrl.adapterFactory = func() EngineAdapter {
 		return fake
@@ -219,6 +251,26 @@ func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
 	}
 	if status := ctrl.GetStatus(); status.State != model.EngineStateIdle {
 		t.Fatalf("expected IDLE, got %s", status.State)
+	}
+}
+
+func TestEngineControllerSubscribeTrafficUnavailableWhenStopped(t *testing.T) {
+	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events := ctrl.SubscribeTraffic(ctx)
+
+	select {
+	case event := <-events:
+		if event.Event != api.EventEngineEventBridgeError {
+			t.Fatalf("event = %s", event.Event)
+		}
+		if event.Error == nil || event.Error.Code != api.ErrorObservabilityUnavailable {
+			t.Fatalf("error = %v", event.Error)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for unavailable event")
 	}
 }
 

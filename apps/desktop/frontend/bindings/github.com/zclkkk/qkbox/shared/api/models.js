@@ -69,6 +69,237 @@ export const CapabilityState = {
     CapabilityUnsupported: "unsupported",
 };
 
+export class EngineCloseAllConnectionsReply {
+    /**
+     * Creates a new EngineCloseAllConnectionsReply instance.
+     * @param {Partial<EngineCloseAllConnectionsReply>} [$$source = {}] - The source object to create the EngineCloseAllConnectionsReply.
+     */
+    constructor($$source = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineCloseAllConnectionsReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineCloseAllConnectionsReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineCloseAllConnectionsReply(/** @type {Partial<EngineCloseAllConnectionsReply>} */($$parsedSource));
+    }
+}
+
+export class EngineCloseAllConnectionsResult {
+    /**
+     * Creates a new EngineCloseAllConnectionsResult instance.
+     * @param {Partial<EngineCloseAllConnectionsResult>} [$$source = {}] - The source object to create the EngineCloseAllConnectionsResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineCloseAllConnectionsReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineCloseAllConnectionsResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineCloseAllConnectionsResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineCloseAllConnectionsResult(/** @type {Partial<EngineCloseAllConnectionsResult>} */($$parsedSource));
+    }
+}
+
+export class EngineCloseConnectionReply {
+    /**
+     * Creates a new EngineCloseConnectionReply instance.
+     * @param {Partial<EngineCloseConnectionReply>} [$$source = {}] - The source object to create the EngineCloseConnectionReply.
+     */
+    constructor($$source = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineCloseConnectionReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineCloseConnectionReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineCloseConnectionReply(/** @type {Partial<EngineCloseConnectionReply>} */($$parsedSource));
+    }
+}
+
+export class EngineCloseConnectionRequest {
+    /**
+     * Creates a new EngineCloseConnectionRequest instance.
+     * @param {Partial<EngineCloseConnectionRequest>} [$$source = {}] - The source object to create the EngineCloseConnectionRequest.
+     */
+    constructor($$source = {}) {
+        if (!("connection_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["connection_id"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineCloseConnectionRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineCloseConnectionRequest}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineCloseConnectionRequest(/** @type {Partial<EngineCloseConnectionRequest>} */($$parsedSource));
+    }
+}
+
+export class EngineCloseConnectionResult {
+    /**
+     * Creates a new EngineCloseConnectionResult instance.
+     * @param {Partial<EngineCloseConnectionResult>} [$$source = {}] - The source object to create the EngineCloseConnectionResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineCloseConnectionReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineCloseConnectionResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineCloseConnectionResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType5;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineCloseConnectionResult(/** @type {Partial<EngineCloseConnectionResult>} */($$parsedSource));
+    }
+}
+
+export class EngineGetRuntimeCapabilitiesReply {
+    /**
+     * Creates a new EngineGetRuntimeCapabilitiesReply instance.
+     * @param {Partial<EngineGetRuntimeCapabilitiesReply>} [$$source = {}] - The source object to create the EngineGetRuntimeCapabilitiesReply.
+     */
+    constructor($$source = {}) {
+        if (!("capabilities" in $$source)) {
+            /**
+             * @member
+             * @type {Capability[]}
+             */
+            this["capabilities"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineGetRuntimeCapabilitiesReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineGetRuntimeCapabilitiesReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("capabilities" in $$parsedSource) {
+            $$parsedSource["capabilities"] = $$createField0_0($$parsedSource["capabilities"]);
+        }
+        return new EngineGetRuntimeCapabilitiesReply(/** @type {Partial<EngineGetRuntimeCapabilitiesReply>} */($$parsedSource));
+    }
+}
+
+export class EngineGetRuntimeCapabilitiesResult {
+    /**
+     * Creates a new EngineGetRuntimeCapabilitiesResult instance.
+     * @param {Partial<EngineGetRuntimeCapabilitiesResult>} [$$source = {}] - The source object to create the EngineGetRuntimeCapabilitiesResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineGetRuntimeCapabilitiesReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineGetRuntimeCapabilitiesResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineGetRuntimeCapabilitiesResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType9;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineGetRuntimeCapabilitiesResult(/** @type {Partial<EngineGetRuntimeCapabilitiesResult>} */($$parsedSource));
+    }
+}
+
 export class EngineGetStatusReply {
     /**
      * Creates a new EngineGetStatusReply instance.
@@ -92,7 +323,7 @@ export class EngineGetStatusReply {
      * @returns {EngineGetStatusReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType0;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField0_0($$parsedSource["status"]);
@@ -131,8 +362,8 @@ export class EngineGetStatusResult {
      * @returns {EngineGetStatusResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType4;
+        const $$createField0_0 = $$createType12;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
             $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
@@ -141,6 +372,191 @@ export class EngineGetStatusResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new EngineGetStatusResult(/** @type {Partial<EngineGetStatusResult>} */($$parsedSource));
+    }
+}
+
+export class EngineListGroupsReply {
+    /**
+     * Creates a new EngineListGroupsReply instance.
+     * @param {Partial<EngineListGroupsReply>} [$$source = {}] - The source object to create the EngineListGroupsReply.
+     */
+    constructor($$source = {}) {
+        if (!("groups" in $$source)) {
+            /**
+             * @member
+             * @type {OutboundGroup[]}
+             */
+            this["groups"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineListGroupsReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineListGroupsReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType14;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("groups" in $$parsedSource) {
+            $$parsedSource["groups"] = $$createField0_0($$parsedSource["groups"]);
+        }
+        return new EngineListGroupsReply(/** @type {Partial<EngineListGroupsReply>} */($$parsedSource));
+    }
+}
+
+export class EngineListGroupsResult {
+    /**
+     * Creates a new EngineListGroupsResult instance.
+     * @param {Partial<EngineListGroupsResult>} [$$source = {}] - The source object to create the EngineListGroupsResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineListGroupsReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineListGroupsResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineListGroupsResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType16;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineListGroupsResult(/** @type {Partial<EngineListGroupsResult>} */($$parsedSource));
+    }
+}
+
+export class EngineSelectOutboundReply {
+    /**
+     * Creates a new EngineSelectOutboundReply instance.
+     * @param {Partial<EngineSelectOutboundReply>} [$$source = {}] - The source object to create the EngineSelectOutboundReply.
+     */
+    constructor($$source = {}) {
+        if (!("group" in $$source)) {
+            /**
+             * @member
+             * @type {OutboundGroup}
+             */
+            this["group"] = (new OutboundGroup());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineSelectOutboundReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineSelectOutboundReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("group" in $$parsedSource) {
+            $$parsedSource["group"] = $$createField0_0($$parsedSource["group"]);
+        }
+        return new EngineSelectOutboundReply(/** @type {Partial<EngineSelectOutboundReply>} */($$parsedSource));
+    }
+}
+
+export class EngineSelectOutboundRequest {
+    /**
+     * Creates a new EngineSelectOutboundRequest instance.
+     * @param {Partial<EngineSelectOutboundRequest>} [$$source = {}] - The source object to create the EngineSelectOutboundRequest.
+     */
+    constructor($$source = {}) {
+        if (!("group_tag" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["group_tag"] = "";
+        }
+        if (!("outbound_tag" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["outbound_tag"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineSelectOutboundRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineSelectOutboundRequest}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineSelectOutboundRequest(/** @type {Partial<EngineSelectOutboundRequest>} */($$parsedSource));
+    }
+}
+
+export class EngineSelectOutboundResult {
+    /**
+     * Creates a new EngineSelectOutboundResult instance.
+     * @param {Partial<EngineSelectOutboundResult>} [$$source = {}] - The source object to create the EngineSelectOutboundResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineSelectOutboundReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineSelectOutboundResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineSelectOutboundResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType18;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineSelectOutboundResult(/** @type {Partial<EngineSelectOutboundResult>} */($$parsedSource));
     }
 }
 
@@ -195,8 +611,8 @@ export class EngineStartResult {
      * @returns {EngineStartResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType4;
+        const $$createField0_0 = $$createType20;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
             $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
@@ -315,8 +731,8 @@ export class EngineStopResult {
      * @returns {EngineStopResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType8;
-        const $$createField1_0 = $$createType4;
+        const $$createField0_0 = $$createType22;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
             $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
@@ -325,6 +741,116 @@ export class EngineStopResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new EngineStopResult(/** @type {Partial<EngineStopResult>} */($$parsedSource));
+    }
+}
+
+export class EngineURLTestReply {
+    /**
+     * Creates a new EngineURLTestReply instance.
+     * @param {Partial<EngineURLTestReply>} [$$source = {}] - The source object to create the EngineURLTestReply.
+     */
+    constructor($$source = {}) {
+        if (!("results" in $$source)) {
+            /**
+             * @member
+             * @type {URLTestResult[]}
+             */
+            this["results"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineURLTestReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineURLTestReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType24;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("results" in $$parsedSource) {
+            $$parsedSource["results"] = $$createField0_0($$parsedSource["results"]);
+        }
+        return new EngineURLTestReply(/** @type {Partial<EngineURLTestReply>} */($$parsedSource));
+    }
+}
+
+export class EngineURLTestRequest {
+    /**
+     * Creates a new EngineURLTestRequest instance.
+     * @param {Partial<EngineURLTestRequest>} [$$source = {}] - The source object to create the EngineURLTestRequest.
+     */
+    constructor($$source = {}) {
+        if (!("group_tag" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["group_tag"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["timeout_ms"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineURLTestRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineURLTestRequest}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EngineURLTestRequest(/** @type {Partial<EngineURLTestRequest>} */($$parsedSource));
+    }
+}
+
+export class EngineURLTestResult {
+    /**
+     * Creates a new EngineURLTestResult instance.
+     * @param {Partial<EngineURLTestResult>} [$$source = {}] - The source object to create the EngineURLTestResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EngineURLTestReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EngineURLTestResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EngineURLTestResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType26;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new EngineURLTestResult(/** @type {Partial<EngineURLTestResult>} */($$parsedSource));
     }
 }
 
@@ -400,9 +926,9 @@ export class HelloReply {
      * @returns {HelloReply}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType9;
-        const $$createField6_0 = $$createType11;
-        const $$createField7_0 = $$createType11;
+        const $$createField5_0 = $$createType27;
+        const $$createField6_0 = $$createType7;
+        const $$createField7_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("platform" in $$parsedSource) {
             $$parsedSource["platform"] = $$createField5_0($$parsedSource["platform"]);
@@ -447,8 +973,8 @@ export class HelloResult {
      * @returns {HelloResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType13;
-        const $$createField1_0 = $$createType4;
+        const $$createField0_0 = $$createType29;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
             $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
@@ -457,6 +983,229 @@ export class HelloResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new HelloResult(/** @type {Partial<HelloResult>} */($$parsedSource));
+    }
+}
+
+export class OutboundGroup {
+    /**
+     * Creates a new OutboundGroup instance.
+     * @param {Partial<OutboundGroup>} [$$source = {}] - The source object to create the OutboundGroup.
+     */
+    constructor($$source = {}) {
+        if (!("tag" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tag"] = "";
+        }
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (!("selected" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["selected"] = "";
+        }
+        if (!("outbounds" in $$source)) {
+            /**
+             * @member
+             * @type {OutboundOption[]}
+             */
+            this["outbounds"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OutboundGroup instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OutboundGroup}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType31;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("outbounds" in $$parsedSource) {
+            $$parsedSource["outbounds"] = $$createField3_0($$parsedSource["outbounds"]);
+        }
+        return new OutboundGroup(/** @type {Partial<OutboundGroup>} */($$parsedSource));
+    }
+}
+
+export class OutboundOption {
+    /**
+     * Creates a new OutboundOption instance.
+     * @param {Partial<OutboundOption>} [$$source = {}] - The source object to create the OutboundOption.
+     */
+    constructor($$source = {}) {
+        if (!("tag" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tag"] = "";
+        }
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["delay_ms"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OutboundOption instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OutboundOption}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OutboundOption(/** @type {Partial<OutboundOption>} */($$parsedSource));
+    }
+}
+
+export class RuntimeEventBridgeStartReply {
+    /**
+     * Creates a new RuntimeEventBridgeStartReply instance.
+     * @param {Partial<RuntimeEventBridgeStartReply>} [$$source = {}] - The source object to create the RuntimeEventBridgeStartReply.
+     */
+    constructor($$source = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuntimeEventBridgeStartReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuntimeEventBridgeStartReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RuntimeEventBridgeStartReply(/** @type {Partial<RuntimeEventBridgeStartReply>} */($$parsedSource));
+    }
+}
+
+export class RuntimeEventBridgeStartResult {
+    /**
+     * Creates a new RuntimeEventBridgeStartResult instance.
+     * @param {Partial<RuntimeEventBridgeStartResult>} [$$source = {}] - The source object to create the RuntimeEventBridgeStartResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {RuntimeEventBridgeStartReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuntimeEventBridgeStartResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuntimeEventBridgeStartResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType33;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new RuntimeEventBridgeStartResult(/** @type {Partial<RuntimeEventBridgeStartResult>} */($$parsedSource));
+    }
+}
+
+export class RuntimeEventBridgeStopReply {
+    /**
+     * Creates a new RuntimeEventBridgeStopReply instance.
+     * @param {Partial<RuntimeEventBridgeStopReply>} [$$source = {}] - The source object to create the RuntimeEventBridgeStopReply.
+     */
+    constructor($$source = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuntimeEventBridgeStopReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuntimeEventBridgeStopReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RuntimeEventBridgeStopReply(/** @type {Partial<RuntimeEventBridgeStopReply>} */($$parsedSource));
+    }
+}
+
+export class RuntimeEventBridgeStopResult {
+    /**
+     * Creates a new RuntimeEventBridgeStopResult instance.
+     * @param {Partial<RuntimeEventBridgeStopResult>} [$$source = {}] - The source object to create the RuntimeEventBridgeStopResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {RuntimeEventBridgeStopReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuntimeEventBridgeStopResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuntimeEventBridgeStopResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType35;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new RuntimeEventBridgeStopResult(/** @type {Partial<RuntimeEventBridgeStopResult>} */($$parsedSource));
     }
 }
 
@@ -530,18 +1279,89 @@ export class StructuredError {
     }
 }
 
+export class URLTestResult {
+    /**
+     * Creates a new URLTestResult instance.
+     * @param {Partial<URLTestResult>} [$$source = {}] - The source object to create the URLTestResult.
+     */
+    constructor($$source = {}) {
+        if (!("outbound" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["outbound"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["delay_ms"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["error_code"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["error_message"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new URLTestResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {URLTestResult}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new URLTestResult(/** @type {Partial<URLTestResult>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
-const $$createType0 = EngineStatus.createFrom;
-const $$createType1 = EngineGetStatusReply.createFrom;
-const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = StructuredError.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = EngineStartReply.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = EngineStopReply.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = model$0.Platform.createFrom;
-const $$createType10 = Capability.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = HelloReply.createFrom;
-const $$createType13 = $Create.Nullable($$createType12);
+const $$createType0 = EngineCloseAllConnectionsReply.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = StructuredError.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = EngineCloseConnectionReply.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = Capability.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = EngineGetRuntimeCapabilitiesReply.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = EngineStatus.createFrom;
+const $$createType11 = EngineGetStatusReply.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = OutboundGroup.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = EngineListGroupsReply.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = EngineSelectOutboundReply.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = EngineStartReply.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = EngineStopReply.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = URLTestResult.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = EngineURLTestReply.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = model$0.Platform.createFrom;
+const $$createType28 = HelloReply.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = OutboundOption.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = RuntimeEventBridgeStartReply.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = RuntimeEventBridgeStopReply.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);

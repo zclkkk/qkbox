@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 )
 
@@ -57,7 +58,12 @@ func socketPath() (string, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "qkboxd.sock"), nil
+	name := "qkboxd.sock"
+	if endpointID := os.Getenv("QKBOX_IPC_ENDPOINT_ID"); endpointID != "" {
+		endpointID = regexp.MustCompile(`[^A-Za-z0-9]+`).ReplaceAllString(endpointID, "_")
+		name = "qkboxd-" + endpointID + ".sock"
+	}
+	return filepath.Join(dir, name), nil
 }
 
 func WaitForReady(ctx context.Context) error {
