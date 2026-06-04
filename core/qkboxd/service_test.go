@@ -21,7 +21,7 @@ func newTestService(t *testing.T) *Service {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := NewService(context.Background(), db, key)
+	svc := NewService(context.Background(), db, key, nil)
 	t.Cleanup(func() { _ = svc.Close() })
 	return svc
 }

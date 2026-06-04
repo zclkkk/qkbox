@@ -27,6 +27,8 @@ export {
     EngineURLTestReply,
     EngineURLTestRequest,
     EngineURLTestResult,
+    GetSystemProxyStatusReply,
+    GetSystemProxyStatusResult,
     HelloReply,
     HelloResult,
     OutboundGroup,
@@ -35,6 +37,9 @@ export {
     RuntimeEventBridgeStartResult,
     RuntimeEventBridgeStopReply,
     RuntimeEventBridgeStopResult,
+    SetSystemProxyEnabledReply,
+    SetSystemProxyEnabledRequest,
+    SetSystemProxyEnabledResult,
     StructuredError,
     URLTestResult
 } from "./models.js";

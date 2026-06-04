@@ -44,6 +44,10 @@ type Handler interface {
 	EngineURLTest(context.Context, api.EngineURLTestRequest) (api.EngineURLTestReply, *api.StructuredError)
 	EngineCloseConnection(context.Context, api.EngineCloseConnectionRequest) (api.EngineCloseConnectionReply, *api.StructuredError)
 	EngineCloseAllConnections(context.Context, api.EngineCloseAllConnectionsRequest) (api.EngineCloseAllConnectionsReply, *api.StructuredError)
+
+	// Platform capabilities
+	PlatformGetSystemProxyStatus(context.Context, api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError)
+	PlatformSetSystemProxyEnabled(context.Context, api.SetSystemProxyEnabledRequest) (api.SetSystemProxyEnabledReply, *api.StructuredError)
 }
 
 type Server struct {
@@ -144,6 +148,11 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		dispatch(conn, req, s.handler.EngineCloseConnection, ctx)
 	case api.MethodEngineCloseAllConnections:
 		dispatch(conn, req, s.handler.EngineCloseAllConnections, ctx)
+
+	case api.MethodPlatformGetSystemProxyStatus:
+		dispatch(conn, req, s.handler.PlatformGetSystemProxyStatus, ctx)
+	case api.MethodPlatformSetSystemProxyEnabled:
+		dispatch(conn, req, s.handler.PlatformSetSystemProxyEnabled, ctx)
 
 	default:
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown IPC method.", "qkboxd", false))

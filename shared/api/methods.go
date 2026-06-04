@@ -34,6 +34,10 @@ const (
 	MethodEngineURLTest                = "engine.urlTest"
 	MethodEngineCloseConnection        = "engine.closeConnection"
 	MethodEngineCloseAllConnections    = "engine.closeAllConnections"
+
+	// Platform capabilities
+	MethodPlatformGetSystemProxyStatus  = "platform.getSystemProxyStatus"
+	MethodPlatformSetSystemProxyEnabled = "platform.setSystemProxyEnabled"
 )
 
 var MethodRegistry = map[string]struct{}{
@@ -65,4 +69,7 @@ var MethodRegistry = map[string]struct{}{
 	MethodEngineURLTest:                {},
 	MethodEngineCloseConnection:        {},
 	MethodEngineCloseAllConnections:    {},
+
+	MethodPlatformGetSystemProxyStatus:  {},
+	MethodPlatformSetSystemProxyEnabled: {},
 }

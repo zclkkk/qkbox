@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"runtime"
 	"time"
 
 	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
 	"github.com/zclkkk/qkbox/internal/persistence"
 	"github.com/zclkkk/qkbox/internal/redact"
+	"github.com/zclkkk/qkbox/platform/capability"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
 )
@@ -19,14 +21,16 @@ type Service struct {
 	key    []byte
 	engine *EngineController
 	events *RuntimeEventHub
+	proxy  capability.SystemProxyProvider
 }
 
-func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte) *Service {
+func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider) *Service {
 	events := NewRuntimeEventHub()
-	return &Service{db: db, key: key, events: events, engine: NewEngineController(runtimeCtx, events)}
+	return &Service{db: db, key: key, events: events, engine: NewEngineController(runtimeCtx, events), proxy: proxy}
 }
 
 func (s *Service) Close() error {
+	s.bestEffortProxyRestore()
 	return s.engine.Shutdown()
 }
 
@@ -47,8 +51,32 @@ func (s *Service) Hello(_ context.Context, req api.HelloRequest) (api.HelloReply
 			Arch: runtime.GOARCH,
 		},
 		RuntimeCapabilities:  s.engine.RuntimeCapabilities(),
-		PlatformCapabilities: api.PlatformCapabilityShell(),
+		PlatformCapabilities: s.platformCapabilities(),
 	}, nil
+}
+
+func (s *Service) platformCapabilities() []api.Capability {
+	caps := api.PlatformCapabilityShell()
+	if s.proxy == nil {
+		return caps
+	}
+	avail := s.proxy.Availability()
+	for i, cap := range caps {
+		if cap.Name == "SYSTEM_PROXY" {
+			if avail.Available && avail.Supported {
+				caps[i].State = api.CapabilityAvailable
+				caps[i].Reason = ""
+			} else if avail.Available && !avail.Supported {
+				caps[i].State = api.CapabilityUnavailable
+				caps[i].Reason = avail.Reason
+			} else {
+				caps[i].State = api.CapabilityUnsupported
+				caps[i].Reason = avail.Reason
+			}
+			break
+		}
+	}
+	return caps
 }
 
 // Profile CRUD
@@ -410,6 +438,9 @@ func (s *Service) loadEngineStartTarget() (EngineStartTarget, *api.StructuredErr
 }
 
 func (s *Service) EngineStop(_ context.Context, _ api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError) {
+	if sErr := s.restoreProxyIfOwned(); sErr != nil {
+		return api.EngineStopReply{}, sErr
+	}
 	if err := s.engine.Stop(); err != nil {
 		return api.EngineStopReply{}, err
 	}
@@ -520,4 +551,182 @@ func (s *Service) decryptContent(contentID string) (string, error) {
 		return "", err
 	}
 	return string(plaintext), nil
+}
+
+// System proxy
+
+func (s *Service) PlatformGetSystemProxyStatus(_ context.Context, _ api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError) {
+	reply := api.GetSystemProxyStatusReply{}
+
+	if s.proxy == nil || !s.proxy.Availability().Available {
+		return reply, nil
+	}
+	avail := s.proxy.Availability()
+	reply.Available = avail.Available
+	reply.Supported = avail.Supported
+	reply.Reason = avail.Reason
+
+	state, err := s.proxy.CurrentState()
+	if err != nil {
+		return reply, api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	reply.OSEnabled = state.Enabled
+	reply.Address = state.Addr
+	reply.Port = state.Port
+
+	record, err := loadProxyOwner(s.db)
+	if err != nil {
+		return reply, api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+	}
+	if record != nil && record.QKBoxOwned {
+		reply.QKBoxOwned = true
+		reply.Address = record.ProxyAddr
+		reply.Port = record.ProxyPort
+	}
+
+	return reply, nil
+}
+
+func (s *Service) PlatformSetSystemProxyEnabled(_ context.Context, req api.SetSystemProxyEnabledRequest) (api.SetSystemProxyEnabledReply, *api.StructuredError) {
+	if s.proxy == nil || !s.proxy.Availability().Available || !s.proxy.Availability().Supported {
+		return api.SetSystemProxyEnabledReply{}, api.NewStructuredError(api.ErrorPlatformProxyUnsupported, "System proxy is not available on this platform.", "platform", false)
+	}
+
+	if !req.Enabled {
+		return api.SetSystemProxyEnabledReply{}, s.disableProxy()
+	}
+
+	return api.SetSystemProxyEnabledReply{}, s.enableProxy()
+}
+
+func (s *Service) enableProxy() *api.StructuredError {
+	listeners, sErr := s.engine.ListenerInfo()
+	if sErr != nil {
+		return sErr
+	}
+	if len(listeners) == 0 {
+		return api.NewStructuredError(api.ErrorPlatformProxyNoListener, "No HTTP/mixed inbound found in active config.", "qkboxd", true)
+	}
+	target := listeners[0]
+	addr := target.Address
+	port := target.Port
+
+	record, err := loadProxyOwner(s.db)
+	if err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+	}
+
+	if record != nil && record.QKBoxOwned {
+		state, err := s.proxy.CurrentState()
+		if err != nil {
+			return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+		}
+		if proxyOwnerMatches(state, record) {
+			return nil
+		}
+		if applyErr := s.proxy.Apply(record.ProxyAddr, record.ProxyPort); applyErr == nil {
+			record.ProxyAddr = addr
+			record.ProxyPort = port
+			_ = saveProxyOwner(s.db, record)
+			return nil
+		}
+	}
+
+	snapshot, err := s.proxy.Snapshot()
+	if err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+
+	newRecord := &proxyOwnerRecord{
+		QKBoxOwned: true,
+		Snapshot:   snapshot,
+		ProxyAddr:  addr,
+		ProxyPort:  port,
+		EnabledAt:  time.Now().UnixMilli(),
+	}
+	if err := saveProxyOwner(s.db, newRecord); err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+	}
+
+	if err := s.proxy.Apply(addr, port); err != nil {
+		if restoreErr := s.proxy.Restore(snapshot); restoreErr == nil {
+			_ = deleteProxyOwner(s.db)
+		}
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+
+	return nil
+}
+
+func (s *Service) disableProxy() *api.StructuredError {
+	record, err := loadProxyOwner(s.db)
+	if err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+	}
+	if record == nil || !record.QKBoxOwned {
+		return nil
+	}
+
+	state, err := s.proxy.CurrentState()
+	if err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	if !proxyOwnerMatches(state, record) {
+		_ = deleteProxyOwner(s.db)
+		return nil
+	}
+
+	if err := s.proxy.Restore(record.Snapshot); err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	_ = deleteProxyOwner(s.db)
+	return nil
+}
+
+func (s *Service) restoreProxyIfOwned() *api.StructuredError {
+	if s.proxy == nil {
+		return nil
+	}
+	record, err := loadProxyOwner(s.db)
+	if err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+	}
+	if record == nil || !record.QKBoxOwned {
+		return nil
+	}
+
+	state, err := s.proxy.CurrentState()
+	if err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	if !proxyOwnerMatches(state, record) {
+		_ = deleteProxyOwner(s.db)
+		return nil
+	}
+
+	if err := s.proxy.Restore(record.Snapshot); err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	_ = deleteProxyOwner(s.db)
+	return nil
+}
+
+func (s *Service) bestEffortProxyRestore() {
+	if s.proxy == nil {
+		return
+	}
+	record, err := loadProxyOwner(s.db)
+	if err != nil || record == nil || !record.QKBoxOwned {
+		return
+	}
+	state, err := s.proxy.CurrentState()
+	if err != nil || !proxyOwnerMatches(state, record) {
+		_ = deleteProxyOwner(s.db)
+		return
+	}
+	if err := s.proxy.Restore(record.Snapshot); err != nil {
+		fmt.Printf("warning: failed to restore system proxy on shutdown: %v\n", err)
+		return
+	}
+	_ = deleteProxyOwner(s.db)
 }

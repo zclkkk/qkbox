@@ -3,16 +3,20 @@ package singboxadapter
 import (
 	"context"
 	"errors"
+	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
 
 	box "github.com/sagernet/sing-box"
 	sbAdapter "github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	sjson "github.com/sagernet/sing/common/json"
+	"github.com/zclkkk/qkbox/internal/runtimeapi"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
@@ -37,6 +41,7 @@ type Adapter struct {
 	sink        RuntimeEventSink
 	trafficMu   sync.Mutex
 	lastTraffic api.TrafficSnapshot
+	listeners   []runtimeapi.ListenerInfo
 	newBox      func(ctx context.Context, configJSON string, platformWriter log.PlatformWriter) (boxHandle, error)
 }
 
@@ -59,6 +64,8 @@ func (a *Adapter) Start(ctx context.Context, configJSON string) error {
 		return &AdapterError{Code: "START_FAILED", Err: errors.New("adapter already started")}
 	}
 
+	a.listeners = extractListeners(configJSON)
+
 	b, err := a.newBox(ctx, configJSON, runtimeLogWriter{sink: a.sink})
 	if err != nil {
 		return err
@@ -75,6 +82,13 @@ func (a *Adapter) Start(ctx context.Context, configJSON string) error {
 
 	a.b = b
 	return nil
+}
+
+func (a *Adapter) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
+	if a.b == nil {
+		return nil, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine is not running.", "singboxadapter", true)
+	}
+	return a.listeners, nil
 }
 
 func newBox(ctx context.Context, configJSON string, platformWriter log.PlatformWriter) (boxHandle, error) {
@@ -156,8 +170,57 @@ func (a *Adapter) Stop() error {
 		return &AdapterError{Code: "STOP_FAILED", Err: err}
 	}
 	a.b = nil
+	a.listeners = nil
 	a.trafficMu.Lock()
 	a.lastTraffic = api.TrafficSnapshot{}
 	a.trafficMu.Unlock()
 	return nil
+}
+
+func extractListeners(configJSON string) []runtimeapi.ListenerInfo {
+	ctx := include.Context(context.Background())
+	options, err := sjson.UnmarshalExtendedContext[option.Options](ctx, []byte(configJSON))
+	if err != nil {
+		return nil
+	}
+	var result []runtimeapi.ListenerInfo
+	for _, inbound := range options.Inbounds {
+		if inbound.Type != constant.TypeHTTP && inbound.Type != constant.TypeMixed {
+			continue
+		}
+		addr, port := parseInboundListen(inbound)
+		addr = normalizeListenAddress(addr)
+		if port > 0 {
+			result = append(result, runtimeapi.ListenerInfo{
+				Tag:     inbound.Tag,
+				Type:    inbound.Type,
+				Address: addr,
+				Port:    port,
+			})
+		}
+	}
+	return result
+}
+
+func parseInboundListen(inbound option.Inbound) (string, int) {
+	opts, ok := inbound.Options.(*option.HTTPMixedInboundOptions)
+	if !ok {
+		return "", 0
+	}
+	var addr string
+	if opts.ListenOptions.Listen != nil {
+		addr = opts.ListenOptions.Listen.Build(netip.IPv4Unspecified()).String()
+	}
+	return addr, int(opts.ListenOptions.ListenPort)
+}
+
+func normalizeListenAddress(addr string) string {
+	if addr == "" || addr == "0.0.0.0" || addr == "::" {
+		return "127.0.0.1"
+	}
+	ip := net.ParseIP(addr)
+	if ip != nil && ip.IsUnspecified() {
+		return "127.0.0.1"
+	}
+	return addr
 }

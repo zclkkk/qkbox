@@ -104,11 +104,30 @@ export function Hello() {
 }
 
 /**
+ * @returns {$CancellablePromise<api$0.GetSystemProxyStatusResult>}
+ */
+export function PlatformGetSystemProxyStatus() {
+    return $Call.ByID(538798670).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType10($result);
+    }));
+}
+
+/**
+ * @param {api$0.SetSystemProxyEnabledRequest} req
+ * @returns {$CancellablePromise<api$0.SetSystemProxyEnabledResult>}
+ */
+export function PlatformSetSystemProxyEnabled(req) {
+    return $Call.ByID(1610130657, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType11($result);
+    }));
+}
+
+/**
  * @returns {$CancellablePromise<api$0.RuntimeEventBridgeStartResult>}
  */
 export function StartRuntimeEventBridge() {
     return $Call.ByID(2560008773).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType10($result);
+        return $$createType12($result);
     }));
 }
 
@@ -117,7 +136,7 @@ export function StartRuntimeEventBridge() {
  */
 export function StopRuntimeEventBridge() {
     return $Call.ByID(3118977417).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType11($result);
+        return $$createType13($result);
     }));
 }
 
@@ -132,5 +151,7 @@ const $$createType6 = api$0.EngineStartResult.createFrom;
 const $$createType7 = api$0.EngineStopResult.createFrom;
 const $$createType8 = api$0.EngineURLTestResult.createFrom;
 const $$createType9 = api$0.HelloResult.createFrom;
-const $$createType10 = api$0.RuntimeEventBridgeStartResult.createFrom;
-const $$createType11 = api$0.RuntimeEventBridgeStopResult.createFrom;
+const $$createType10 = api$0.GetSystemProxyStatusResult.createFrom;
+const $$createType11 = api$0.SetSystemProxyEnabledResult.createFrom;
+const $$createType12 = api$0.RuntimeEventBridgeStartResult.createFrom;
+const $$createType13 = api$0.RuntimeEventBridgeStopResult.createFrom;

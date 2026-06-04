@@ -2,10 +2,12 @@ package qkboxd
 
 import (
 	"context"
+	"fmt"
 
 	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
 	"github.com/zclkkk/qkbox/internal/ipc"
 	"github.com/zclkkk/qkbox/internal/persistence"
+	"github.com/zclkkk/qkbox/platform/capability"
 )
 
 func Run(ctx context.Context) error {
@@ -32,14 +34,41 @@ func Run(ctx context.Context) error {
 		return err
 	}
 
+	proxy := capability.NewSystemProxyProvider()
+	repairStaleProxy(db, proxy)
+
 	listener, err := ipc.Listen()
 	if err != nil {
 		return err
 	}
 	defer listener.Close()
 
-	service := NewService(ctx, db, key)
+	service := NewService(ctx, db, key, proxy)
 	defer service.Close()
 
 	return ipc.NewServer(service).Serve(ctx, listener)
+}
+
+func repairStaleProxy(db *persistence.DB, proxy capability.SystemProxyProvider) {
+	if proxy == nil || !proxy.Availability().Available {
+		return
+	}
+	record, err := loadProxyOwner(db)
+	if err != nil || record == nil || !record.QKBoxOwned {
+		return
+	}
+	state, err := proxy.CurrentState()
+	if err != nil {
+		return
+	}
+	if !proxyOwnerMatches(state, record) {
+		_ = deleteProxyOwner(db)
+		return
+	}
+	if err := proxy.Restore(record.Snapshot); err != nil {
+		fmt.Printf("warning: stale proxy restore failed, will retry next startup: %v\n", err)
+		return
+	}
+	_ = deleteProxyOwner(db)
+	fmt.Println("warning: restored stale system proxy from previous session")
 }

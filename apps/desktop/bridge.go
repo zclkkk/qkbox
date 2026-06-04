@@ -179,6 +179,24 @@ func (b *BridgeService) EngineCloseAllConnections(ctx context.Context) api.Engin
 	return api.EngineCloseAllConnectionsResult{Reply: &reply}
 }
 
+// Platform capabilities
+
+func (b *BridgeService) PlatformGetSystemProxyStatus(ctx context.Context) api.GetSystemProxyStatusResult {
+	reply, structured := b.client.PlatformGetSystemProxyStatus(ctx, api.GetSystemProxyStatusRequest{})
+	if structured != nil {
+		return api.GetSystemProxyStatusResult{Error: structured}
+	}
+	return api.GetSystemProxyStatusResult{Reply: &reply}
+}
+
+func (b *BridgeService) PlatformSetSystemProxyEnabled(ctx context.Context, req api.SetSystemProxyEnabledRequest) api.SetSystemProxyEnabledResult {
+	reply, structured := b.client.PlatformSetSystemProxyEnabled(ctx, req)
+	if structured != nil {
+		return api.SetSystemProxyEnabledResult{Error: structured}
+	}
+	return api.SetSystemProxyEnabledResult{Reply: &reply}
+}
+
 func forwardRuntimeEvents(ctx context.Context, events <-chan ipc.EventFrame) {
 	for {
 		select {

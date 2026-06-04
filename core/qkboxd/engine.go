@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zclkkk/qkbox/internal/runtimeapi"
 	"github.com/zclkkk/qkbox/internal/singboxadapter"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
@@ -21,6 +22,7 @@ type EngineAdapter interface {
 	URLTest(ctx context.Context, groupTag string, timeout time.Duration) ([]api.URLTestResult, *api.StructuredError)
 	CloseConnection(id string) *api.StructuredError
 	CloseAllConnections() *api.StructuredError
+	ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError)
 }
 
 type EngineStartTarget struct {
@@ -294,6 +296,14 @@ func (e *EngineController) CloseAllConnections() *api.StructuredError {
 		return err
 	}
 	return adapter.CloseAllConnections()
+}
+
+func (e *EngineController) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
+	adapter, err := e.runningAdapter()
+	if err != nil {
+		return nil, err
+	}
+	return adapter.ListenerInfo()
 }
 
 func (e *EngineController) SubscribeTraffic(ctx context.Context) <-chan api.RuntimeEvent {

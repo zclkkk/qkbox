@@ -854,6 +854,119 @@ export class EngineURLTestResult {
     }
 }
 
+export class GetSystemProxyStatusReply {
+    /**
+     * Creates a new GetSystemProxyStatusReply instance.
+     * @param {Partial<GetSystemProxyStatusReply>} [$$source = {}] - The source object to create the GetSystemProxyStatusReply.
+     */
+    constructor($$source = {}) {
+        if (!("available" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["available"] = false;
+        }
+        if (!("supported" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["supported"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+        if (!("os_enabled" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["os_enabled"] = false;
+        }
+        if (!("qkbox_owned" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["qkbox_owned"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["address"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["port"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetSystemProxyStatusReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {GetSystemProxyStatusReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetSystemProxyStatusReply(/** @type {Partial<GetSystemProxyStatusReply>} */($$parsedSource));
+    }
+}
+
+export class GetSystemProxyStatusResult {
+    /**
+     * Creates a new GetSystemProxyStatusResult instance.
+     * @param {Partial<GetSystemProxyStatusResult>} [$$source = {}] - The source object to create the GetSystemProxyStatusResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {GetSystemProxyStatusReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetSystemProxyStatusResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {GetSystemProxyStatusResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType28;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new GetSystemProxyStatusResult(/** @type {Partial<GetSystemProxyStatusResult>} */($$parsedSource));
+    }
+}
+
 export class HelloReply {
     /**
      * Creates a new HelloReply instance.
@@ -926,7 +1039,7 @@ export class HelloReply {
      * @returns {HelloReply}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType27;
+        const $$createField5_0 = $$createType29;
         const $$createField6_0 = $$createType7;
         const $$createField7_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -973,7 +1086,7 @@ export class HelloResult {
      * @returns {HelloResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType29;
+        const $$createField0_0 = $$createType31;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1030,7 +1143,7 @@ export class OutboundGroup {
      * @returns {OutboundGroup}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType31;
+        const $$createField3_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("outbounds" in $$parsedSource) {
             $$parsedSource["outbounds"] = $$createField3_0($$parsedSource["outbounds"]);
@@ -1132,7 +1245,7 @@ export class RuntimeEventBridgeStartResult {
      * @returns {RuntimeEventBridgeStartResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType33;
+        const $$createField0_0 = $$createType35;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1196,7 +1309,7 @@ export class RuntimeEventBridgeStopResult {
      * @returns {RuntimeEventBridgeStopResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType35;
+        const $$createField0_0 = $$createType37;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1206,6 +1319,98 @@ export class RuntimeEventBridgeStopResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new RuntimeEventBridgeStopResult(/** @type {Partial<RuntimeEventBridgeStopResult>} */($$parsedSource));
+    }
+}
+
+export class SetSystemProxyEnabledReply {
+    /**
+     * Creates a new SetSystemProxyEnabledReply instance.
+     * @param {Partial<SetSystemProxyEnabledReply>} [$$source = {}] - The source object to create the SetSystemProxyEnabledReply.
+     */
+    constructor($$source = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SetSystemProxyEnabledReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SetSystemProxyEnabledReply}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SetSystemProxyEnabledReply(/** @type {Partial<SetSystemProxyEnabledReply>} */($$parsedSource));
+    }
+}
+
+export class SetSystemProxyEnabledRequest {
+    /**
+     * Creates a new SetSystemProxyEnabledRequest instance.
+     * @param {Partial<SetSystemProxyEnabledRequest>} [$$source = {}] - The source object to create the SetSystemProxyEnabledRequest.
+     */
+    constructor($$source = {}) {
+        if (!("enabled" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["enabled"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SetSystemProxyEnabledRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SetSystemProxyEnabledRequest}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SetSystemProxyEnabledRequest(/** @type {Partial<SetSystemProxyEnabledRequest>} */($$parsedSource));
+    }
+}
+
+export class SetSystemProxyEnabledResult {
+    /**
+     * Creates a new SetSystemProxyEnabledResult instance.
+     * @param {Partial<SetSystemProxyEnabledResult>} [$$source = {}] - The source object to create the SetSystemProxyEnabledResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {SetSystemProxyEnabledReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SetSystemProxyEnabledResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SetSystemProxyEnabledResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType39;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new SetSystemProxyEnabledResult(/** @type {Partial<SetSystemProxyEnabledResult>} */($$parsedSource));
     }
 }
 
@@ -1356,12 +1561,16 @@ const $$createType23 = URLTestResult.createFrom;
 const $$createType24 = $Create.Array($$createType23);
 const $$createType25 = EngineURLTestReply.createFrom;
 const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = model$0.Platform.createFrom;
-const $$createType28 = HelloReply.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = OutboundOption.createFrom;
-const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = RuntimeEventBridgeStartReply.createFrom;
-const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = RuntimeEventBridgeStopReply.createFrom;
+const $$createType27 = GetSystemProxyStatusReply.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = model$0.Platform.createFrom;
+const $$createType30 = HelloReply.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = OutboundOption.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = RuntimeEventBridgeStartReply.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = RuntimeEventBridgeStopReply.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = SetSystemProxyEnabledReply.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);

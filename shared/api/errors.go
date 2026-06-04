@@ -38,6 +38,10 @@ const (
 	ErrorRuntimeGroupNotFound      = "RUNTIME_GROUP_NOT_FOUND"
 	ErrorRuntimeOutboundNotFound   = "RUNTIME_OUTBOUND_NOT_FOUND"
 	ErrorRuntimeConnectionNotFound = "RUNTIME_CONNECTION_NOT_FOUND"
+
+	ErrorPlatformProxyUnsupported = "PLATFORM_PROXY_UNSUPPORTED"
+	ErrorPlatformProxyFailed     = "PLATFORM_PROXY_FAILED"
+	ErrorPlatformProxyNoListener = "PLATFORM_PROXY_NO_LISTENER"
 )
 
 type StructuredError struct {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zclkkk/qkbox/internal/runtimeapi"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
 )
@@ -80,6 +81,13 @@ func (f *fakeAdapter) CloseConnection(string) *api.StructuredError {
 
 func (f *fakeAdapter) CloseAllConnections() *api.StructuredError {
 	return nil
+}
+
+func (f *fakeAdapter) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
+	if !f.started {
+		return nil, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine is not running.", "test", true)
+	}
+	return []runtimeapi.ListenerInfo{{Tag: "http", Type: "mixed", Address: "127.0.0.1", Port: 7890}}, nil
 }
 
 func TestEngineController_StartStopTransitions(t *testing.T) {

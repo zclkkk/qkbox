@@ -135,6 +135,16 @@ func (c *Client) EngineCloseAllConnections(ctx context.Context, req api.EngineCl
 	return do[api.EngineCloseAllConnectionsRequest, api.EngineCloseAllConnectionsReply](c, ctx, api.MethodEngineCloseAllConnections, req)
 }
 
+// Platform capabilities
+
+func (c *Client) PlatformGetSystemProxyStatus(ctx context.Context, req api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError) {
+	return do[api.GetSystemProxyStatusRequest, api.GetSystemProxyStatusReply](c, ctx, api.MethodPlatformGetSystemProxyStatus, req)
+}
+
+func (c *Client) PlatformSetSystemProxyEnabled(ctx context.Context, req api.SetSystemProxyEnabledRequest) (api.SetSystemProxyEnabledReply, *api.StructuredError) {
+	return do[api.SetSystemProxyEnabledRequest, api.SetSystemProxyEnabledReply](c, ctx, api.MethodPlatformSetSystemProxyEnabled, req)
+}
+
 // generic dispatch
 
 func do[Req any, Reply any](c *Client, ctx context.Context, method string, req Req) (Reply, *api.StructuredError) {

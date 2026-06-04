@@ -6,6 +6,7 @@
   import {
     type Capability,
     type EngineStatus,
+    type GetSystemProxyStatusReply,
     type HelloReply,
     type OutboundGroup
   } from "../bindings/github.com/zclkkk/qkbox/shared/api/models";
@@ -37,6 +38,9 @@
   let traffic = $state<TrafficSnapshot | null>(null);
   let connections = $state<ConnectionSnapshot | null>(null);
   let groups = $state<OutboundGroup[]>([]);
+  let proxyStatus = $state<GetSystemProxyStatusReply | null>(null);
+  let proxyError = $state<string | null>(null);
+  let proxyLoading = $state(false);
 
   function formatStructuredError(err: { code: string; message: string }) {
     return `${err.code}: ${err.message}`;
@@ -110,6 +114,7 @@
       await refreshEngineStatus();
       await refreshRuntimeCapabilities();
       await refreshGroups();
+      await refreshProxyStatus();
     } catch (e) {
       engineError = e instanceof Error ? e.message : String(e);
     }
@@ -182,6 +187,40 @@
     const result = await BridgeService.EngineCloseAllConnections();
     if (result.error) {
       engineError = formatStructuredError(result.error);
+    }
+  }
+
+  async function refreshProxyStatus() {
+    proxyError = null;
+    try {
+      const result = await BridgeService.PlatformGetSystemProxyStatus();
+      if (result.error) {
+        proxyError = formatStructuredError(result.error);
+        proxyStatus = null;
+        return;
+      }
+      proxyStatus = result.reply ?? null;
+    } catch (err) {
+      proxyError = err instanceof Error ? err.message : String(err);
+      proxyStatus = null;
+    }
+  }
+
+  async function toggleProxy() {
+    if (!proxyStatus?.available || !proxyStatus?.supported) return;
+    proxyLoading = true;
+    proxyError = null;
+    try {
+      const enable = !proxyStatus.qkbox_owned;
+      const result = await BridgeService.PlatformSetSystemProxyEnabled({ enabled: enable });
+      if (result.error) {
+        proxyError = formatStructuredError(result.error);
+      }
+      await refreshProxyStatus();
+    } catch (err) {
+      proxyError = err instanceof Error ? err.message : String(err);
+    } finally {
+      proxyLoading = false;
     }
   }
 
@@ -373,6 +412,51 @@
           </section>
           {@render capabilityList("Runtime", runtimeCapabilities)}
         {:else if activeView === "platform"}
+          <section class="panel">
+            <h2>System Proxy</h2>
+            {#if proxyStatus}
+              <div class="proxy-status">
+                {#if !proxyStatus.available}
+                  <div class="notice"><span>System proxy is not available on this platform.</span></div>
+                {:else if !proxyStatus.supported}
+                  <div class="notice"><span>{proxyStatus.reason || "System proxy is not supported on this configuration."}</span></div>
+                {:else}
+                  <div class="metrics">
+                    <div>
+                      <span class="label">OS Proxy</span>
+                      <span class="state" data-state={proxyStatus.os_enabled ? "available" : "unavailable"}>
+                        {proxyStatus.os_enabled ? "Enabled" : "Disabled"}
+                      </span>
+                    </div>
+                    <div>
+                      <span class="label">qkbox Owned</span>
+                      <span class="state" data-state={proxyStatus.qkbox_owned ? "available" : "unavailable"}>
+                        {proxyStatus.qkbox_owned ? "Yes" : "No"}
+                      </span>
+                    </div>
+                    {#if proxyStatus.qkbox_owned && proxyStatus.address}
+                      <div>
+                        <span class="label">Proxy Address</span>
+                        <strong>{proxyStatus.address}:{proxyStatus.port}</strong>
+                      </div>
+                    {/if}
+                  </div>
+                  <div style="margin-top: 1rem;">
+                    <button type="button" onclick={toggleProxy} disabled={proxyLoading || !engineStarted()}>
+                      {proxyStatus.qkbox_owned ? "Disable System Proxy" : "Enable System Proxy"}
+                    </button>
+                    {#if !engineStarted()}
+                      <span class="label" style="margin-left: 0.5rem;">Start the engine first</span>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {:else if proxyError}
+              <div class="notice error"><span>{proxyError}</span></div>
+            {:else}
+              <p class="empty">Loading proxy status...</p>
+            {/if}
+          </section>
           {@render capabilityList("Platform", reply.platform_capabilities)}
         {:else}
           {@render diagnostics(reply)}
