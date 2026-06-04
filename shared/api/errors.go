@@ -40,8 +40,16 @@ const (
 	ErrorRuntimeConnectionNotFound = "RUNTIME_CONNECTION_NOT_FOUND"
 
 	ErrorPlatformProxyUnsupported = "PLATFORM_PROXY_UNSUPPORTED"
-	ErrorPlatformProxyFailed     = "PLATFORM_PROXY_FAILED"
-	ErrorPlatformProxyNoListener = "PLATFORM_PROXY_NO_LISTENER"
+	ErrorPlatformProxyFailed      = "PLATFORM_PROXY_FAILED"
+	ErrorPlatformProxyNoListener  = "PLATFORM_PROXY_NO_LISTENER"
+
+	ErrorPlatformProviderUnavailable     = "PLATFORM_PROVIDER_UNAVAILABLE"
+	ErrorPlatformProviderAuthFailed      = "PLATFORM_PROVIDER_AUTH_FAILED"
+	ErrorPlatformProviderVersionMismatch = "PLATFORM_PROVIDER_VERSION_MISMATCH"
+	ErrorPlatformFeatureUnsupported      = "PLATFORM_FEATURE_UNSUPPORTED"
+	ErrorPlatformPrepareFailed           = "PLATFORM_PREPARE_FAILED"
+	ErrorPlatformRepairActionNotFound    = "PLATFORM_REPAIR_ACTION_NOT_FOUND"
+	ErrorPlatformRepairFailed            = "PLATFORM_REPAIR_FAILED"
 )
 
 type StructuredError struct {

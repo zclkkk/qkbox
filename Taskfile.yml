@@ -21,6 +21,11 @@ tasks:
     cmds:
       - go build -tags with_clash_api -trimpath -buildvcs=false -o "bin/qkboxd{{exeExt}}" ./cmd/qkboxd
 
+  build:qkbox-provider:
+    summary: Builds the privileged provider executable
+    cmds:
+      - go build -tags with_clash_api -trimpath -buildvcs=false -o "bin/qkbox-provider{{exeExt}}" ./cmd/qkbox-provider
+
   desktop:dev:
     summary: Runs the desktop app in Wails dev mode
     cmds:

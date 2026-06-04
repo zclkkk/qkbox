@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
@@ -17,16 +18,27 @@ import (
 )
 
 type Service struct {
-	db     *persistence.DB
-	key    []byte
-	engine *EngineController
-	events *RuntimeEventHub
-	proxy  capability.SystemProxyProvider
+	db         *persistence.DB
+	key        []byte
+	engine     *EngineController
+	events     *RuntimeEventHub
+	proxy      capability.SystemProxyProvider
+	privileged capability.PrivilegedProvider
+	opMu       sync.Mutex
 }
 
-func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider) *Service {
+const privilegedCapabilityProbeTimeout = 500 * time.Millisecond
+
+func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider) *Service {
 	events := NewRuntimeEventHub()
-	return &Service{db: db, key: key, events: events, engine: NewEngineController(runtimeCtx, events), proxy: proxy}
+	return &Service{
+		db:         db,
+		key:        key,
+		events:     events,
+		engine:     NewEngineController(runtimeCtx, events),
+		proxy:      proxy,
+		privileged: privileged,
+	}
 }
 
 func (s *Service) Close() error {
@@ -34,9 +46,9 @@ func (s *Service) Close() error {
 	return s.engine.Shutdown()
 }
 
-// Hello (existing)
+// Hello
 
-func (s *Service) Hello(_ context.Context, req api.HelloRequest) (api.HelloReply, *api.StructuredError) {
+func (s *Service) Hello(ctx context.Context, req api.HelloRequest) (api.HelloReply, *api.StructuredError) {
 	if req.ClientAPIVersion != api.APIVersion {
 		return api.HelloReply{}, api.VersionUnsupported(req.ClientAPIVersion)
 	}
@@ -51,18 +63,18 @@ func (s *Service) Hello(_ context.Context, req api.HelloRequest) (api.HelloReply
 			Arch: runtime.GOARCH,
 		},
 		RuntimeCapabilities:  s.engine.RuntimeCapabilities(),
-		PlatformCapabilities: s.platformCapabilities(),
+		PlatformCapabilities: s.platformCapabilities(ctx),
 	}, nil
 }
 
-func (s *Service) platformCapabilities() []api.Capability {
+func (s *Service) platformCapabilities(ctx context.Context) []api.Capability {
 	caps := api.PlatformCapabilityShell()
 	if s.proxy == nil {
-		return caps
+		return s.applyPrivilegedCapabilities(ctx, caps)
 	}
 	avail := s.proxy.Availability()
 	for i, cap := range caps {
-		if cap.Name == "SYSTEM_PROXY" {
+		if cap.Name == api.CapabilitySystemProxy {
 			if avail.Available && avail.Supported {
 				caps[i].State = api.CapabilityAvailable
 				caps[i].Reason = ""
@@ -76,7 +88,57 @@ func (s *Service) platformCapabilities() []api.Capability {
 			break
 		}
 	}
+	return s.applyPrivilegedCapabilities(ctx, caps)
+}
+
+func (s *Service) applyPrivilegedCapabilities(ctx context.Context, caps []api.Capability) []api.Capability {
+	status := api.PrivilegedProviderStatus{Reason: "Privileged provider is not configured."}
+	if s.privileged != nil {
+		probeCtx, cancel := context.WithTimeout(ctx, privilegedCapabilityProbeTimeout)
+		defer cancel()
+		status = s.privileged.Status(probeCtx)
+	}
+	providerReady := status.Installed && status.Reachable && status.Authenticated && status.Version == status.ExpectedVersion
+	for i, cap := range caps {
+		switch cap.Name {
+		case api.CapabilityBackgroundService:
+			if providerReady {
+				caps[i].State = api.CapabilityAvailable
+				caps[i].Reason = ""
+			} else {
+				caps[i].State = api.CapabilityUnavailable
+				caps[i].Reason = providerStatusReason(status)
+			}
+		case api.CapabilityTunMode, api.CapabilityDNSHijack:
+			if providerReady {
+				caps[i].State = api.CapabilityUnavailable
+				caps[i].Reason = "Privileged network mutation is not available in this provider build."
+			} else {
+				caps[i].State = api.CapabilityUnavailable
+				caps[i].Reason = providerStatusReason(status)
+			}
+		}
+	}
 	return caps
+}
+
+func providerStatusReason(status api.PrivilegedProviderStatus) string {
+	if status.Reason != "" {
+		return status.Reason
+	}
+	if !status.Installed {
+		return "Privileged provider is not installed."
+	}
+	if !status.Reachable {
+		return "Privileged provider is not reachable."
+	}
+	if !status.Authenticated {
+		return "Privileged provider authentication failed."
+	}
+	if status.ExpectedVersion != "" && status.Version != status.ExpectedVersion {
+		return "Privileged provider version mismatch."
+	}
+	return "Privileged provider is unavailable."
 }
 
 // Profile CRUD
@@ -310,13 +372,19 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 	if err != nil {
 		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
+	requiredCapabilities := extractRequiredCapabilities(content)
+	requiredCapabilitiesJSON, err := json.Marshal(requiredCapabilities)
+	if err != nil {
+		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+	}
 
 	snapshot := model.Snapshot{
-		ID:               persistence.NewSnapshotID(),
-		ProfileID:        req.ProfileID,
-		ValidationStatus: diag.Status,
-		Diagnostics:      diag.Entries,
-		CreatedAt:        time.Now().UnixMilli(),
+		ID:                   persistence.NewSnapshotID(),
+		ProfileID:            req.ProfileID,
+		ValidationStatus:     diag.Status,
+		Diagnostics:          diag.Entries,
+		RequiredCapabilities: requiredCapabilities,
+		CreatedAt:            time.Now().UnixMilli(),
 	}
 	snapshotContent, err := s.encryptedContent("snapshot", req.ProfileID, content, snapshot.CreatedAt)
 	if err != nil {
@@ -324,7 +392,7 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		return s.db.CreateSnapshotWithContentTx(tx, &snapshot, snapshotContent, diagJSON, nil, nil)
+		return s.db.CreateSnapshotWithContentTx(tx, &snapshot, snapshotContent, diagJSON, nil, requiredCapabilitiesJSON)
 	}); err != nil {
 		return api.CreateProfileSnapshotReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
@@ -333,6 +401,9 @@ func (s *Service) CreateProfileSnapshot(_ context.Context, req api.CreateProfile
 }
 
 func (s *Service) ActivateProfileSnapshot(_ context.Context, req api.ActivateProfileSnapshotRequest) (api.ActivateProfileSnapshotReply, *api.StructuredError) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+
 	if err := s.engine.CheckBlockMutations(); err != nil {
 		return api.ActivateProfileSnapshotReply{}, err
 	}
@@ -382,6 +453,9 @@ func (s *Service) ListSnapshots(_ context.Context, req api.ListSnapshotsRequest)
 }
 
 func (s *Service) RollbackToSnapshot(_ context.Context, req api.RollbackToSnapshotRequest) (api.RollbackToSnapshotReply, *api.StructuredError) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+
 	if err := s.engine.CheckBlockMutations(); err != nil {
 		return api.RollbackToSnapshotReply{}, err
 	}
@@ -405,14 +479,19 @@ func (s *Service) RollbackToSnapshot(_ context.Context, req api.RollbackToSnapsh
 
 // Engine lifecycle
 
-func (s *Service) EngineStart(_ context.Context, _ api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError) {
-	if sErr := s.engine.Start(s.loadEngineStartTarget); sErr != nil {
+func (s *Service) EngineStart(ctx context.Context, _ api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+
+	if sErr := s.engine.Start(func() (EngineStartTarget, *api.StructuredError) {
+		return s.loadActiveEngineStartTarget(ctx)
+	}); sErr != nil {
 		return api.EngineStartReply{}, sErr
 	}
 	return api.EngineStartReply{}, nil
 }
 
-func (s *Service) loadEngineStartTarget() (EngineStartTarget, *api.StructuredError) {
+func (s *Service) loadActiveEngineStartTarget(ctx context.Context) (EngineStartTarget, *api.StructuredError) {
 	activeSnapshotID, err := s.db.GetActiveSnapshotID()
 	if err != nil {
 		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
@@ -421,12 +500,36 @@ func (s *Service) loadEngineStartTarget() (EngineStartTarget, *api.StructuredErr
 		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot to start.", "qkboxd", true)
 	}
 
-	_, contentID, err := s.db.GetSnapshot(activeSnapshotID)
+	return s.loadPreparedEngineStartTarget(ctx, activeSnapshotID)
+}
+
+func (s *Service) loadPreparedEngineStartTarget(ctx context.Context, snapshotID string) (EngineStartTarget, *api.StructuredError) {
+	target, structured := s.loadEngineStartTargetByID(snapshotID)
+	if structured != nil {
+		return EngineStartTarget{}, structured
+	}
+	if structured := s.prepareSnapshotCapabilities(ctx, target.SnapshotID, target.ConfigJSON); structured != nil {
+		return EngineStartTarget{}, structured
+	}
+	return target, nil
+}
+
+func (s *Service) startPreparedSnapshotTarget(ctx context.Context, snapshotID string) *api.StructuredError {
+	return s.engine.Start(func() (EngineStartTarget, *api.StructuredError) {
+		return s.loadPreparedEngineStartTarget(ctx, snapshotID)
+	})
+}
+
+func (s *Service) loadEngineStartTargetByID(snapshotID string) (EngineStartTarget, *api.StructuredError) {
+	snapshot, contentID, err := s.db.GetSnapshot(snapshotID)
 	if err != nil {
 		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
 	}
+	if snapshot == nil {
+		return EngineStartTarget{}, api.NewStructuredError(api.ErrorSnapshotNotFound, "Snapshot not found.", "qkboxd", true)
+	}
 	if contentID == "" {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "Active snapshot has no content.", "qkboxd", true)
+		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "Snapshot has no content.", "qkboxd", true)
 	}
 
 	configJSON, err := s.decryptContent(contentID)
@@ -434,10 +537,13 @@ func (s *Service) loadEngineStartTarget() (EngineStartTarget, *api.StructuredErr
 		return EngineStartTarget{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "Failed to decrypt snapshot content: "+err.Error(), "qkboxd", false)
 	}
 
-	return EngineStartTarget{SnapshotID: activeSnapshotID, ConfigJSON: configJSON}, nil
+	return EngineStartTarget{SnapshotID: snapshotID, ConfigJSON: configJSON}, nil
 }
 
 func (s *Service) EngineStop(_ context.Context, _ api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+
 	if sErr := s.restoreProxyIfOwned(); sErr != nil {
 		return api.EngineStopReply{}, sErr
 	}
@@ -457,6 +563,109 @@ func (s *Service) EngineGetStatus(_ context.Context, _ api.EngineGetStatusReques
 		status.ActiveSnapshotID = activeSnapshotID
 	}
 	return api.EngineGetStatusReply{Status: status}, nil
+}
+
+func (s *Service) EngineReload(ctx context.Context, req api.EngineReloadRequest) (api.EngineReloadReply, *api.StructuredError) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+
+	reply := api.EngineReloadReply{TargetSnapshotID: req.SnapshotID}
+	if req.SnapshotID == "" {
+		return reply, api.NewStructuredError(api.ErrorIPCInvalidRequest, "snapshot_id is required.", "qkboxd", true)
+	}
+
+	status := s.engine.GetStatus()
+	if status.State != model.EngineStateStarted {
+		return reply, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine reload requires a running engine.", "qkboxd", true)
+	}
+	previousSnapshotID := status.ActiveSnapshotID
+	if previousSnapshotID == "" {
+		var err error
+		previousSnapshotID, err = s.db.GetActiveSnapshotID()
+		if err != nil {
+			return reply, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		}
+	}
+	reply.PreviousSnapshotID = previousSnapshotID
+	reply.ActiveSnapshotID = previousSnapshotID
+
+	target, structured := s.loadEngineStartTargetByID(req.SnapshotID)
+	if structured != nil {
+		reply.Outcome = api.ReloadOutcomeFailedRuntimeStart
+		reply.Failure = structured
+		return reply, nil
+	}
+	diag := validateContent(target.ConfigJSON)
+	if diag.Status == model.ValidationStatusInvalid {
+		reply.Outcome = api.ReloadOutcomeFailedValidation
+		reply.Failure = &api.StructuredError{
+			Code:        api.ErrorConfigValidationFailed,
+			Message:     "Validation failed. Fix errors before reloading.",
+			Detail:      diag.Entries,
+			Source:      "qkboxd",
+			Recoverable: true,
+			UserAction:  "Fix the validation errors in your profile.",
+		}
+		return reply, nil
+	}
+	if structured := s.prepareSnapshotCapabilities(ctx, target.SnapshotID, target.ConfigJSON); structured != nil {
+		reply.Outcome = api.ReloadOutcomeFailedPlatformPrepare
+		reply.Failure = structured
+		return reply, nil
+	}
+
+	if _, structured := s.loadEngineStartTargetByID(previousSnapshotID); structured != nil {
+		reply.Outcome = api.ReloadOutcomeDegraded
+		reply.Failure = structured
+		return reply, nil
+	}
+
+	if cleanup := s.restoreProxyIfOwned(); cleanup != nil {
+		reply.Outcome = api.ReloadOutcomeCleanupFailed
+		reply.CleanupFailure = cleanup
+		return reply, nil
+	}
+
+	if stopErr := s.engine.Stop(); stopErr != nil {
+		reply.Outcome = api.ReloadOutcomeCleanupFailed
+		reply.CleanupFailure = stopErr
+		return reply, nil
+	}
+
+	if startErr := s.startPreparedSnapshotTarget(ctx, target.SnapshotID); startErr != nil {
+		reply.Failure = startErr
+		if rollbackErr := s.startPreparedSnapshotTarget(ctx, previousSnapshotID); rollbackErr != nil {
+			reply.Outcome = api.ReloadOutcomeDegraded
+			reply.CleanupFailure = rollbackErr
+			return reply, nil
+		}
+		reply.Outcome = api.ReloadOutcomeRolledBack
+		reply.ActiveSnapshotID = previousSnapshotID
+		return reply, nil
+	}
+
+	if err := s.db.WithTx(func(tx *sql.Tx) error {
+		return s.db.SetActiveSnapshotTx(tx, target.SnapshotID)
+	}); err != nil {
+		reply.Failure = api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+		if stopErr := s.engine.Stop(); stopErr != nil {
+			reply.Outcome = api.ReloadOutcomeDegraded
+			reply.CleanupFailure = stopErr
+			return reply, nil
+		}
+		if rollbackErr := s.startPreparedSnapshotTarget(ctx, previousSnapshotID); rollbackErr != nil {
+			reply.Outcome = api.ReloadOutcomeDegraded
+			reply.CleanupFailure = rollbackErr
+			return reply, nil
+		}
+		reply.Outcome = api.ReloadOutcomeRolledBack
+		reply.ActiveSnapshotID = previousSnapshotID
+		return reply, nil
+	}
+
+	reply.Outcome = api.ReloadOutcomeSuccess
+	reply.ActiveSnapshotID = target.SnapshotID
+	return reply, nil
 }
 
 func (s *Service) EngineSubscribeStatus(ctx context.Context, _ api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
@@ -553,7 +762,77 @@ func (s *Service) decryptContent(contentID string) (string, error) {
 	return string(plaintext), nil
 }
 
-// System proxy
+func (s *Service) prepareSnapshotCapabilities(ctx context.Context, snapshotID, configJSON string) *api.StructuredError {
+	snapshot, _, err := s.db.GetSnapshot(snapshotID)
+	if err != nil {
+		return api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", false)
+	}
+	required := []string{}
+	if snapshot != nil && len(snapshot.RequiredCapabilities) > 0 {
+		required = snapshot.RequiredCapabilities
+	} else {
+		required = extractRequiredCapabilities(configJSON)
+	}
+	for _, feature := range required {
+		if !isPrivilegedFeature(feature) {
+			continue
+		}
+		if s.privileged == nil {
+			return api.NewStructuredError(api.ErrorPlatformProviderUnavailable, "Privileged provider is not configured.", "provider", true)
+		}
+		reply, structured := s.privileged.PrepareFeature(ctx, feature)
+		if structured != nil {
+			return structured
+		}
+		if reply.State != api.CapabilityAvailable {
+			err := api.NewStructuredError(api.ErrorPlatformPrepareFailed, "Required platform capability is not available.", "provider", true)
+			err.Detail = reply
+			return err
+		}
+	}
+	return nil
+}
+
+func isPrivilegedFeature(feature string) bool {
+	switch feature {
+	case api.CapabilityTunMode, api.CapabilityDNSHijack, api.CapabilityBackgroundService:
+		return true
+	default:
+		return false
+	}
+}
+
+// Platform capabilities
+
+func (s *Service) PlatformGetCapabilities(ctx context.Context, _ api.GetPlatformCapabilitiesRequest) (api.GetPlatformCapabilitiesReply, *api.StructuredError) {
+	return api.GetPlatformCapabilitiesReply{Capabilities: s.platformCapabilities(ctx)}, nil
+}
+
+func (s *Service) PlatformGetPrivilegedProviderStatus(ctx context.Context, _ api.GetPrivilegedProviderStatusRequest) (api.GetPrivilegedProviderStatusReply, *api.StructuredError) {
+	if s.privileged == nil {
+		return api.GetPrivilegedProviderStatusReply{
+			Status: api.PrivilegedProviderStatus{Reason: "Privileged provider is not configured."},
+		}, nil
+	}
+	return api.GetPrivilegedProviderStatusReply{Status: s.privileged.Status(ctx)}, nil
+}
+
+func (s *Service) PlatformPrepareFeature(ctx context.Context, req api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError) {
+	if !isPrivilegedFeature(req.Feature) {
+		return api.PrepareFeatureReply{}, api.NewStructuredError(api.ErrorPlatformFeatureUnsupported, "Feature is not supported by the privileged provider.", "qkboxd", true)
+	}
+	if s.privileged == nil {
+		return api.PrepareFeatureReply{}, api.NewStructuredError(api.ErrorPlatformProviderUnavailable, "Privileged provider is not configured.", "provider", true)
+	}
+	return s.privileged.PrepareFeature(ctx, req.Feature)
+}
+
+func (s *Service) PlatformRunRepairAction(ctx context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {
+	if s.privileged == nil {
+		return api.RunRepairActionReply{}, api.NewStructuredError(api.ErrorPlatformProviderUnavailable, "Privileged provider is not configured.", "provider", true)
+	}
+	return s.privileged.RunRepairAction(ctx, req.Action)
+}
 
 func (s *Service) PlatformGetSystemProxyStatus(_ context.Context, _ api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError) {
 	reply := api.GetSystemProxyStatusReply{}
@@ -586,8 +865,6 @@ func (s *Service) PlatformGetSystemProxyStatus(_ context.Context, _ api.GetSyste
 			reply.QKBoxOwned = true
 			reply.Address = record.ProxyAddr
 			reply.Port = record.ProxyPort
-		} else if err := deleteProxyOwner(s.db); err != nil {
-			return reply, api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
 		}
 	}
 
@@ -595,6 +872,9 @@ func (s *Service) PlatformGetSystemProxyStatus(_ context.Context, _ api.GetSyste
 }
 
 func (s *Service) PlatformSetSystemProxyEnabled(_ context.Context, req api.SetSystemProxyEnabledRequest) (api.SetSystemProxyEnabledReply, *api.StructuredError) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+
 	if s.proxy == nil || !s.proxy.Availability().Available || !s.proxy.Availability().Supported {
 		return api.SetSystemProxyEnabledReply{}, api.NewStructuredError(api.ErrorPlatformProxyUnsupported, "System proxy is not available on this platform.", "platform", false)
 	}
@@ -631,9 +911,16 @@ func (s *Service) enableProxy() *api.StructuredError {
 		if proxyOwnerMatches(state, record) {
 			return nil
 		}
-		if err := deleteProxyOwner(s.db); err != nil {
+		record.ProxyAddr = addr
+		record.ProxyPort = port
+		record.EnabledAt = time.Now().UnixMilli()
+		if err := saveProxyOwner(s.db, record); err != nil {
 			return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
 		}
+		if err := s.proxy.Apply(addr, port); err != nil {
+			return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+		}
+		return nil
 	}
 
 	snapshot, err := s.proxy.Snapshot()

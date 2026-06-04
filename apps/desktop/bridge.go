@@ -74,6 +74,14 @@ func (b *BridgeService) EngineStop(ctx context.Context) api.EngineStopResult {
 	return api.EngineStopResult{Reply: &reply}
 }
 
+func (b *BridgeService) EngineReload(ctx context.Context, req api.EngineReloadRequest) api.EngineReloadResult {
+	reply, structured := b.client.EngineReload(ctx, req)
+	if structured != nil {
+		return api.EngineReloadResult{Error: structured}
+	}
+	return api.EngineReloadResult{Reply: &reply}
+}
+
 func (b *BridgeService) EngineGetStatus(ctx context.Context) api.EngineGetStatusResult {
 	reply, structured := b.client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
 	if structured != nil {
@@ -180,6 +188,38 @@ func (b *BridgeService) EngineCloseAllConnections(ctx context.Context) api.Engin
 }
 
 // Platform capabilities
+
+func (b *BridgeService) PlatformGetCapabilities(ctx context.Context) api.GetPlatformCapabilitiesResult {
+	reply, structured := b.client.PlatformGetCapabilities(ctx, api.GetPlatformCapabilitiesRequest{})
+	if structured != nil {
+		return api.GetPlatformCapabilitiesResult{Error: structured}
+	}
+	return api.GetPlatformCapabilitiesResult{Reply: &reply}
+}
+
+func (b *BridgeService) PlatformGetPrivilegedProviderStatus(ctx context.Context) api.GetPrivilegedProviderStatusResult {
+	reply, structured := b.client.PlatformGetPrivilegedProviderStatus(ctx, api.GetPrivilegedProviderStatusRequest{})
+	if structured != nil {
+		return api.GetPrivilegedProviderStatusResult{Error: structured}
+	}
+	return api.GetPrivilegedProviderStatusResult{Reply: &reply}
+}
+
+func (b *BridgeService) PlatformPrepareFeature(ctx context.Context, req api.PrepareFeatureRequest) api.PrepareFeatureResult {
+	reply, structured := b.client.PlatformPrepareFeature(ctx, req)
+	if structured != nil {
+		return api.PrepareFeatureResult{Error: structured}
+	}
+	return api.PrepareFeatureResult{Reply: &reply}
+}
+
+func (b *BridgeService) PlatformRunRepairAction(ctx context.Context, req api.RunRepairActionRequest) api.RunRepairActionResult {
+	reply, structured := b.client.PlatformRunRepairAction(ctx, req)
+	if structured != nil {
+		return api.RunRepairActionResult{Error: structured}
+	}
+	return api.RunRepairActionResult{Reply: &reply}
+}
 
 func (b *BridgeService) PlatformGetSystemProxyStatus(ctx context.Context) api.GetSystemProxyStatusResult {
 	reply, structured := b.client.PlatformGetSystemProxyStatus(ctx, api.GetSystemProxyStatusRequest{})

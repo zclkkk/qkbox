@@ -8,7 +8,8 @@
     type EngineStatus,
     type GetSystemProxyStatusReply,
     type HelloReply,
-    type OutboundGroup
+    type OutboundGroup,
+    type PrivilegedProviderStatus
   } from "../bindings/github.com/zclkkk/qkbox/shared/api/models";
 
   type View = "engine" | "platform" | "diagnostics";
@@ -34,6 +35,7 @@
   let engineStatus = $state<EngineStatus | null>(null);
   let engineError = $state<string | null>(null);
   let runtimeCapabilities = $state<Capability[]>([]);
+  let platformCapabilities = $state<Capability[]>([]);
   let logs = $state<RuntimeLogEntry[]>([]);
   let traffic = $state<TrafficSnapshot | null>(null);
   let connections = $state<ConnectionSnapshot | null>(null);
@@ -41,6 +43,8 @@
   let proxyStatus = $state<GetSystemProxyStatusReply | null>(null);
   let proxyError = $state<string | null>(null);
   let proxyLoading = $state(false);
+  let privilegedProviderStatus = $state<PrivilegedProviderStatus | null>(null);
+  let platformError = $state<string | null>(null);
 
   function formatStructuredError(err: { code: string; message: string }) {
     return `${err.code}: ${err.message}`;
@@ -80,6 +84,25 @@
     runtimeCapabilities = result.reply?.capabilities ?? [];
   }
 
+  async function refreshPlatformCapabilities() {
+    const result = await BridgeService.PlatformGetCapabilities();
+    if (result.error) {
+      platformError = formatStructuredError(result.error);
+      return;
+    }
+    platformCapabilities = result.reply?.capabilities ?? [];
+  }
+
+  async function refreshPrivilegedProviderStatus() {
+    const result = await BridgeService.PlatformGetPrivilegedProviderStatus();
+    if (result.error) {
+      platformError = formatStructuredError(result.error);
+      privilegedProviderStatus = null;
+      return;
+    }
+    privilegedProviderStatus = result.reply?.status ?? null;
+  }
+
   async function refreshGroups() {
     const result = await BridgeService.EngineListGroups();
     if (result.error) {
@@ -103,6 +126,7 @@
       } else {
         reply = result.reply as HelloReply;
         runtimeCapabilities = reply.runtime_capabilities;
+        platformCapabilities = reply.platform_capabilities;
         lastChecked = new Date().toLocaleTimeString();
       }
     } catch (err) {
@@ -114,6 +138,8 @@
       await refreshEngineStatus();
       await refreshRuntimeCapabilities();
       await refreshGroups();
+      await refreshPlatformCapabilities();
+      await refreshPrivilegedProviderStatus();
       await refreshProxyStatus();
     } catch (e) {
       engineError = e instanceof Error ? e.message : String(e);
@@ -413,6 +439,56 @@
           {@render capabilityList("Runtime", runtimeCapabilities)}
         {:else if activeView === "platform"}
           <section class="panel">
+            <h2>Privileged Provider</h2>
+            {#if privilegedProviderStatus}
+              <div class="metrics">
+                <div>
+                  <span class="label">Installed</span>
+                  <span class="state" data-state={privilegedProviderStatus.installed ? "available" : "unavailable"}>
+                    {privilegedProviderStatus.installed ? "Yes" : "No"}
+                  </span>
+                </div>
+                <div>
+                  <span class="label">Reachable</span>
+                  <span class="state" data-state={privilegedProviderStatus.reachable ? "available" : "unavailable"}>
+                    {privilegedProviderStatus.reachable ? "Yes" : "No"}
+                  </span>
+                </div>
+                <div>
+                  <span class="label">Authenticated</span>
+                  <span class="state" data-state={privilegedProviderStatus.authenticated ? "available" : "unavailable"}>
+                    {privilegedProviderStatus.authenticated ? "Yes" : "No"}
+                  </span>
+                </div>
+                <div>
+                  <span class="label">Version</span>
+                  <strong>{privilegedProviderStatus.version || "unknown"}</strong>
+                </div>
+                {#if privilegedProviderStatus.expected_version}
+                  <div>
+                    <span class="label">Expected</span>
+                    <strong>{privilegedProviderStatus.expected_version}</strong>
+                  </div>
+                {/if}
+                {#if privilegedProviderStatus.endpoint}
+                  <div>
+                    <span class="label">Endpoint</span>
+                    <strong>{privilegedProviderStatus.endpoint}</strong>
+                  </div>
+                {/if}
+              </div>
+              {#if privilegedProviderStatus.reason}
+                <div class="notice" style="margin-top: 1rem;">
+                  <span>{privilegedProviderStatus.reason}</span>
+                </div>
+              {/if}
+            {:else if platformError}
+              <div class="notice error"><span>{platformError}</span></div>
+            {:else}
+              <p class="empty">Loading provider status...</p>
+            {/if}
+          </section>
+          <section class="panel">
             <h2>System Proxy</h2>
             {#if proxyStatus}
               <div class="proxy-status">
@@ -457,7 +533,7 @@
               <p class="empty">Loading proxy status...</p>
             {/if}
           </section>
-          {@render capabilityList("Platform", reply.platform_capabilities)}
+          {@render capabilityList("Platform", platformCapabilities)}
         {:else}
           {@render diagnostics(reply)}
         {/if}

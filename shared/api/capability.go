@@ -10,6 +10,16 @@ const (
 	CapabilityUnsupported CapabilityState = "unsupported"
 )
 
+const (
+	CapabilitySystemProxy        = "SYSTEM_PROXY"
+	CapabilityTunMode            = "TUN_MODE"
+	CapabilityDNSHijack          = "DNS_HIJACK"
+	CapabilityBackgroundService  = "BACKGROUND_SERVICE"
+	CapabilityStartOnBoot        = "START_ON_BOOT"
+	CapabilityProcessLookup      = "PROCESS_LOOKUP"
+	CapabilityConnectionTracking = "CONNECTION_TRACKING"
+)
+
 type Capability struct {
 	Name   string          `json:"name"`
 	State  CapabilityState `json:"state"`
@@ -31,12 +41,12 @@ func RuntimeCapabilityShell() []Capability {
 
 func PlatformCapabilityShell() []Capability {
 	return []Capability{
-		{Name: "SYSTEM_PROXY", State: CapabilityUnavailable, Reason: "Implemented in Phase 7."},
-		{Name: "TUN_MODE", State: CapabilityUnavailable, Reason: "Implemented in Phase 9."},
-		{Name: "DNS_HIJACK", State: CapabilityUnavailable, Reason: "Implemented in Phase 9."},
-		{Name: "BACKGROUND_SERVICE", State: CapabilityUnavailable, Reason: "Implemented in Phase 8."},
-		{Name: "START_ON_BOOT", State: CapabilityUnavailable, Reason: "Implemented after privileged provider boundary."},
-		{Name: "PROCESS_LOOKUP", State: CapabilityUnavailable, Reason: "Implemented when platform provider supports it."},
-		{Name: "CONNECTION_TRACKING", State: CapabilityUnavailable, Reason: "Implemented when runtime observability supports it."},
+		{Name: CapabilitySystemProxy, State: CapabilityUnavailable, Reason: "System proxy provider is unavailable."},
+		{Name: CapabilityTunMode, State: CapabilityUnavailable, Reason: "Exclusive network mode is unavailable."},
+		{Name: CapabilityDNSHijack, State: CapabilityUnavailable, Reason: "DNS hijack mode is unavailable."},
+		{Name: CapabilityBackgroundService, State: CapabilityUnavailable, Reason: "Privileged provider is unavailable."},
+		{Name: CapabilityStartOnBoot, State: CapabilityUnavailable, Reason: "Start-on-boot provider is unavailable."},
+		{Name: CapabilityProcessLookup, State: CapabilityUnavailable, Reason: "Process lookup source is unavailable."},
+		{Name: CapabilityConnectionTracking, State: CapabilityUnavailable, Reason: "Connection tracking source is unavailable."},
 	}
 }

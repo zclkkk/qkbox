@@ -131,6 +131,7 @@ func TestEngineStatusJSONShape(t *testing.T) {
 func TestEngineMethodRegistry(t *testing.T) {
 	newMethods := []string{
 		MethodEngineStart, MethodEngineStop, MethodEngineGetStatus,
+		MethodEngineReload,
 		MethodEngineSubscribeStatus, MethodEngineSubscribeLogs,
 		MethodEngineSubscribeTraffic, MethodEngineSubscribeConnections,
 		MethodEngineGetRuntimeCapabilities, MethodEngineListGroups,
@@ -172,6 +173,10 @@ func TestRuntimeObservabilityJSONShape(t *testing.T) {
 
 func TestPlatformMethodRegistry(t *testing.T) {
 	newMethods := []string{
+		MethodPlatformGetCapabilities,
+		MethodPlatformGetPrivilegedProviderStatus,
+		MethodPlatformPrepareFeature,
+		MethodPlatformRunRepairAction,
 		MethodPlatformGetSystemProxyStatus,
 		MethodPlatformSetSystemProxyEnabled,
 	}
@@ -196,6 +201,60 @@ func TestSystemProxyStatusJSONShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, needle := range []string{`"available"`, `"supported"`, `"os_enabled"`, `"qkbox_owned"`, `"address"`, `"port"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
+func TestEngineReloadJSONShape(t *testing.T) {
+	reply := EngineReloadReply{
+		Outcome:            ReloadOutcomeSuccess,
+		TargetSnapshotID:   "target",
+		PreviousSnapshotID: "previous",
+		ActiveSnapshotID:   "target",
+	}
+	got, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"outcome"`, `"target_snapshot_id"`, `"previous_snapshot_id"`, `"active_snapshot_id"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
+func TestPrivilegedProviderStatusJSONShape(t *testing.T) {
+	reply := GetPrivilegedProviderStatusReply{
+		Status: PrivilegedProviderStatus{
+			Installed:       true,
+			Reachable:       true,
+			Authenticated:   true,
+			Version:         "0.1.0",
+			ExpectedVersion: "0.1.0",
+			Endpoint:        "provider",
+			OwnerState:      &ProviderOwnerState{Owned: true, UID: "1000"},
+		},
+	}
+	got, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"status"`, `"installed"`, `"reachable"`, `"authenticated"`, `"expected_version"`, `"owner_state"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
+func TestPrepareFeatureJSONShape(t *testing.T) {
+	reply := PrepareFeatureReply{Feature: CapabilityTunMode, State: CapabilityUnavailable, Reason: "Privileged network mutation is unavailable."}
+	got, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"feature"`, `"state"`, `"reason"`} {
 		if !contains(string(got), needle) {
 			t.Fatalf("expected %s in %s", needle, got)
 		}

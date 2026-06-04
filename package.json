@@ -5,7 +5,7 @@
   "scripts": {
     "check": "npm run frontend:check && npm run frontend:build && npm run go:test && npm run go:vet && wails3 doctor",
     "test": "npm run go:test",
-    "build": "npm run build:qkboxd && npm run build:desktop",
+    "build": "npm run build:qkboxd && npm run build:qkbox-provider && npm run build:desktop",
     "go:fmt": "gofmt -w apps cmd core internal platform shared",
     "go:test": "go test -tags with_clash_api ./...",
     "go:vet": "go vet -tags with_clash_api ./...",
@@ -13,6 +13,7 @@
     "frontend:check": "wails3 task -dir apps/desktop generate:bindings && npm --prefix apps/desktop/frontend run check",
     "frontend:build": "wails3 task -dir apps/desktop build:frontend",
     "build:qkboxd": "wails3 task build:qkboxd",
+    "build:qkbox-provider": "wails3 task build:qkbox-provider",
     "build:desktop": "wails3 task -dir apps/desktop build"
   }
 }

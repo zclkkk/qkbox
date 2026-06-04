@@ -91,6 +91,10 @@ func (c *Client) EngineStop(ctx context.Context, req api.EngineStopRequest) (api
 	return do[api.EngineStopRequest, api.EngineStopReply](c, ctx, api.MethodEngineStop, req)
 }
 
+func (c *Client) EngineReload(ctx context.Context, req api.EngineReloadRequest) (api.EngineReloadReply, *api.StructuredError) {
+	return do[api.EngineReloadRequest, api.EngineReloadReply](c, ctx, api.MethodEngineReload, req)
+}
+
 func (c *Client) EngineGetStatus(ctx context.Context, req api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError) {
 	return do[api.EngineGetStatusRequest, api.EngineGetStatusReply](c, ctx, api.MethodEngineGetStatus, req)
 }
@@ -136,6 +140,22 @@ func (c *Client) EngineCloseAllConnections(ctx context.Context, req api.EngineCl
 }
 
 // Platform capabilities
+
+func (c *Client) PlatformGetCapabilities(ctx context.Context, req api.GetPlatformCapabilitiesRequest) (api.GetPlatformCapabilitiesReply, *api.StructuredError) {
+	return do[api.GetPlatformCapabilitiesRequest, api.GetPlatformCapabilitiesReply](c, ctx, api.MethodPlatformGetCapabilities, req)
+}
+
+func (c *Client) PlatformGetPrivilegedProviderStatus(ctx context.Context, req api.GetPrivilegedProviderStatusRequest) (api.GetPrivilegedProviderStatusReply, *api.StructuredError) {
+	return do[api.GetPrivilegedProviderStatusRequest, api.GetPrivilegedProviderStatusReply](c, ctx, api.MethodPlatformGetPrivilegedProviderStatus, req)
+}
+
+func (c *Client) PlatformPrepareFeature(ctx context.Context, req api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError) {
+	return do[api.PrepareFeatureRequest, api.PrepareFeatureReply](c, ctx, api.MethodPlatformPrepareFeature, req)
+}
+
+func (c *Client) PlatformRunRepairAction(ctx context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {
+	return do[api.RunRepairActionRequest, api.RunRepairActionReply](c, ctx, api.MethodPlatformRunRepairAction, req)
+}
 
 func (c *Client) PlatformGetSystemProxyStatus(ctx context.Context, req api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError) {
 	return do[api.GetSystemProxyStatusRequest, api.GetSystemProxyStatusReply](c, ctx, api.MethodPlatformGetSystemProxyStatus, req)

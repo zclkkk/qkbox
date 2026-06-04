@@ -23,6 +23,7 @@ const (
 	// Engine
 	MethodEngineStart                  = "engine.start"
 	MethodEngineStop                   = "engine.stop"
+	MethodEngineReload                 = "engine.reload"
 	MethodEngineGetStatus              = "engine.getStatus"
 	MethodEngineSubscribeStatus        = "engine.subscribeStatus"
 	MethodEngineSubscribeLogs          = "engine.subscribeLogs"
@@ -36,8 +37,12 @@ const (
 	MethodEngineCloseAllConnections    = "engine.closeAllConnections"
 
 	// Platform capabilities
-	MethodPlatformGetSystemProxyStatus  = "platform.getSystemProxyStatus"
-	MethodPlatformSetSystemProxyEnabled = "platform.setSystemProxyEnabled"
+	MethodPlatformGetCapabilities             = "platform.getCapabilities"
+	MethodPlatformGetPrivilegedProviderStatus = "platform.getPrivilegedProviderStatus"
+	MethodPlatformPrepareFeature              = "platform.prepareFeature"
+	MethodPlatformRunRepairAction             = "platform.runRepairAction"
+	MethodPlatformGetSystemProxyStatus        = "platform.getSystemProxyStatus"
+	MethodPlatformSetSystemProxyEnabled       = "platform.setSystemProxyEnabled"
 )
 
 var MethodRegistry = map[string]struct{}{
@@ -58,6 +63,7 @@ var MethodRegistry = map[string]struct{}{
 
 	MethodEngineStart:                  {},
 	MethodEngineStop:                   {},
+	MethodEngineReload:                 {},
 	MethodEngineGetStatus:              {},
 	MethodEngineSubscribeStatus:        {},
 	MethodEngineSubscribeLogs:          {},
@@ -70,6 +76,10 @@ var MethodRegistry = map[string]struct{}{
 	MethodEngineCloseConnection:        {},
 	MethodEngineCloseAllConnections:    {},
 
-	MethodPlatformGetSystemProxyStatus:  {},
-	MethodPlatformSetSystemProxyEnabled: {},
+	MethodPlatformGetCapabilities:             {},
+	MethodPlatformGetPrivilegedProviderStatus: {},
+	MethodPlatformPrepareFeature:              {},
+	MethodPlatformRunRepairAction:             {},
+	MethodPlatformGetSystemProxyStatus:        {},
+	MethodPlatformSetSystemProxyEnabled:       {},
 }

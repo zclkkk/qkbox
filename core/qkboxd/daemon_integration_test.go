@@ -3,16 +3,24 @@ package qkboxd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/zclkkk/qkbox/internal/ipc"
+	"github.com/zclkkk/qkbox/internal/provideripc"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
 func startDaemon(t *testing.T) *ipc.Client {
 	t.Helper()
-	t.Setenv("QKBOX_STATE_DIR", t.TempDir())
+	return startDaemonWithStateDir(t, t.TempDir())
+}
+
+func startDaemonWithStateDir(t *testing.T, stateDir string) *ipc.Client {
+	t.Helper()
+	t.Setenv("QKBOX_STATE_DIR", stateDir)
 	t.Setenv("QKBOX_IPC_ENDPOINT_ID", fmt.Sprintf("test-%d", time.Now().UnixNano()))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -41,6 +49,66 @@ func startDaemon(t *testing.T) *ipc.Client {
 	return ipc.NewClient()
 }
 
+type integrationProviderHandler struct{}
+
+func (integrationProviderHandler) GetStatus(context.Context, struct{}) (provideripc.StatusReply, *api.StructuredError) {
+	return provideripc.StatusReply{Version: api.QKBoxDVersion}, nil
+}
+
+func (integrationProviderHandler) PrepareFeature(_ context.Context, req api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError) {
+	if req.Feature == api.CapabilityBackgroundService {
+		return api.PrepareFeatureReply{Feature: req.Feature, State: api.CapabilityAvailable}, nil
+	}
+	return api.PrepareFeatureReply{Feature: req.Feature, State: api.CapabilityUnavailable, Reason: "not implemented"}, nil
+}
+
+func (integrationProviderHandler) RunRepairAction(_ context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {
+	return api.RunRepairActionReply{Action: req.Action, Outcome: "success"}, nil
+}
+
+func startProviderForDaemonTest(t *testing.T, stateDir string) {
+	t.Helper()
+	endpoint := daemonTestProviderEndpoint(t)
+	clientPath := provideripc.ClientConfigPath(stateDir)
+	serverPath := provideripc.ServerConfigPath(stateDir)
+	if _, _, err := provideripc.WriteConfigPair(clientPath, serverPath, endpoint); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := provideripc.ReadServerConfig(serverPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := provideripc.Listen(cfg.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- provideripc.NewServer(cfg.Token, integrationProviderHandler{}).Serve(ctx, listener)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-errCh:
+			if err != nil {
+				t.Errorf("provider exit: %v", err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Error("provider did not stop")
+		}
+	})
+}
+
+func daemonTestProviderEndpoint(t *testing.T) string {
+	t.Helper()
+	id := fmt.Sprintf("qkbox-provider-daemon-test-%d", time.Now().UnixNano())
+	if runtime.GOOS == "windows" {
+		return `\\.\pipe\` + id
+	}
+	return filepath.Join(t.TempDir(), id+".sock")
+}
+
 func TestDaemonHelloOverLocalTransport(t *testing.T) {
 	client := startDaemon(t)
 
@@ -63,6 +131,28 @@ func TestDaemonHelloOverLocalTransport(t *testing.T) {
 	}
 	if structured.Code != api.ErrorIPCVersionUnsupported {
 		t.Fatalf("error code = %s", structured.Code)
+	}
+}
+
+func TestDaemonPrivilegedProviderStatusOverLocalTransport(t *testing.T) {
+	stateDir := t.TempDir()
+	startProviderForDaemonTest(t, stateDir)
+	client := startDaemonWithStateDir(t, stateDir)
+
+	status, structured := client.PlatformGetPrivilegedProviderStatus(context.Background(), api.GetPrivilegedProviderStatusRequest{})
+	if structured != nil {
+		t.Fatalf("provider status: %v", structured)
+	}
+	if !status.Status.Installed || !status.Status.Reachable || !status.Status.Authenticated {
+		t.Fatalf("status = %+v", status.Status)
+	}
+
+	prepared, structured := client.PlatformPrepareFeature(context.Background(), api.PrepareFeatureRequest{Feature: api.CapabilityBackgroundService})
+	if structured != nil {
+		t.Fatalf("prepare: %v", structured)
+	}
+	if prepared.State != api.CapabilityAvailable {
+		t.Fatalf("prepared = %+v", prepared)
 	}
 }
 

@@ -33,6 +33,7 @@ type Handler interface {
 	// Engine lifecycle
 	EngineStart(context.Context, api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError)
 	EngineStop(context.Context, api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError)
+	EngineReload(context.Context, api.EngineReloadRequest) (api.EngineReloadReply, *api.StructuredError)
 	EngineGetStatus(context.Context, api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError)
 	EngineSubscribeStatus(context.Context, api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
 	EngineSubscribeLogs(context.Context, api.EngineSubscribeLogsRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
@@ -46,6 +47,10 @@ type Handler interface {
 	EngineCloseAllConnections(context.Context, api.EngineCloseAllConnectionsRequest) (api.EngineCloseAllConnectionsReply, *api.StructuredError)
 
 	// Platform capabilities
+	PlatformGetCapabilities(context.Context, api.GetPlatformCapabilitiesRequest) (api.GetPlatformCapabilitiesReply, *api.StructuredError)
+	PlatformGetPrivilegedProviderStatus(context.Context, api.GetPrivilegedProviderStatusRequest) (api.GetPrivilegedProviderStatusReply, *api.StructuredError)
+	PlatformPrepareFeature(context.Context, api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError)
+	PlatformRunRepairAction(context.Context, api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError)
 	PlatformGetSystemProxyStatus(context.Context, api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError)
 	PlatformSetSystemProxyEnabled(context.Context, api.SetSystemProxyEnabledRequest) (api.SetSystemProxyEnabledReply, *api.StructuredError)
 }
@@ -126,6 +131,8 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		dispatch(conn, req, s.handler.EngineStart, ctx)
 	case api.MethodEngineStop:
 		dispatch(conn, req, s.handler.EngineStop, ctx)
+	case api.MethodEngineReload:
+		dispatch(conn, req, s.handler.EngineReload, ctx)
 	case api.MethodEngineGetStatus:
 		dispatch(conn, req, s.handler.EngineGetStatus, ctx)
 	case api.MethodEngineSubscribeStatus:
@@ -149,6 +156,14 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 	case api.MethodEngineCloseAllConnections:
 		dispatch(conn, req, s.handler.EngineCloseAllConnections, ctx)
 
+	case api.MethodPlatformGetCapabilities:
+		dispatch(conn, req, s.handler.PlatformGetCapabilities, ctx)
+	case api.MethodPlatformGetPrivilegedProviderStatus:
+		dispatch(conn, req, s.handler.PlatformGetPrivilegedProviderStatus, ctx)
+	case api.MethodPlatformPrepareFeature:
+		dispatch(conn, req, s.handler.PlatformPrepareFeature, ctx)
+	case api.MethodPlatformRunRepairAction:
+		dispatch(conn, req, s.handler.PlatformRunRepairAction, ctx)
 	case api.MethodPlatformGetSystemProxyStatus:
 		dispatch(conn, req, s.handler.PlatformGetSystemProxyStatus, ctx)
 	case api.MethodPlatformSetSystemProxyEnabled:
