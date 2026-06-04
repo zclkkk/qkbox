@@ -379,11 +379,13 @@ Unsupported platform returns PLATFORM_* diagnostics.
 不让 GUI 直接修改 OS proxy settings。
 ```
 
-## Phase 8: Privileged Provider Boundary
+## Phase 8: Privileged Boundary And Reload Core
 
 ### 目标
 
-在实现 TUN 前，先落地正式 privileged capability boundary。
+在实现 TUN 前，先落地正式 privileged capability boundary，并建立产品层 reload 语义。
+
+Provider 边界和 reload 语义是同一个网络模式基座：provider 负责特权能力准备、owner state 和 repair action，reload 负责 snapshot 切换、能力解析、rollback 和 cleanup 结果表达。后续 TUN / Route / DNS 必须建立在这个基座上，而不是暴露 stop/start 细节或把平台准备逻辑塞进 runtime start。
 
 ### 范围
 
@@ -394,6 +396,12 @@ user qkboxd -> provider IPC
 provider owner state model
 PrepareFeature for TUN_MODE / DNS_HIJACK / BACKGROUND_SERVICE
 RunRepairAction shell
+Reload target snapshot
+validation before runtime/platform mutation
+capability resolution
+best-effort rollback to previous snapshot
+structured reload result
+cleanup failure reporting
 ```
 
 ### 安全要求
@@ -404,88 +412,8 @@ Provider does not accept arbitrary shell or file operations.
 Provider authenticates qkboxd.
 Provider records minimal owner state only.
 Provider does not store profile content or secrets.
-```
-
-### 验收
-
-```text
-qkboxd can detect provider unavailable / installed / mismatched version.
-Unauthorized calls are rejected.
-Provider owner state is observable through qkboxd diagnostics.
-No profile or secret data is written by provider.
-```
-
-### 禁止
-
-```text
-不实现 route/DNS/TUN mutation。
-不让 GUI 直接调用 provider。
-product IPC 不使用未鉴权 localhost TCP。
-```
-
-## Phase 9: TUN / Route / DNS Exclusive Network Mode
-
-### 目标
-
-增加机器级网络模式，并显式处理 ownership 和 best-effort repair。
-
-### 范围
-
-```text
-TUN_MODE capability
-machine-level owner lock
-NETWORK_MODE_OWNED_BY_ANOTHER_SESSION error
-platform-specific capability preparation
-runtime diagnostics
-cleanup on stop
-repair actions for stale state
-```
-
-### 平台方向
-
-```text
-Windows
-  privileged provider owns TUN / route / DNS actions
-
-macOS
-  prefer Network Extension for formal TUN/VPN mode
-
-Linux
-  privileged provider with systemd/root helper and polkit-class authorization
-```
-
-### 验收
-
-```text
-Only one user/session can own machine-level network mode.
-Owner state is released on clean stop.
-Stale owner state can be diagnosed and repaired.
-Route/DNS cleanup failures produce cleanup_failed or degraded results.
-```
-
-### 禁止
-
-```text
-v1 不支持 concurrent per-user TUN runtimes。
-不隐藏 cleanup failure。
-不承诺 atomic platform rollback。
-```
-
-## Phase 10: Reload Semantics
-
-### 目标
-
-基于现有 runtime lifecycle 实现产品层 reload 语义。
-
-### 范围
-
-```text
-Reload target snapshot
-validation before mutation
-capability resolution
-best-effort rollback to previous snapshot
-structured reload result
-cleanup failure reporting
+GUI does not call provider directly.
+Product IPC does not use unauthenticated localhost TCP.
 ```
 
 ### Result Values
@@ -504,6 +432,10 @@ cleanup_failed
 ### 验收
 
 ```text
+qkboxd can detect provider unavailable / installed / mismatched version.
+Unauthorized calls are rejected.
+Provider owner state is observable through qkboxd diagnostics.
+No profile or secret data is written by provider.
 Validation failure does not affect current runtime.
 Runtime start failure attempts previous snapshot restore.
 Active snapshot changes only after successful new runtime start.
@@ -513,15 +445,76 @@ Cleanup failure is visible and repairable.
 ### 禁止
 
 ```text
+不实现 route/DNS/TUN mutation。
+不让 GUI 直接调用 provider。
+product IPC 不使用未鉴权 localhost TCP。
 不向 GUI 暴露 stop/start implementation details。
 不声称 route/DNS/TUN rollback 是原子事务。
 ```
 
-## Phase 11: Data Asset Updates
+## Phase 9: Exclusive TUN / Route / DNS Network Mode
 
 ### 目标
 
-支持数据资产独立刷新，不支持二进制组件独立刷新。
+增加机器级网络模式，并显式处理 ownership、cleanup 和 best-effort repair。
+
+这是后续最高风险阶段，不与数据资产、更新、debug bundle 合并。可以按平台拆成 Phase 9A / 9B / 9C 执行，但每个平台 slice 必须包含完整 ownership、cleanup、repair、diagnostics，不接受只做到“能连上”的中间形态。
+
+### 范围
+
+```text
+TUN_MODE capability
+DNS_HIJACK capability
+machine-level owner lock
+NETWORK_MODE_OWNED_BY_ANOTHER_SESSION error
+platform-specific capability preparation
+runtime diagnostics
+cleanup on stop
+repair actions for stale state
+cleanup_failed / degraded result propagation
+```
+
+### 平台方向
+
+```text
+Windows
+  privileged provider owns TUN / route / DNS actions
+
+macOS
+  prefer Network Extension for formal TUN/VPN mode
+  do not use temporary root route hacks as the product path
+
+Linux
+  privileged provider with systemd/root helper and polkit-class authorization
+```
+
+### 验收
+
+```text
+Only one user/session can own machine-level network mode.
+Owner state is released on clean stop.
+Stale owner state can be diagnosed and repaired.
+Route/DNS cleanup failures produce cleanup_failed or degraded results.
+Capabilities report runnable / not runnable reasons.
+```
+
+### 禁止
+
+```text
+v1 不支持 concurrent per-user TUN runtimes。
+不隐藏 cleanup failure。
+不承诺 atomic platform rollback。
+不为了三端表面完整性在 macOS 上引入临时 route hack。
+不把 TUN / route / DNS state 写进 GUI 或 shared API 的 sing-box 类型。
+```
+
+## Phase 10: Data Asset And Subscription Update Plane
+
+### 目标
+
+支持数据资产独立刷新，并通过 snapshot/reload 语义进入 runtime；不支持二进制组件独立刷新。
+
+数据资产属于产品数据面。远程配置、rule-set、geo assets 和 provider cache 可以独立更新，但 runtime 变更必须通过 draft/snapshot lifecycle 和 reload coordination 完成。数据资产更新不得直接修改 active runtime config。
 
 ### 范围
 
@@ -533,6 +526,8 @@ geo assets
 provider cache
 asset status
 asset diagnostics
+draft/snapshot policy for remote profile updates
+reload coordination after successful asset update
 ```
 
 ### 验收
@@ -541,6 +536,8 @@ asset diagnostics
 Asset updates do not replace binaries.
 Remote profile updates create drafts or snapshots according to product policy.
 Failed asset updates do not corrupt current active snapshot.
+Runtime changes happen through snapshot/reload semantics.
+Asset status and diagnostics are visible through qkboxd.
 ```
 
 ### 禁止
@@ -548,13 +545,17 @@ Failed asset updates do not corrupt current active snapshot.
 ```text
 不实现 core/helper/runtime bundle updates。
 不绕过 snapshot 语义修改 active runtime config。
+不添加 component-level hot update path。
+不把 provider cache 当成 runtime source of truth。
 ```
 
-## Phase 12: App Update Coordination
+## Phase 11: Release Coordination And Debug Recovery
 
 ### 目标
 
-协调完整产品更新，但不让 qkboxd 自己替换自己。
+协调完整产品更新、诊断导出和恢复建议，让发布后的失败可诊断、可修复，同时不泄漏 secret。
+
+Release coordination 和 debug recovery 属于同一个发布后维护面。component versions、runtime quiesce、migration hooks、debug bundle、repair recommendations 必须使用同一套 capability/status/error 事实，避免更新流程和诊断流程各自维护一套状态解释。
 
 ### 范围
 
@@ -564,40 +565,8 @@ GetComponentVersions
 CheckAppUpdate
 DownloadAppUpdate
 ApplyAppUpdate coordination
-runtime quiesce before update
+runtime quiesce before installer handoff
 post-update migration hooks
-```
-
-### Ownership Rule
-
-真正 apply package update 的是 updater 或 installer。`qkboxd` 可以协调 shutdown、报告版本，但不替换自己的 binary 或 helper binary。
-
-### 验收
-
-```text
-Component versions are visible for diagnostics.
-Update flow can stop runtime cleanly before installer handoff.
-No component-level hot update path exists.
-```
-
-### 禁止
-
-```text
-不添加 CoreUpdate。
-不添加 HelperUpdate。
-不添加 RuntimeBundleUpdate。
-不添加 component-level rollback。
-```
-
-## Phase 13: Debug Bundle And Recovery
-
-### 目标
-
-让失败可诊断，同时不泄漏 secret。
-
-### 范围
-
-```text
 debug bundle export
 redacted profiles/summaries
 runtime status
@@ -608,9 +577,16 @@ structured error history
 repair action recommendations
 ```
 
+### Ownership Rule
+
+真正 apply package update 的是 updater 或 installer。`qkboxd` 可以协调 shutdown、报告版本、导出诊断、触发 allowlisted repair action，但不替换自己的 binary 或 helper binary。
+
 ### 验收
 
 ```text
+Component versions are visible for diagnostics.
+Update flow can stop runtime cleanly before installer handoff.
+No component-level hot update path exists.
 Debug bundle redacts common secrets.
 Debug bundle does not include plaintext profile content by default.
 Repair actions are allowlisted.
@@ -619,6 +595,10 @@ Repair actions are allowlisted.
 ### 禁止
 
 ```text
+不添加 CoreUpdate。
+不添加 HelperUpdate。
+不添加 RuntimeBundleUpdate。
+不添加 component-level rollback。
 不导出 arbitrary files。
 不在未脱敏情况下导出可能含 secret 的 privileged helper logs。
 ```
