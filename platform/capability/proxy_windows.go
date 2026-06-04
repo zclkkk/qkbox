@@ -4,10 +4,10 @@ package capability
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"syscall"
-	"unsafe"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -25,10 +25,20 @@ func (p *windowsSystemProxy) Availability() SystemProxyAvailability {
 const internetSettingsPath = `Software\Microsoft\Windows\CurrentVersion\Internet Settings`
 
 type windowsSnapshot struct {
-	ProxyEnable   uint32 `json:"proxy_enable"`
-	ProxyServer   string `json:"proxy_server"`
-	AutoDetect    uint32 `json:"auto_detect"`
-	AutoConfigURL string `json:"auto_config_url"`
+	ProxyEnable   windowsDWORDValue  `json:"proxy_enable"`
+	ProxyServer   windowsStringValue `json:"proxy_server"`
+	AutoDetect    windowsDWORDValue  `json:"auto_detect"`
+	AutoConfigURL windowsStringValue `json:"auto_config_url"`
+}
+
+type windowsDWORDValue struct {
+	Exists bool   `json:"exists"`
+	Value  uint32 `json:"value,omitempty"`
+}
+
+type windowsStringValue struct {
+	Exists bool   `json:"exists"`
+	Value  string `json:"value,omitempty"`
 }
 
 func (p *windowsSystemProxy) Snapshot() (*SystemProxySnapshot, error) {
@@ -38,12 +48,29 @@ func (p *windowsSystemProxy) Snapshot() (*SystemProxySnapshot, error) {
 	}
 	defer k.Close()
 
-	snap := windowsSnapshot{}
+	proxyEnable, err := readDWORDValue(k, "ProxyEnable")
+	if err != nil {
+		return nil, fmt.Errorf("read ProxyEnable: %w", err)
+	}
+	proxyServer, err := readStringValue(k, "ProxyServer")
+	if err != nil {
+		return nil, fmt.Errorf("read ProxyServer: %w", err)
+	}
+	autoDetect, err := readDWORDValue(k, "AutoDetect")
+	if err != nil {
+		return nil, fmt.Errorf("read AutoDetect: %w", err)
+	}
+	autoConfigURL, err := readStringValue(k, "AutoConfigURL")
+	if err != nil {
+		return nil, fmt.Errorf("read AutoConfigURL: %w", err)
+	}
 
-	snap.ProxyEnable, _, _ = k.GetIntegerValue("ProxyEnable")
-	snap.ProxyServer, _, _ = k.GetStringValue("ProxyServer")
-	snap.AutoDetect, _, _ = k.GetIntegerValue("AutoDetect")
-	snap.AutoConfigURL, _, _ = k.GetStringValue("AutoConfigURL")
+	snap := windowsSnapshot{
+		ProxyEnable:   proxyEnable,
+		ProxyServer:   proxyServer,
+		AutoDetect:    autoDetect,
+		AutoConfigURL: autoConfigURL,
+	}
 
 	raw, err := json.Marshal(snap)
 	if err != nil {
@@ -88,16 +115,16 @@ func (p *windowsSystemProxy) Restore(snapshot *SystemProxySnapshot) error {
 	}
 	defer k.Close()
 
-	if err := k.SetDWordValue("ProxyEnable", snap.ProxyEnable); err != nil {
+	if err := restoreDWORDValue(k, "ProxyEnable", snap.ProxyEnable); err != nil {
 		return fmt.Errorf("restore ProxyEnable: %w", err)
 	}
-	if err := k.SetStringValue("ProxyServer", snap.ProxyServer); err != nil {
+	if err := restoreStringValue(k, "ProxyServer", snap.ProxyServer); err != nil {
 		return fmt.Errorf("restore ProxyServer: %w", err)
 	}
-	if err := k.SetDWordValue("AutoDetect", snap.AutoDetect); err != nil {
+	if err := restoreDWORDValue(k, "AutoDetect", snap.AutoDetect); err != nil {
 		return fmt.Errorf("restore AutoDetect: %w", err)
 	}
-	if err := k.SetStringValue("AutoConfigURL", snap.AutoConfigURL); err != nil {
+	if err := restoreStringValue(k, "AutoConfigURL", snap.AutoConfigURL); err != nil {
 		return fmt.Errorf("restore AutoConfigURL: %w", err)
 	}
 
@@ -114,8 +141,10 @@ func (p *windowsSystemProxy) CurrentState() (SystemProxyCurrentState, error) {
 
 	enabled64, _, _ := k.GetIntegerValue("ProxyEnable")
 	server, _, _ := k.GetStringValue("ProxyServer")
+	autoDetect, _, _ := k.GetIntegerValue("AutoDetect")
+	autoConfigURL, _, _ := k.GetStringValue("AutoConfigURL")
 
-	state := SystemProxyCurrentState{Enabled: enabled64 != 0}
+	state := SystemProxyCurrentState{Enabled: enabled64 != 0 && autoDetect == 0 && autoConfigURL == ""}
 	if server != "" {
 		host, portStr, err := splitHostPort(server)
 		if err == nil {
@@ -133,6 +162,49 @@ func splitHostPort(s string) (string, string, error) {
 		}
 	}
 	return "", "", fmt.Errorf("missing port in %q", s)
+}
+
+func readDWORDValue(k registry.Key, name string) (windowsDWORDValue, error) {
+	value, _, err := k.GetIntegerValue(name)
+	if err != nil {
+		if errors.Is(err, registry.ErrNotExist) {
+			return windowsDWORDValue{}, nil
+		}
+		return windowsDWORDValue{}, err
+	}
+	return windowsDWORDValue{Exists: true, Value: uint32(value)}, nil
+}
+
+func readStringValue(k registry.Key, name string) (windowsStringValue, error) {
+	value, _, err := k.GetStringValue(name)
+	if err != nil {
+		if errors.Is(err, registry.ErrNotExist) {
+			return windowsStringValue{}, nil
+		}
+		return windowsStringValue{}, err
+	}
+	return windowsStringValue{Exists: true, Value: value}, nil
+}
+
+func restoreDWORDValue(k registry.Key, name string, value windowsDWORDValue) error {
+	if value.Exists {
+		return k.SetDWordValue(name, value.Value)
+	}
+	return deleteRegistryValueIfPresent(k, name)
+}
+
+func restoreStringValue(k registry.Key, name string, value windowsStringValue) error {
+	if value.Exists {
+		return k.SetStringValue(name, value.Value)
+	}
+	return deleteRegistryValueIfPresent(k, name)
+}
+
+func deleteRegistryValueIfPresent(k registry.Key, name string) error {
+	if err := k.DeleteValue(name); err != nil && !errors.Is(err, registry.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 func notifySystemProxyChanged() {

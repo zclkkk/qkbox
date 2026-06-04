@@ -20,11 +20,11 @@ func (p *darwinSystemProxy) Availability() SystemProxyAvailability {
 }
 
 type darwinSnapshot struct {
-	Interface      string `json:"interface"`
-	WebProxy       bool   `json:"web_proxy"`
-	WebProxyHost   string `json:"web_proxy_host"`
-	WebProxyPort   int    `json:"web_proxy_port"`
-	SecureProxy    bool   `json:"secure_proxy"`
+	Interface       string `json:"interface"`
+	WebProxy        bool   `json:"web_proxy"`
+	WebProxyHost    string `json:"web_proxy_host"`
+	WebProxyPort    int    `json:"web_proxy_port"`
+	SecureProxy     bool   `json:"secure_proxy"`
 	SecureProxyHost string `json:"secure_proxy_host"`
 	SecureProxyPort int    `json:"secure_proxy_port"`
 }
@@ -108,11 +108,16 @@ func (p *darwinSystemProxy) CurrentState() (SystemProxyCurrentState, error) {
 	if err != nil {
 		return SystemProxyCurrentState{}, err
 	}
-	enabled, host, port, err := readProxyState(iface, "webproxy")
+	webEnabled, webHost, webPort, err := readProxyState(iface, "webproxy")
 	if err != nil {
 		return SystemProxyCurrentState{}, err
 	}
-	return SystemProxyCurrentState{Enabled: enabled, Addr: host, Port: port}, nil
+	secureEnabled, secureHost, securePort, err := readProxyState(iface, "securewebproxy")
+	if err != nil {
+		return SystemProxyCurrentState{}, err
+	}
+	enabled := webEnabled && secureEnabled && webHost == secureHost && webPort == securePort
+	return SystemProxyCurrentState{Enabled: enabled, Addr: webHost, Port: webPort}, nil
 }
 
 func activeInterface() (string, error) {

@@ -558,13 +558,16 @@ func (s *Service) decryptContent(contentID string) (string, error) {
 func (s *Service) PlatformGetSystemProxyStatus(_ context.Context, _ api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError) {
 	reply := api.GetSystemProxyStatusReply{}
 
-	if s.proxy == nil || !s.proxy.Availability().Available {
+	if s.proxy == nil {
 		return reply, nil
 	}
 	avail := s.proxy.Availability()
 	reply.Available = avail.Available
 	reply.Supported = avail.Supported
 	reply.Reason = avail.Reason
+	if !avail.Available || !avail.Supported {
+		return reply, nil
+	}
 
 	state, err := s.proxy.CurrentState()
 	if err != nil {
@@ -579,9 +582,13 @@ func (s *Service) PlatformGetSystemProxyStatus(_ context.Context, _ api.GetSyste
 		return reply, api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
 	}
 	if record != nil && record.QKBoxOwned {
-		reply.QKBoxOwned = true
-		reply.Address = record.ProxyAddr
-		reply.Port = record.ProxyPort
+		if proxyOwnerMatches(state, record) {
+			reply.QKBoxOwned = true
+			reply.Address = record.ProxyAddr
+			reply.Port = record.ProxyPort
+		} else if err := deleteProxyOwner(s.db); err != nil {
+			return reply, api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+		}
 	}
 
 	return reply, nil
@@ -624,11 +631,8 @@ func (s *Service) enableProxy() *api.StructuredError {
 		if proxyOwnerMatches(state, record) {
 			return nil
 		}
-		if applyErr := s.proxy.Apply(record.ProxyAddr, record.ProxyPort); applyErr == nil {
-			record.ProxyAddr = addr
-			record.ProxyPort = port
-			_ = saveProxyOwner(s.db, record)
-			return nil
+		if err := deleteProxyOwner(s.db); err != nil {
+			return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
 		}
 	}
 
@@ -694,6 +698,10 @@ func (s *Service) restoreProxyIfOwned() *api.StructuredError {
 	if record == nil || !record.QKBoxOwned {
 		return nil
 	}
+	avail := s.proxy.Availability()
+	if !avail.Available || !avail.Supported {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, "System proxy owner record exists but the platform provider is unavailable.", "platform", true)
+	}
 
 	state, err := s.proxy.CurrentState()
 	if err != nil {
@@ -719,8 +727,17 @@ func (s *Service) bestEffortProxyRestore() {
 	if err != nil || record == nil || !record.QKBoxOwned {
 		return
 	}
+	avail := s.proxy.Availability()
+	if !avail.Available || !avail.Supported {
+		fmt.Printf("warning: system proxy owner record kept because provider is unavailable: %s\n", avail.Reason)
+		return
+	}
 	state, err := s.proxy.CurrentState()
-	if err != nil || !proxyOwnerMatches(state, record) {
+	if err != nil {
+		fmt.Printf("warning: failed to read system proxy on shutdown: %v\n", err)
+		return
+	}
+	if !proxyOwnerMatches(state, record) {
 		_ = deleteProxyOwner(s.db)
 		return
 	}

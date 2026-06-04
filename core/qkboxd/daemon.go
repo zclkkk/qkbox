@@ -50,7 +50,11 @@ func Run(ctx context.Context) error {
 }
 
 func repairStaleProxy(db *persistence.DB, proxy capability.SystemProxyProvider) {
-	if proxy == nil || !proxy.Availability().Available {
+	if proxy == nil {
+		return
+	}
+	avail := proxy.Availability()
+	if !avail.Available || !avail.Supported {
 		return
 	}
 	record, err := loadProxyOwner(db)
@@ -59,6 +63,7 @@ func repairStaleProxy(db *persistence.DB, proxy capability.SystemProxyProvider) 
 	}
 	state, err := proxy.CurrentState()
 	if err != nil {
+		fmt.Printf("warning: stale proxy state check failed, will retry next startup: %v\n", err)
 		return
 	}
 	if !proxyOwnerMatches(state, record) {

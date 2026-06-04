@@ -42,7 +42,7 @@ type Adapter struct {
 	trafficMu   sync.Mutex
 	lastTraffic api.TrafficSnapshot
 	listeners   []runtimeapi.ListenerInfo
-	newBox      func(ctx context.Context, configJSON string, platformWriter log.PlatformWriter) (boxHandle, error)
+	newBox      func(ctx context.Context, configJSON string, platformWriter log.PlatformWriter) (boxHandle, []runtimeapi.ListenerInfo, error)
 }
 
 func NewAdapter(sinks ...RuntimeEventSink) *Adapter {
@@ -64,9 +64,7 @@ func (a *Adapter) Start(ctx context.Context, configJSON string) error {
 		return &AdapterError{Code: "START_FAILED", Err: errors.New("adapter already started")}
 	}
 
-	a.listeners = extractListeners(configJSON)
-
-	b, err := a.newBox(ctx, configJSON, runtimeLogWriter{sink: a.sink})
+	b, listeners, err := a.newBox(ctx, configJSON, runtimeLogWriter{sink: a.sink})
 	if err != nil {
 		return err
 	}
@@ -81,6 +79,7 @@ func (a *Adapter) Start(ctx context.Context, configJSON string) error {
 	}
 
 	a.b = b
+	a.listeners = listeners
 	return nil
 }
 
@@ -91,17 +90,18 @@ func (a *Adapter) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredErro
 	return a.listeners, nil
 }
 
-func newBox(ctx context.Context, configJSON string, platformWriter log.PlatformWriter) (boxHandle, error) {
+func newBox(ctx context.Context, configJSON string, platformWriter log.PlatformWriter) (boxHandle, []runtimeapi.ListenerInfo, error) {
 	ctx = include.Context(ctx)
 
 	options, err := sjson.UnmarshalExtendedContext[option.Options](ctx, []byte(configJSON))
 	if err != nil {
-		return nil, &AdapterError{Code: "CONFIG_FAILED", Err: err}
+		return nil, nil, &AdapterError{Code: "CONFIG_FAILED", Err: err}
 	}
+	listeners := extractListeners(&options)
 	disableExternalClashController(&options)
 	cacheDir, err := isolateImplicitCacheFile(&options, platformWriter)
 	if err != nil {
-		return nil, &AdapterError{Code: "START_FAILED", Err: err}
+		return nil, nil, &AdapterError{Code: "START_FAILED", Err: err}
 	}
 
 	b, err := box.New(box.Options{
@@ -111,10 +111,10 @@ func newBox(ctx context.Context, configJSON string, platformWriter log.PlatformW
 	})
 	if err != nil {
 		cleanupRuntimeCache(cacheDir)
-		return nil, &AdapterError{Code: "START_FAILED", Err: err}
+		return nil, nil, &AdapterError{Code: "START_FAILED", Err: err}
 	}
 
-	return &managedBox{observableBoxHandle: b, cacheDir: cacheDir}, nil
+	return &managedBox{observableBoxHandle: b, cacheDir: cacheDir}, listeners, nil
 }
 
 type managedBox struct {
@@ -177,10 +177,8 @@ func (a *Adapter) Stop() error {
 	return nil
 }
 
-func extractListeners(configJSON string) []runtimeapi.ListenerInfo {
-	ctx := include.Context(context.Background())
-	options, err := sjson.UnmarshalExtendedContext[option.Options](ctx, []byte(configJSON))
-	if err != nil {
+func extractListeners(options *option.Options) []runtimeapi.ListenerInfo {
+	if options == nil {
 		return nil
 	}
 	var result []runtimeapi.ListenerInfo

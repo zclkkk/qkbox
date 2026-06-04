@@ -169,3 +169,35 @@ func TestRuntimeObservabilityJSONShape(t *testing.T) {
 		}
 	}
 }
+
+func TestPlatformMethodRegistry(t *testing.T) {
+	newMethods := []string{
+		MethodPlatformGetSystemProxyStatus,
+		MethodPlatformSetSystemProxyEnabled,
+	}
+	for _, m := range newMethods {
+		if _, ok := MethodRegistry[m]; !ok {
+			t.Fatalf("missing %s in method registry", m)
+		}
+	}
+}
+
+func TestSystemProxyStatusJSONShape(t *testing.T) {
+	reply := GetSystemProxyStatusReply{
+		Available:  true,
+		Supported:  true,
+		OSEnabled:  true,
+		QKBoxOwned: true,
+		Address:    "127.0.0.1",
+		Port:       7890,
+	}
+	got, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{`"available"`, `"supported"`, `"os_enabled"`, `"qkbox_owned"`, `"address"`, `"port"`} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
