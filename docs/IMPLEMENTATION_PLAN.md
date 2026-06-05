@@ -1,622 +1,216 @@
-﻿# qkbox 阶段实施计划
+# qkbox Implementation Roadmap
 
-这份文档把宏观架构切成可交给后续 Agent 执行的阶段。每个阶段都必须落在终局架构骨架内，不能为了短期推进引入会被废弃的 sidecar、CLI-runtime 或 FFI 主路径。
+This roadmap is the current target implementation sequence. Each milestone must
+land inside the architecture described in `docs/ARCHITECTURE.md`; no milestone
+may introduce a temporary runtime path that will later be removed.
 
-执行任何阶段前，必须先阅读 `docs/ARCHITECTURE.md`。
+## Execution Rules
 
-## Agent 执行规则
+1. Preserve product, runtime owner, platform, and type boundaries.
+2. Prefer a smaller imperfect product slice over a polished workaround.
+3. Do not expose sing-box, sing-tun, Clash, or platform-internal DTOs in public
+   APIs, shared models, persistence, or frontend code.
+4. Do not add CLI-spawn, sidecar, or FFI runtime paths.
+5. If a milestone touches platform state, it must define ownership, cleanup,
+   repair, and diagnostics in the same milestone.
+6. If a milestone adds public API, add contract tests.
+7. If a milestone changes runtime state, verify reload and rollback behavior.
+8. If a milestone needs upstream network behavior, use official SagerNet
+   components instead of reimplementing that behavior in qkbox.
 
-1. 保持架构边界不变。
-2. 每次只实现当前阶段的范围。
-3. 不把 sing-box 类型引入 GUI、shared model、IPC schema 或 persistence。
-4. 不让 GUI 拥有 runtime lifecycle 或特权平台动作。
-5. 优先做垂直切片，避免空框架膨胀。
-6. 每个阶段必须有验证方式。
-7. 如果阶段引入公开契约，必须有聚焦的 contract test 或 schema test。
-8. 如果阶段存储用户数据，必须考虑迁移和加密影响。
-9. 如果阶段触碰平台状态，必须覆盖 cleanup 和 repair 行为。
-10. 不确定时，缩小产品 API，保留内部实现替换空间。
+## Current Baseline
 
-## Phase 0: Repository Baseline
-
-### 目标
-
-建立后续实现需要的最小仓库骨架和工具基线。
-
-### 范围
+The product already has:
 
 ```text
-top-level module/workspace layout
-apps/desktop placeholder
-core/qkboxd placeholder
-shared/api placeholder
-shared/model placeholder
-platform placeholders
-packaging placeholders
-basic lint/check/test commands
-architecture docs wired into repository
+Wails desktop shell
+user-scope qkboxd
+authenticated local IPC
+version and capability handshake
+profile draft and encrypted content persistence
+snapshot lifecycle and active snapshot selection
+embedded local sing-box runtime
+runtime status/log/traffic/connection/group/URLTest observability
+system proxy snapshot/apply/restore ownership
+privileged provider auth/status/prepare/repair shell
+reload with validation, prepare, rollback, and degradation reporting
 ```
 
-### 输出
+The next work is a foundation refactor, not a feature layer.
+
+## Milestone: SagerNet-First Foundation Refactor
+
+### Goal
+
+Make the repository look as if official SagerNet components were considered from
+the first architecture pass.
+
+### Work
 
 ```text
-文档化的 workspace 结构
-根目录开发命令
-可本地运行的最小 check/test
-不包含 runtime 实现
+rewrite docs into target-shape architecture and roadmap
+make RuntimeOwner the explicit engine runtime abstraction
+inject runtime owner factory into EngineController
+keep local embedded owner behavior unchanged
+keep provider-hosted runtime unimplemented until the machine-network milestone
+keep sing-box/sing imports confined to internal/singboxadapter
 ```
 
-### 验收
+### Acceptance
 
 ```text
-根目录 check 命令成功。
-没有生成临时 runtime 架构。
-sing-box 依赖没有出现在允许边界之外。
+docs describe sing-box / sing-tun / sing-dns / sing-geosite / sing-geoip / srsc adoption
+docs do not frame current architecture as an early-stage historical scaffold
+EngineController is not directly bound to singboxadapter.NewAdapter
+existing local runtime, reload, observability, system proxy, and provider status behavior still pass
 ```
 
-### 禁止
+## Milestone: Windows Provider-Hosted Machine Network Mode
+
+### Goal
+
+Deliver the first machine-level network mode on the platform available for local
+development, while preserving the three-platform target shape.
+
+### Work
 
 ```text
-不实现 runtime start。
-不安装 helper。
-不添加平台状态变更。
-不添加 CLI-spawn runtime path。
+classify snapshots that require machine network mode
+select provider-hosted RuntimeOwner for those snapshots
+extend provider IPC with runtime start/stop/status and event bridge
+run embedded sing-box inside the provider-hosted owner
+let sing-box/sing-tun perform Wintun, route, DNS, and WFP mechanics
+store provider owner lock and stale runtime state only
+surface NETWORK_MODE_OWNED_BY_ANOTHER_SESSION and repairable stale state
+keep qkboxd user-scope and keep user data out of provider storage
 ```
 
-## Phase 1: IPC Handshake And Capability Shell
-
-### 目标
-
-建立最终控制面形状：
+### Acceptance
 
 ```text
-GUI -> user-scope qkboxd
+Windows machine network runtime starts from an active snapshot
+only one owner can hold machine network mode
+clean stop releases owner state
+stale state is diagnosable and repairable
+runtime events still reach GUI through qkbox product events
+provider never persists decrypted config or secrets
 ```
 
-本阶段不实现 runtime 行为。
+## Milestone: Apple NetworkExtension Runtime Container
 
-### 范围
+### Goal
+
+Implement macOS VPN/TUN mode through the native Apple runtime container shape.
+
+### Work
 
 ```text
-qkboxd process startup in user scope
-GUI connection to qkboxd
-Hello / HelloReply handshake
-API version
-app version
-qkboxd version
-platform identification
-runtime capability shell
-platform capability shell
-structured error shell
+introduce NetworkExtension RuntimeOwner
+bridge qkboxd product commands to the extension container
+run embedded sing-box through Apple-compatible sing-box/sing-tun paths
+map extension status and failure reasons into qkbox diagnostics
+keep system proxy as qkbox native snapshot/restore behavior
 ```
 
-### 公开契约
+### Acceptance
 
 ```text
-Hello(client_version)
-HelloReply(
-  api_version,
-  app_version,
-  qkboxd_version,
-  platform,
-  runtime_capabilities,
-  platform_capabilities
-)
+macOS TUN/VPN mode does not use root route hacks
+extension runtime is selected only for snapshots requiring that mode
+GUI remains unaware of process/container details
+cleanup and degraded states are product-visible
 ```
 
-### 验收
+## Milestone: Linux Provider-Hosted Machine Network Mode
+
+### Goal
+
+Implement Linux machine network mode with a formal privileged runtime container.
+
+### Work
 
 ```text
-GUI 能连接 qkboxd。
-handshake 返回确定的 version/platform 数据。
-unsupported capability 渲染为 unavailable，而不是缺字段。
-不兼容 API version 返回 structured error。
+use provider-hosted RuntimeOwner for machine network snapshots
+run embedded sing-box inside the privileged provider
+let sing-box/sing-tun perform TUN, route, DNS, and nftables mechanics
+integrate systemd/root helper or polkit-class authorization
+store owner lock and stale runtime state only
+map platform support reasons into qkbox capabilities
 ```
 
-### 禁止
+### Acceptance
 
 ```text
-不启动 sing-box。
-不暴露平台底层 API。
-product path 不使用未鉴权 TCP。
+Linux machine network mode uses official sing-box/sing-tun networking
+provider owner state is exclusive, cleanable, and repairable
+qkbox does not implement its own route or DNS engine
+unsupported environments return structured reasons
 ```
 
-## Phase 2: Profile Draft And Encrypted Persistence
+## Milestone: Data Asset And Subscription Plane
 
-### 目标
+### Goal
 
-加入用户态 profile 存储，但不执行 runtime。
+Support data refresh independently from binary/runtime updates while preserving
+snapshot/reload ownership.
 
-### 范围
+### Work
 
 ```text
-Profile model
-Draft content storage
-Encrypted raw content reference
-SecretStore abstraction
-Profile list/get/create/update/delete
-Remote profile metadata shell
-Basic redaction utilities
+remote profile content update
+subscription metadata and update policy
+rule-set asset cache
+geo asset cache
+asset validation and version diagnostics
+evaluate sing-geosite, sing-geoip, and srsc for asset workflows
+coordinate runtime changes through draft/snapshot/reload only
 ```
 
-### 服务
+### Acceptance
 
 ```text
-CreateProfile
-UpdateProfileDraft
-DeleteProfile
-ListProfiles
-GetProfile
+asset updates never replace binaries
+asset updates do not directly mutate active runtime
+failed asset updates do not corrupt active snapshots
+runtime sees asset changes only after product-approved snapshot/reload
 ```
 
-### 数据规则
+## Milestone: Release, Diagnostics, And Recovery
+
+### Goal
+
+Make qkbox supportable as an installed desktop product.
+
+### Work
 
 ```text
-Raw profile content is encrypted at rest.
-Profile ownership is scoped to the current OS user.
-No profile data is stored in privileged provider locations.
-Debug/display output is redacted by default.
+Windows NSIS packaging
+Linux DEB packaging
+macOS packaging direction
+debug bundle
+provider/runtime version diagnostics
+stale owner repair UI
+schema and compatibility diagnostics
+full product update coordination
 ```
 
-### 验收
+### Acceptance
 
 ```text
-Profile CRUD tests pass.
-Stored raw content is not plaintext.
-Profile records survive qkboxd restart.
-Redaction tests cover common secret-like fields.
+installed product can be diagnosed without exposing secrets
+provider/runtime version mismatch is visible
+cleanup failures have repair actions or clear instructions
+updates replace the whole product instead of hot-swapping individual binaries
 ```
 
-### 禁止
+## Global Verification
+
+Every milestone must preserve:
 
 ```text
-不在 singboxadapter 之外 parse 成 sing-box 类型。
-不创建 runnable snapshot。
-不把 secret 明文保存到普通 persistence。
+go test -tags with_clash_api ./...
+go vet -tags with_clash_api ./...
+npm run check
+architecture import tests
+public contract tests for changed APIs
 ```
-
-## Phase 3: Validation And Snapshot Lifecycle
-
-### 目标
-
-让 snapshot 成为唯一 runnable unit，但仍不启动 runtime。
-
-### 范围
-
-```text
-ValidateProfileDraft
-GetProfileDiagnostics
-CreateProfileSnapshot
-ActivateProfileSnapshot
-GetActiveProfile
-GetActiveSnapshot
-RollbackToSnapshot
-runtime summary model
-required capability model
-```
-
-### 内部边界
-
-```text
-Config compiler:
-  raw encrypted content -> decrypted working content -> validation -> diagnostics
-```
-
-如果本阶段引入 sing-box validation，必须放在 `singboxadapter` 后面。
-
-### 验收
-
-```text
-Invalid config produces structured diagnostics.
-Snapshot creation is blocked by validation failure.
-Runtime never reads draft content.
-Rollback changes active snapshot metadata only.
-No sing-box types leak into shared model, IPC, or persistence.
-```
-
-### 禁止
-
-```text
-不启动 runtime。
-不向 GUI 暴露 normalized/runtime config。
-不持久化 option.Options 或任何 sing-box struct。
-```
-
-## Phase 4: Embedded Runtime Start/Stop
-
-### 目标
-
-通过 qkboxd 使用终局 embedded core 形态启动和停止 active snapshot。
-
-### 范围
-
-```text
-singboxadapter runtime creation
-EngineService Start / Stop / GetStatus
-Runtime state machine
-log bridge foundation
-startedAt
-fatal error mapping
-basic lifecycle lock
-```
-
-### 必须使用的 runtime path
-
-```text
-qkboxd -> singboxadapter -> embedded sing-box core
-```
-
-### 验收
-
-```text
-Start uses active snapshot, not draft.
-Stop closes runtime.
-State transitions are observable.
-Fatal startup errors become structured ENGINE_* or SINGBOX_ADAPTER_* errors.
-Repeated start/stop does not leave stale runtime state.
-```
-
-### 禁止
-
-```text
-不把 spawn sing-box CLI 作为主路径。
-不添加 privileged TUN/route/DNS 行为。
-不让 GUI 直接调用 singboxadapter。
-```
-
-## Phase 5: Logs And Status Streams
-
-### 目标
-
-在不引入完整 dashboard 复杂度的情况下，提供基础 runtime feedback。
-
-### 范围
-
-```text
-SubscribeStatus
-SubscribeLogs
-log ring buffer
-daemon log source
-runtime log source
-platform log source placeholder
-stream lifecycle management
-```
-
-### 验收
-
-```text
-GUI receives status stream.
-GUI receives log stream.
-Late subscribers receive recent log buffer where intended.
-Stream cancellation does not leak goroutines/resources.
-```
-
-### 禁止
-
-```text
-不伪造 traffic 或 connection 数据。
-不暴露包含实现类型的 raw internal log object。
-```
-
-## Phase 6: Runtime Observability Capabilities
-
-### 目标
-
-通过 capability-aware source 增加 dashboard 数据。
-
-### 范围
-
-```text
-GetRuntimeCapabilities
-SubscribeTraffic
-SubscribeConnections
-ListGroups
-SelectOutbound
-URLTest
-CloseConnection
-CloseAllConnections
-source states: available / unavailable / partial / degraded / unsupported
-```
-
-### 验收
-
-```text
-Capabilities reflect actual runtime support.
-Unavailable observability returns structured unavailable responses.
-Groups and connections map to qkbox domain models.
-No sing-box tracker or Clash API types leak to public API.
-```
-
-### 禁止
-
-```text
-不把 Clash API 作为公开控制面。
-不要求每个 profile 支持所有 dashboard feature。
-不在 GUI 显示推断/伪造指标。
-```
-
-## Phase 7: System Proxy Mode
-
-### 目标
-
-先交付第一个有实际网络价值、但不涉及机器级 TUN 复杂度的模式。
-
-### 范围
-
-```text
-SYSTEM_PROXY capability
-GetSystemProxyStatus
-SetSystemProxyEnabled
-system proxy cleanup on runtime stop
-user-session scoped behavior where supported
-diagnostics for unsupported desktop environments
-```
-
-### Ownership Rule
-
-qkbox 里 system proxy 只有一个 owner：
-
-```text
-PlatformCapabilityService / platform layer
-```
-
-config compiler 不应静默把 system proxy ownership 委托给 sing-box inbound options。除非未来设计明确选择这条路径。
-
-### 验收
-
-```text
-Enable sets proxy to the active runtime listener.
-Disable clears proxy.
-Stop runtime clears proxy if qkbox owns it.
-Unsupported platform returns PLATFORM_* diagnostics.
-```
-
-### 禁止
-
-```text
-不引入 TUN。
-如果平台可避免，不为了 user-session proxy 强制引入 privileged helper。
-不让 GUI 直接修改 OS proxy settings。
-```
-
-## Phase 8: Privileged Boundary And Reload Core
-
-### 目标
-
-在实现 TUN 前，先落地正式 privileged capability boundary，并建立产品层 reload 语义。
-
-Provider 边界和 reload 语义是同一个网络模式基座：provider 负责特权能力准备、owner state 和 repair action，reload 负责 snapshot 切换、能力解析、rollback 和 cleanup 结果表达。后续 TUN / Route / DNS 必须建立在这个基座上，而不是暴露 stop/start 细节或把平台准备逻辑塞进 runtime start。
-
-### 范围
-
-```text
-Privileged provider installation/status shell
-helper identity and version reporting
-user qkboxd -> provider IPC
-provider owner state model
-PrepareFeature for TUN_MODE / DNS_HIJACK / BACKGROUND_SERVICE
-RunRepairAction shell
-Reload target snapshot
-validation before runtime/platform mutation
-capability resolution
-best-effort rollback to previous snapshot
-structured reload result
-cleanup failure reporting
-```
-
-### 安全要求
-
-```text
-Provider exposes allowlisted operations only.
-Provider does not accept arbitrary shell or file operations.
-Provider authenticates qkboxd.
-Provider records minimal owner state only.
-Provider does not store profile content or secrets.
-GUI does not call provider directly.
-Product IPC does not use unauthenticated localhost TCP.
-```
-
-### Result Values
-
-```text
-success
-failed_validation
-failed_permission
-failed_platform_prepare
-failed_runtime_start
-rolled_back
-degraded
-cleanup_failed
-```
-
-### 验收
-
-```text
-qkboxd can detect provider unavailable / installed / mismatched version.
-Unauthorized calls are rejected.
-Provider owner state is observable through qkboxd diagnostics.
-No profile or secret data is written by provider.
-Validation failure does not affect current runtime.
-Runtime start failure attempts previous snapshot restore.
-Active snapshot changes only after successful new runtime start.
-Cleanup failure is visible and repairable.
-```
-
-### 禁止
-
-```text
-不实现 route/DNS/TUN mutation。
-不让 GUI 直接调用 provider。
-product IPC 不使用未鉴权 localhost TCP。
-不向 GUI 暴露 stop/start implementation details。
-不声称 route/DNS/TUN rollback 是原子事务。
-```
-
-## Phase 9: Exclusive TUN / Route / DNS Network Mode
-
-### 目标
-
-增加机器级网络模式，并显式处理 ownership、cleanup 和 best-effort repair。
-
-这是后续最高风险阶段，不与数据资产、更新、debug bundle 合并。可以按平台拆成 Phase 9A / 9B / 9C 执行，但每个平台 slice 必须包含完整 ownership、cleanup、repair、diagnostics，不接受只做到“能连上”的中间形态。
-
-### 范围
-
-```text
-TUN_MODE capability
-DNS_HIJACK capability
-machine-level owner lock
-NETWORK_MODE_OWNED_BY_ANOTHER_SESSION error
-platform-specific capability preparation
-runtime diagnostics
-cleanup on stop
-repair actions for stale state
-cleanup_failed / degraded result propagation
-```
-
-### 平台方向
-
-```text
-Windows
-  privileged provider owns TUN / route / DNS actions
-
-macOS
-  prefer Network Extension for formal TUN/VPN mode
-  do not use temporary root route hacks as the product path
-
-Linux
-  privileged provider with systemd/root helper and polkit-class authorization
-```
-
-### 验收
-
-```text
-Only one user/session can own machine-level network mode.
-Owner state is released on clean stop.
-Stale owner state can be diagnosed and repaired.
-Route/DNS cleanup failures produce cleanup_failed or degraded results.
-Capabilities report runnable / not runnable reasons.
-```
-
-### 禁止
-
-```text
-v1 不支持 concurrent per-user TUN runtimes。
-不隐藏 cleanup failure。
-不承诺 atomic platform rollback。
-不为了三端表面完整性在 macOS 上引入临时 route hack。
-不把 TUN / route / DNS state 写进 GUI 或 shared API 的 sing-box 类型。
-```
-
-## Phase 10: Data Asset And Subscription Update Plane
-
-### 目标
-
-支持数据资产独立刷新，并通过 snapshot/reload 语义进入 runtime；不支持二进制组件独立刷新。
-
-数据资产属于产品数据面。远程配置、rule-set、geo assets 和 provider cache 可以独立更新，但 runtime 变更必须通过 draft/snapshot lifecycle 和 reload coordination 完成。数据资产更新不得直接修改 active runtime config。
-
-### 范围
-
-```text
-remote profile content
-subscription update metadata
-rule-set assets
-geo assets
-provider cache
-asset status
-asset diagnostics
-draft/snapshot policy for remote profile updates
-reload coordination after successful asset update
-```
-
-### 验收
-
-```text
-Asset updates do not replace binaries.
-Remote profile updates create drafts or snapshots according to product policy.
-Failed asset updates do not corrupt current active snapshot.
-Runtime changes happen through snapshot/reload semantics.
-Asset status and diagnostics are visible through qkboxd.
-```
-
-### 禁止
-
-```text
-不实现 core/helper/runtime bundle updates。
-不绕过 snapshot 语义修改 active runtime config。
-不添加 component-level hot update path。
-不把 provider cache 当成 runtime source of truth。
-```
-
-## Phase 11: Release Coordination And Debug Recovery
-
-### 目标
-
-协调完整产品更新、诊断导出和恢复建议，让发布后的失败可诊断、可修复，同时不泄漏 secret。
-
-Release coordination 和 debug recovery 属于同一个发布后维护面。component versions、runtime quiesce、migration hooks、debug bundle、repair recommendations 必须使用同一套 capability/status/error 事实，避免更新流程和诊断流程各自维护一套状态解释。
-
-### 范围
-
-```text
-GetCurrentAppVersion
-GetComponentVersions
-CheckAppUpdate
-DownloadAppUpdate
-ApplyAppUpdate coordination
-runtime quiesce before installer handoff
-post-update migration hooks
-debug bundle export
-redacted profiles/summaries
-runtime status
-capability status
-platform owner state
-recent logs
-structured error history
-repair action recommendations
-```
-
-### Ownership Rule
-
-真正 apply package update 的是 updater 或 installer。`qkboxd` 可以协调 shutdown、报告版本、导出诊断、触发 allowlisted repair action，但不替换自己的 binary 或 helper binary。
-
-### 验收
-
-```text
-Component versions are visible for diagnostics.
-Update flow can stop runtime cleanly before installer handoff.
-No component-level hot update path exists.
-Debug bundle redacts common secrets.
-Debug bundle does not include plaintext profile content by default.
-Repair actions are allowlisted.
-```
-
-### 禁止
-
-```text
-不添加 CoreUpdate。
-不添加 HelperUpdate。
-不添加 RuntimeBundleUpdate。
-不添加 component-level rollback。
-不导出 arbitrary files。
-不在未脱敏情况下导出可能含 secret 的 privileged helper logs。
-```
-
-## 跨阶段不变量
-
-每个阶段完成后都必须保持：
-
-```text
-GUI does not import sing-box.
-shared/api does not contain sing-box types.
-shared/model does not contain sing-box types.
-persistence does not store sing-box structs.
-Runtime starts from snapshots, never mutable drafts.
-Privileged provider stores no profile content or secrets.
-Machine-level network mode is exclusive in v1.
-Public IPC uses structured errors.
-Capabilities gate optional GUI features.
-```
-
-

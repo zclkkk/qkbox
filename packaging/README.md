@@ -1,7 +1,5 @@
 # Packaging
 
-Packaging is intentionally only a placeholder in Phase 0/1.
-
 Current decisions:
 
 ```text
@@ -10,4 +8,5 @@ Linux: DEB only
 macOS: Wails app bundle baseline
 ```
 
-Installer integration for `qkboxd` is deferred.
+Runtime data remains per-user and must not be stored under the install
+directory. Privileged provider installation remains an explicit platform flow.

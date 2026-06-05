@@ -1,14 +1,17 @@
 # Platform Boundary
 
-This directory is reserved for platform capability provider code.
+This directory contains platform capability providers and platform-facing
+boundary code.
 
-Phase 0/1 intentionally do not implement:
+Platform code may own native OS integration such as:
 
 ```text
-TUN
-route mutation
-DNS mutation
-firewall mutation
 system proxy mutation
+privileged provider client wiring
 privileged helper installation
+platform diagnostics
 ```
+
+Machine-level TUN, route, and DNS behavior must be implemented through the
+formal runtime owner/provider path and official sing-box/sing-tun mechanics, not
+through ad hoc qkbox route or DNS code.

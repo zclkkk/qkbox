@@ -11,18 +11,20 @@ import (
 	"github.com/zclkkk/qkbox/shared/model"
 )
 
-type fakeAdapter struct {
+type fakeRuntimeOwner struct {
 	startErr     error
 	stopErr      error
 	started      bool
 	configJSON   string
+	target       RuntimeStartTarget
 	startedCh    chan struct{}
 	releaseStart <-chan struct{}
 	stoppedCh    chan struct{}
 }
 
-func (f *fakeAdapter) Start(ctx context.Context, configJSON string) error {
-	f.configJSON = configJSON
+func (f *fakeRuntimeOwner) Start(ctx context.Context, target RuntimeStartTarget) *api.StructuredError {
+	f.target = target
+	f.configJSON = target.ConfigJSON
 	if f.startedCh != nil {
 		close(f.startedCh)
 	}
@@ -30,19 +32,19 @@ func (f *fakeAdapter) Start(ctx context.Context, configJSON string) error {
 		select {
 		case <-f.releaseStart:
 		case <-ctx.Done():
-			return ctx.Err()
+			return api.NewStructuredError(api.ErrorSingboxAdapterStartFailed, ctx.Err().Error(), "test", false)
 		}
 	}
 	if f.startErr != nil {
-		return f.startErr
+		return api.NewStructuredError(api.ErrorSingboxAdapterStartFailed, f.startErr.Error(), "test", false)
 	}
 	f.started = true
 	return nil
 }
 
-func (f *fakeAdapter) Stop() error {
+func (f *fakeRuntimeOwner) Stop() *api.StructuredError {
 	if f.stopErr != nil {
-		return f.stopErr
+		return api.NewStructuredError(api.ErrorSingboxAdapterStopFailed, f.stopErr.Error(), "test", false)
 	}
 	f.started = false
 	if f.stoppedCh != nil {
@@ -51,39 +53,39 @@ func (f *fakeAdapter) Stop() error {
 	return nil
 }
 
-func (f *fakeAdapter) RuntimeCapabilities() []api.Capability {
+func (f *fakeRuntimeOwner) RuntimeCapabilities() []api.Capability {
 	return api.RuntimeCapabilityShell()
 }
 
-func (f *fakeAdapter) TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError) {
+func (f *fakeRuntimeOwner) TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError) {
 	return api.TrafficSnapshot{}, nil
 }
 
-func (f *fakeAdapter) ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError) {
+func (f *fakeRuntimeOwner) ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError) {
 	return api.ConnectionSnapshot{}, nil
 }
 
-func (f *fakeAdapter) ListGroups() ([]api.OutboundGroup, *api.StructuredError) {
+func (f *fakeRuntimeOwner) ListGroups() ([]api.OutboundGroup, *api.StructuredError) {
 	return nil, nil
 }
 
-func (f *fakeAdapter) SelectOutbound(string, string) (api.OutboundGroup, *api.StructuredError) {
+func (f *fakeRuntimeOwner) SelectOutbound(string, string) (api.OutboundGroup, *api.StructuredError) {
 	return api.OutboundGroup{}, nil
 }
 
-func (f *fakeAdapter) URLTest(context.Context, string, time.Duration) ([]api.URLTestResult, *api.StructuredError) {
+func (f *fakeRuntimeOwner) URLTest(context.Context, string, time.Duration) ([]api.URLTestResult, *api.StructuredError) {
 	return nil, nil
 }
 
-func (f *fakeAdapter) CloseConnection(string) *api.StructuredError {
+func (f *fakeRuntimeOwner) CloseConnection(string) *api.StructuredError {
 	return nil
 }
 
-func (f *fakeAdapter) CloseAllConnections() *api.StructuredError {
+func (f *fakeRuntimeOwner) CloseAllConnections() *api.StructuredError {
 	return nil
 }
 
-func (f *fakeAdapter) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
+func (f *fakeRuntimeOwner) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
 	if !f.started {
 		return nil, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine is not running.", "test", true)
 	}
@@ -92,8 +94,8 @@ func (f *fakeAdapter) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.Structured
 
 func TestEngineController_StartStopTransitions(t *testing.T) {
 	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
-	fake := &fakeAdapter{}
-	ctrl.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{}
+	ctrl.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 
@@ -103,8 +105,8 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 	}
 
 	// 2. Start Success
-	err := ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return EngineStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -113,15 +115,15 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 		t.Fatalf("expected STARTED, got %s", ctrl.GetStatus().State)
 	}
 	if !fake.started {
-		t.Fatalf("fake adapter was not started")
+		t.Fatalf("fake runtime owner was not started")
 	}
 	if ctrl.GetStatus().ActiveSnapshotID != "snap1" {
 		t.Fatalf("expected snapshot ID snap1")
 	}
 
 	// 3. Prevent duplicate Start
-	err = ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return EngineStartTarget{SnapshotID: "snap2", ConfigJSON: "{}"}, nil
+	err = ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return RuntimeStartTarget{SnapshotID: "snap2", ConfigJSON: "{}"}, nil
 	})
 	if err == nil || err.Code != api.ErrorEngineAlreadyStarted {
 		t.Fatalf("expected ENGINE_ALREADY_STARTED")
@@ -142,7 +144,7 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 		t.Fatalf("expected IDLE after stop, got %s", ctrl.GetStatus().State)
 	}
 	if fake.started {
-		t.Fatalf("fake adapter was not stopped")
+		t.Fatalf("fake runtime owner was not stopped")
 	}
 	if ctrl.GetStatus().ActiveSnapshotID != "snap1" {
 		t.Fatalf("ActiveSnapshotID should NOT be cleared after Stop")
@@ -155,15 +157,15 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 	}
 }
 
-func TestEngineController_AdapterStartFailure(t *testing.T) {
+func TestEngineController_RuntimeOwnerStartFailure(t *testing.T) {
 	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
-	fake := &fakeAdapter{startErr: errors.New("boom")}
-	ctrl.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{startErr: errors.New("boom")}
+	ctrl.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 
-	err := ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return EngineStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
 	})
 	if err == nil || err.Code != api.ErrorSingboxAdapterStartFailed {
 		t.Fatalf("expected SINGBOX_ADAPTER_START_FAILED")
@@ -176,25 +178,55 @@ func TestEngineController_AdapterStartFailure(t *testing.T) {
 	}
 }
 
-func TestEngineController_StartIsObservableWhileAdapterStarts(t *testing.T) {
+func TestEngineControllerRuntimeOwnerFactoryReceivesStartTarget(t *testing.T) {
+	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
+	fake := &fakeRuntimeOwner{}
+	var factoryTarget RuntimeStartTarget
+	ctrl.runtimeOwnerFactory = func(target RuntimeStartTarget) RuntimeOwner {
+		factoryTarget = target
+		return fake
+	}
+
+	target := RuntimeStartTarget{
+		SnapshotID:           "snap1",
+		ConfigJSON:           `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`,
+		RequiredCapabilities: []string{api.CapabilityTunMode},
+	}
+	if err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return target, nil
+	}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if factoryTarget.SnapshotID != target.SnapshotID {
+		t.Fatalf("factory target snapshot = %s, want %s", factoryTarget.SnapshotID, target.SnapshotID)
+	}
+	if len(factoryTarget.RequiredCapabilities) != 1 || factoryTarget.RequiredCapabilities[0] != api.CapabilityTunMode {
+		t.Fatalf("factory target capabilities = %#v", factoryTarget.RequiredCapabilities)
+	}
+	if fake.target.ConfigJSON != target.ConfigJSON {
+		t.Fatalf("owner start target config = %q", fake.target.ConfigJSON)
+	}
+}
+
+func TestEngineController_StartIsObservableWhileRuntimeOwnerStarts(t *testing.T) {
 	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 	started := make(chan struct{})
 	release := make(chan struct{})
-	fake := &fakeAdapter{startedCh: started, releaseStart: release}
-	ctrl.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{startedCh: started, releaseStart: release}
+	ctrl.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 
 	done := make(chan *api.StructuredError, 1)
 	go func() {
-		done <- ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
-			return EngineStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+		done <- ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+			return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
 		})
 	}()
 
 	waitFor(t, started)
 	if status := ctrl.GetStatus(); status.State != model.EngineStateStarting {
-		t.Fatalf("expected STARTING while adapter starts, got %s", status.State)
+		t.Fatalf("expected STARTING while runtime owner starts, got %s", status.State)
 	}
 	if err := ctrl.CheckBlockMutations(); err == nil || err.Code != api.ErrorEngineRunning {
 		t.Fatalf("expected mutation blocking while STARTING")
@@ -215,8 +247,8 @@ func TestEngineController_StartIsObservableWhileAdapterStarts(t *testing.T) {
 func TestEngineController_LoadFailureReturnsToIdle(t *testing.T) {
 	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 
-	err := ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot.", "qkboxd", true)
+	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot.", "qkboxd", true)
 	})
 	if err == nil || err.Code != api.ErrorEngineNoActiveSnapshot {
 		t.Fatalf("expected ENGINE_NO_ACTIVE_SNAPSHOT")
@@ -232,13 +264,13 @@ func TestEngineController_LoadFailureReturnsToIdle(t *testing.T) {
 
 func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
 	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
-	fake := &fakeAdapter{stopErr: errors.New("stop failed")}
-	ctrl.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{stopErr: errors.New("stop failed")}
+	ctrl.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 
-	if err := ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return EngineStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+	if err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
 	}); err != nil {
 		t.Fatalf("start: %v", err)
 	}

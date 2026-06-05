@@ -1,8 +1,6 @@
 # Windows Packaging
 
-Phase 0/1 do not implement installer scripts.
-
-The future Windows package must use NSIS and support both:
+The Windows package uses NSIS and must keep support for both:
 
 ```text
 per-user install

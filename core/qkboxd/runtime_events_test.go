@@ -38,8 +38,8 @@ func TestRuntimeEventHubReplaysLogRing(t *testing.T) {
 func TestEngineControllerPublishesStatusEvents(t *testing.T) {
 	hub := NewRuntimeEventHub()
 	ctrl := NewEngineController(context.Background(), hub)
-	fake := &fakeAdapter{}
-	ctrl.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{}
+	ctrl.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 
@@ -48,8 +48,8 @@ func TestEngineControllerPublishesStatusEvents(t *testing.T) {
 	events := hub.SubscribeStatus(ctx)
 
 	expectStatus(t, events, model.EngineStateIdle)
-	err := ctrl.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return EngineStartTarget{SnapshotID: "snap", ConfigJSON: "{}"}, nil
+	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return RuntimeStartTarget{SnapshotID: "snap", ConfigJSON: "{}"}, nil
 	})
 	if err != nil {
 		t.Fatalf("start: %v", err)

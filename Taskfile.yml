@@ -2,7 +2,7 @@ version: '3'
 
 tasks:
   check:
-    summary: Runs the local Phase 0/1 verification suite
+    summary: Runs the local verification suite
     cmds:
       - npm run check
 

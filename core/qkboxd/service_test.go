@@ -537,8 +537,8 @@ func TestEngineStartWithoutActiveSnapshot(t *testing.T) {
 func TestEngineStartUsesSnapshotContentNotDraft(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	fake := &fakeAdapter{}
-	svc.engine.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{}
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 
@@ -577,8 +577,8 @@ func TestEngineStartBlocksActiveSnapshotMutationWhileStarting(t *testing.T) {
 	ctx := context.Background()
 	started := make(chan struct{})
 	release := make(chan struct{})
-	fake := &fakeAdapter{startedCh: started, releaseStart: release}
-	svc.engine.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{startedCh: started, releaseStart: release}
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 
@@ -757,6 +757,23 @@ func TestCreateSnapshotStoresRequiredCapabilities(t *testing.T) {
 	}
 	if len(snapReply.Snapshot.RequiredCapabilities) != 1 || snapReply.Snapshot.RequiredCapabilities[0] != api.CapabilityTunMode {
 		t.Fatalf("required capabilities = %+v", snapReply.Snapshot.RequiredCapabilities)
+	}
+}
+
+func TestLoadRuntimeStartTargetCarriesRequiredCapabilities(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	snapshotID := createSnapshotWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`)
+
+	target, err := svc.loadRuntimeStartTargetByID(snapshotID)
+	if err != nil {
+		t.Fatalf("load target: %v", err)
+	}
+	if target.SnapshotID != snapshotID {
+		t.Fatalf("snapshot id = %s, want %s", target.SnapshotID, snapshotID)
+	}
+	if len(target.RequiredCapabilities) != 1 || target.RequiredCapabilities[0] != api.CapabilityTunMode {
+		t.Fatalf("required capabilities = %+v", target.RequiredCapabilities)
 	}
 }
 
@@ -1035,9 +1052,9 @@ func TestEngineReloadSerializesActiveSnapshotMutation(t *testing.T) {
 
 	targetStarted := make(chan struct{})
 	releaseTarget := make(chan struct{})
-	var adapters []*fakeAdapter
-	svc.engine.adapterFactory = func() EngineAdapter {
-		adapter := &fakeAdapter{}
+	var adapters []*fakeRuntimeOwner
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
+		adapter := &fakeRuntimeOwner{}
 		if len(adapters) == 1 {
 			adapter.startedCh = targetStarted
 			adapter.releaseStart = releaseTarget
@@ -1122,14 +1139,14 @@ func createSnapshotWithContent(t *testing.T, svc *Service, ctx context.Context, 
 	return snapReply.Snapshot.ID
 }
 
-func installAdapterSequence(svc *Service) *[]*fakeAdapter {
+func installAdapterSequence(svc *Service) *[]*fakeRuntimeOwner {
 	return installAdapterSequenceWithStartErrors(svc, nil)
 }
 
-func installAdapterSequenceWithStartErrors(svc *Service, startErrs []error) *[]*fakeAdapter {
-	var adapters []*fakeAdapter
-	svc.engine.adapterFactory = func() EngineAdapter {
-		adapter := &fakeAdapter{}
+func installAdapterSequenceWithStartErrors(svc *Service, startErrs []error) *[]*fakeRuntimeOwner {
+	var adapters []*fakeRuntimeOwner
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
+		adapter := &fakeRuntimeOwner{}
 		if len(startErrs) > len(adapters) {
 			adapter.startErr = startErrs[len(adapters)]
 		}
@@ -1142,8 +1159,8 @@ func installAdapterSequenceWithStartErrors(svc *Service, startErrs []error) *[]*
 func startEngineForProxyTest(t *testing.T, svc *Service) {
 	t.Helper()
 	ctx := context.Background()
-	fake := &fakeAdapter{}
-	svc.engine.adapterFactory = func() EngineAdapter {
+	fake := &fakeRuntimeOwner{}
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
 	snapshotID := createValidSnapshot(t, svc, ctx, "proxy-engine")

@@ -1,674 +1,367 @@
-﻿# qkbox 宏观架构设计
+# qkbox Architecture
 
-这份文档是 qkbox 的结构基线。后续任何实现阶段都必须遵守这里定义的产品边界、权限边界和类型边界。
+This document is the target architecture baseline for qkbox. It defines product
+ownership, runtime ownership, platform boundaries, and the official upstream
+components qkbox relies on.
 
-## 目标
+## Product Shape
 
-qkbox 是面向 Windows、macOS、Linux 的三端桌面 GUI 客户端：
-
-```text
-qkbox = Wails GUI + user-scope qkboxd + embedded sing-box core + Platform Capability Boundary
-```
-
-GUI 只是控制面。GUI 不拥有 runtime、secret、route 状态、DNS 状态、TUN 设备或任何特权平台变更。
-
-## 不可变原则
-
-1. GUI 不是 runtime owner。
-2. `qkboxd` 是用户态服务，拥有用户数据、profile 编排、snapshot 编排和默认 embedded runtime。
-3. 特权平台能力必须隔离在 capability boundary 后面。
-4. 用户数据按 OS 用户隔离。
-5. v1 的机器级网络模式必须单占。
-6. 公开 IPC 暴露 qkbox 产品语义，不暴露 sing-box 内部结构。
-7. `shared`、IPC schema、persistence model、GUI 代码不得出现 sing-box 类型。
-8. App update 更新完整可安装产品，不更新单独二进制组件。
-9. profile、subscription、rule set、geo asset 等数据资产可以独立刷新。
-10. runtime observability 必须 capability-aware。GUI 不得假设 traffic、connections、groups、URLTest 永远可用。
-
-## 明确不做
-
-以下形态不得成为正式架构：
+qkbox is a Windows, macOS, and Linux desktop GUI client:
 
 ```text
-GUI -> spawn sing-box CLI
-GUI -> FFI/libbox -> sing-box
-GUI process -> long-lived sing-box runtime
-GUI -> direct TUN / route / DNS / firewall operations
-qkboxd / core / helper / platform component 独立热更新
-v1 多用户并发占用机器级 TUN / route / DNS runtime
+qkbox = Wails GUI + user-scope qkboxd + RuntimeOwner + Platform Capability Boundary
 ```
 
-CLI spawn 只能用于本地调查或测试辅助，不是产品 runtime 模型。
+The GUI is only the control surface. It never owns runtime truth, profile data,
+secrets, TUN devices, route state, DNS state, firewall state, or operating system
+proxy state.
 
-## 逻辑角色
+## Non-Negotiable Boundaries
+
+1. GUI consumes qkbox product APIs only.
+2. `qkboxd` owns user data, profile orchestration, snapshot orchestration,
+   reload semantics, and product diagnostics.
+3. Runtime ownership is explicit. `qkboxd` is the default RuntimeOwner, but
+   machine-level network modes can use a provider-hosted runtime container.
+4. Privileged or platform-scoped mutation stays behind the platform capability
+   boundary.
+5. Public IPC, shared models, persistence, and frontend code never expose
+   sing-box, sing-tun, Clash, or platform-internal DTOs.
+6. Machine-level network mode is exclusive for one qkbox owner at a time.
+7. Runtime changes happen through snapshot/reload coordination.
+8. Data assets can update independently, but asset updates do not directly
+   mutate the active runtime.
+9. Cleanup and repair failures must be visible. qkbox does not hide degraded
+   platform state.
+
+## Official Components
+
+qkbox uses official SagerNet components as the network substrate. qkbox does not
+rebuild this substrate at the product layer.
+
+| Component | qkbox use | qkbox must not do |
+| --- | --- | --- |
+| sing-box | Only runtime core. `internal/singboxadapter` embeds and adapts it. | Spawn sing-box CLI as product runtime, expose sing-box structs in public APIs, or build another proxy core. |
+| sing-tun | Used through sing-box for transparent proxy, TUN, route, strict route, DNS hijack, Wintun, WFP, nftables, and platform network mechanics. | Reimplement Wintun handling, route tables, WFP, nftables, DNS hijack, or TUN packet stacks. |
+| sing-dns | Used through sing-box DNS runtime. | Build a qkbox resolver/cache/DoH/DoT engine. |
+| sing-geosite / sing-geoip | Data assets for rule-set and geo matching. | Invent a competing geo database format. |
+| srsc | Candidate rule-set converter for the data asset plane. | Build a full custom rule-set converter before evaluating srsc. |
+| sing-box Apple clients / NetworkExtension path | Reference for formal Apple TUN/VPN runtime shape. | Ship macOS TUN mode as a temporary root route hack. |
+
+`.temp/sing-box`, `.temp/sing-tun`, and other upstream checkouts are reference
+material only. Product code imports upstream modules through Go module
+dependencies, never through local replace sources.
+
+## Logical Components
 
 ### Wails GUI
 
-GUI 以普通用户权限运行。
+The GUI runs with normal user privileges.
 
-GUI 负责：
+It is responsible for:
 
 ```text
-Profile UI
-Editor UI
-Remote subscription UI
-Dashboard UI
-Logs / connections / groups UI
-System proxy toggle UI
-TUN feature UI
-Permission and diagnostic UI
-Update entry points
+profile and subscription UI
+runtime dashboard
+logs, traffic, connection, group, and URLTest views
+system proxy toggle UI
+network mode status UI
+permission and repair entry points
+update and diagnostics entry points
 ```
 
-GUI 不负责：
+It is not responsible for:
 
 ```text
-sing-box lifecycle
-runtime config generation
-config merge / normalize / compile
-TUN creation
-route mutation
-DNS mutation
-firewall mutation
-system proxy implementation
+runtime lifecycle
+runtime config compilation
 secret persistence
-runtime truth
+system proxy implementation
+TUN, route, DNS, or firewall mutation
+provider IPC
+runtime owner selection
 ```
 
-### user-scope qkboxd
+### qkboxd
 
-`qkboxd` 按 OS 用户运行。它是用户态 coordinator，也是默认 RuntimeOwner。
+`qkboxd` runs in user scope. It owns the product control plane and user data.
 
-`qkboxd` 负责：
+It is responsible for:
 
 ```text
-Profile orchestration
-Snapshot orchestration
-Encrypted user persistence
-Secret references
-Config compiler
-singboxadapter invocation
-Default embedded runtime lifecycle
-Runtime status machine
-Runtime observability bridge
-Structured diagnostics
-IPC version and capability handshake
-App-update coordination signals
+profile persistence
+encrypted content storage
+snapshot lifecycle
+active snapshot selection
+validation and capability classification
+reload and rollback semantics
+runtime owner selection
+runtime status machine
+runtime event fan-out
+system proxy ownership coordination
+provider status and repair coordination
+structured product diagnostics
 ```
 
-`qkboxd` 不应为了持有用户 profile 或 secret 而以 root、LocalSystem 或机器级 service 身份运行。
-
-### qkboxd 生命周期
-
-qkboxd 同时拥有系统托盘图标，使用纯 Go systray 实现（无 WebView 依赖）。
-
-GUI 关闭窗口时进程完全退出，不留后台。qkboxd 通过托盘图标保持用户可见性。
-
-```text
-用户点击托盘图标
-  -> qkboxd spawn GUI 进程
-  -> GUI 连接 qkboxd IPC，显示窗口
-
-用户关闭 GUI 窗口
-  -> GUI 通知 qkboxd 断开连接
-  -> GUI 进程完全退出
-
-用户右键托盘 -> 退出
-  -> qkboxd 关闭 runtime
-  -> qkboxd 退出，托盘图标消失
-```
-
-托盘右键退出是用户显式操作，不需要额外确认弹窗。
-
-qkboxd 异常退出规则：
-
-```text
-GUI 正常断开（发了 disconnect 通知）
-  -> qkboxd 立即清理连接状态
-
-GUI 异常断开（连接中断，未发通知）
-  -> qkboxd 进入 grace period (60s)
-  -> 期间有新 GUI 连接 -> 接管，继续运行
-  -> 到期无新 GUI 连接 -> 关闭 runtime，退出
-```
-
-OS shutdown 时 qkboxd 收到系统信号，关闭 runtime 后干净退出。
-
-qkboxd 不自行重启 runtime。runtime fatal 转为 FATAL 状态，等待 GUI 或用户操作。
+It must not run as root, LocalSystem, or a machine service in order to store user
+profiles or secrets.
 
 ### RuntimeOwner
 
-RuntimeOwner 是实际持有 sing-box runtime 的组件。
+RuntimeOwner is the component that actually holds a live sing-box runtime.
 
-默认形态：
-
-```text
-qkboxd = RuntimeOwner
-```
-
-例外形态：
+RuntimeOwner interface semantics are:
 
 ```text
-macOS Network Extension 或其他平台 runtime container
-可以在特定网络模式下成为 RuntimeOwner。
+Start(snapshot runtime target)
+Stop()
+Status / capabilities
+logs / traffic / connections / groups / URLTest where supported
+listener info where supported
 ```
 
-GUI 不依赖 RuntimeOwner 的具体进程形态。
-
-### PlatformCapabilityProvider
-
-PlatformCapabilityProvider 承载特权或平台相关能力：
+Supported owner classes:
 
 ```text
-TUN
-route management
-DNS management
-firewall management
-privileged repair actions
-background service integration
-start on boot
-process lookup
-connection tracking where platform-scoped
+local embedded owner
+  qkboxd process owns embedded sing-box
+  used for non-privileged runtime and system proxy mode
+
+provider-hosted owner
+  privileged provider or platform runtime container owns embedded sing-box
+  used for machine-level TUN / route / DNS mode
+
+Apple NetworkExtension owner
+  Network Extension owns the runtime container for macOS VPN/TUN mode
+  qkboxd remains user-scope coordinator
 ```
 
-可能实现：
+The GUI does not know which owner class is active.
+
+### singboxadapter
+
+`internal/singboxadapter` is the only package allowed to import sing-box or
+sing packages.
+
+It is responsible for:
 
 ```text
-Windows privileged helper / Windows Service
-macOS Network Extension / privileged helper
-Linux systemd service / root helper / polkit-mediated helper
+include.Context setup
+option parsing inside the sing-box boundary
+box.New / Start / Close
+qkbox runtime DTO mapping
+log bridge
+traffic and connection tracker bridge
+outbound group / selector / URLTest bridge
+listener info extraction for product-owned features
 ```
 
-PlatformCapabilityProvider 不保存 profile、subscription、qkbox domain state 或用户 secret。
+It must not leak sing-box, sing-tun, Clash, or platform DTOs into shared API,
+persistence, or GUI code.
 
-## 三端目标形态
+### Platform Capability Boundary
+
+The platform capability boundary exposes allowlisted product operations. It does
+not expose arbitrary shell, arbitrary filesystem access, or sing-box internals.
+
+It can provide:
+
+```text
+provider installation and status
+runtime container status
+machine-network owner lock
+stale owner repair
+system service integration
+platform diagnostics
+process lookup where platform-scoped
+```
+
+It must not persist user profiles, subscriptions, secrets, or decrypted runtime
+config. Provider-hosted runtime may receive decrypted config in memory for the
+duration of a start/reload operation and must never persist or log it.
+
+## Platform Targets
 
 ### Windows
 
 ```text
 qkbox.exe
-  GUI
+  Wails GUI
 
 qkboxd.exe
-  user-scope coordinator and default runtime owner
+  user-scope product coordinator
+  local embedded RuntimeOwner for non-privileged modes
+  system proxy coordinator
 
 privileged provider
-  TUN / route / DNS / repair
+  provider-hosted RuntimeOwner for machine network mode
+  embedded sing-box uses sing-tun for Wintun / route / DNS / WFP mechanics
+  owner lock and repair state
 
 IPC
-  Named Pipe with OS ACLs
+  authenticated local product IPC
+  authenticated provider IPC over named pipe with OS ACLs
 ```
+
+Windows machine network mode is built by running embedded sing-box inside the
+provider-hosted owner. qkbox does not implement Wintun, route, DNS hijack, or WFP
+logic itself.
 
 ### macOS
 
 ```text
 qkbox.app
-  GUI
+  Wails GUI
 
 qkboxd
-  user-scope coordinator and system-proxy runtime owner
+  user-scope product coordinator
+  local embedded RuntimeOwner for non-privileged modes
+  system proxy coordinator
 
 Network Extension
-  preferred formal TUN / VPN runtime shape
+  formal runtime container for VPN/TUN mode
+  embedded sing-box uses Apple-compatible sing-box/sing-tun paths
 
 IPC
-  Unix socket, with room for XPC where appropriate
+  authenticated Unix socket product IPC
+  extension/provider communication shaped by Apple platform requirements
 ```
 
-system-proxy mode 可以先于 TUN mode 实现。TUN mode 不应通过临时 root 改 route 的方式落地。
+macOS TUN/VPN mode uses NetworkExtension as the native product path. Temporary
+root route mutation is not a product architecture.
 
 ### Linux
 
 ```text
 qkbox
-  GUI
+  Wails GUI
 
 qkboxd
-  user-scope coordinator and default runtime owner
+  user-scope product coordinator
+  local embedded RuntimeOwner for non-privileged modes
+  system proxy coordinator
 
 privileged provider
-  systemd/root helper with polkit-class authorization
+  provider-hosted RuntimeOwner for machine network mode
+  embedded sing-box uses sing-tun for TUN / route / DNS / nftables mechanics
+  owner lock and repair state
 
 IPC
-  Unix socket with UID isolation
+  authenticated Unix socket product IPC
+  provider IPC with systemd/root helper or polkit-class authorization
 ```
 
-## 多用户策略
+Linux machine network mode should use sing-box/sing-tun mechanics rather than a
+qkbox-specific route or DNS engine.
 
-qkbox 支持用户数据隔离，但 v1 不支持多个用户并发拥有机器级网络 runtime。
+## Persistence
+
+qkboxd-owned persistence stores:
 
 ```text
-profiles / snapshots / settings / secrets
-  scoped to the OS user
-
-system proxy mode
-  user-session scoped where the OS supports it
-
-TUN / route / DNS mode
-  machine-level and exclusive
+profiles
+drafts
+snapshots
+encrypted content
+active snapshot pointer
+remote subscription metadata
+asset metadata
+system proxy owner record
+product diagnostics metadata
 ```
 
-如果一个用户已经启用机器级网络模式，其他用户再次启用时必须返回：
+Provider-owned persistence is minimal and platform-scoped:
 
 ```text
-NETWORK_MODE_OWNED_BY_ANOTHER_SESSION
+owner lock
+runtime owner identity
+stale state marker
+repair metadata
 ```
 
-privileged provider 最多保存最小 owner 状态：
+Provider storage must not contain user profile content, subscription content,
+secrets, or decrypted runtime config.
+
+## Runtime And Reload
+
+Runtime start always targets a snapshot. Draft content is never a runtime source.
+
+Reload semantics:
 
 ```text
-uid
-session_id
-runtime_id
-mode
-started_at
+load target snapshot
+validate product/runtime shape
+classify required capabilities and runtime owner class
+prepare required platform/runtime owner capabilities
+start target owner
+commit active snapshot only after target start succeeds
+on failure, attempt rollback through the same prepare/start pipeline
+surface cleanup or rollback degradation explicitly
 ```
 
-它不得保存 profile content 或 secret。
+Rollback does not pretend to be atomic platform rollback. It is best-effort,
+observable, and repairable.
 
-## Profile 与 Snapshot 模型
+## System Proxy
 
-Profile 是 qkbox 产品对象，不是裸 `config.json`。
+System proxy is a product-owned OS user setting, separate from sing-tun.
 
-```text
-Draft
-  mutable user editing state
+qkbox uses native snapshot/apply/restore providers for system proxy because it
+must preserve and restore the user's pre-existing OS proxy settings. The config
+compiler must not silently delegate this ownership to sing-box inbound options.
 
-Snapshot
-  validated, traceable, runnable candidate
+System proxy uses the active local runtime listener. If the active runtime has no
+HTTP or mixed listener, enabling system proxy returns a product error rather than
+creating a hidden fallback listener.
 
-Active Snapshot
-  snapshot currently used by runtime
-```
+## Observability
 
-runtime 永远从 snapshot 启动，不直接读取 mutable draft。
-
-Snapshot 元数据：
+Runtime observability is capability-aware:
 
 ```text
-snapshot_id
-profile_id
-encrypted_raw_content_ref
-optional encrypted_normalized_content_ref
-validation_diagnostics
-runtime_summary
-required_capabilities
-embedded_singbox_version
-runtime_hash
-created_at
-```
-
-raw profile content 是敏感数据，必须加密落盘。diagnostics、summary、debug bundle 默认脱敏。
-
-## Secret 策略
-
-qkbox 将导入的 profile 内容视作敏感文档。
-
-必须满足：
-
-```text
-Raw profile content is encrypted at rest.
-Snapshot content is encrypted at rest.
-Remote profile auth metadata uses SecretRef.
-SecretStore stores key material or key references through OS backends.
-Debug exports are redacted by default.
-```
-
-目标后端：
-
-```text
-Windows Credential Manager
-macOS Keychain
-Linux Secret Service
-```
-
-v1 不要求完整解析并抽取所有 sing-box secret 字段。这样做会脆弱，也会被协议字段变化拖累。
-
-## Config Compiler Boundary
-
-配置处理只存在于 `qkboxd` internal：
-
-```text
-Raw Profile Content
-  -> optional Normalized Document
-  -> Internal Compiled Artifact
-  -> singboxadapter runtime creation
-```
-
-GUI 可以看到：
-
-```text
-diagnostics
-required capabilities
-profile summary
-snapshot status
-runnable / not runnable reasons
-```
-
-GUI 不可以看到：
-
-```text
-option.Options
-runtime config
-route plan
-DNS plan
-TUN options
-compiled artifact
-```
-
-## singboxadapter Boundary
-
-`singboxadapter` 是唯一允许依赖 sing-box 语义的边界。
-
-职责：
-
-```text
-Validate raw content
-Compile internal runtime artifact
-Create runtime
-Start runtime
-Close runtime
-Bridge logs
-Bridge traffic / connections / groups when available
-Map sing-box errors to qkbox diagnostics
-Expose qkbox domain models only
-```
-
-允许存在私有桥接层，例如：
-
-```text
-singboxadapter/platformbridge
-```
-
-它可以适配 sing-box platform interface，但不得把 sing-box 类型泄漏到 qkbox 公开层。
-
-以下类型禁止出现在 singboxadapter 私有边界之外：
-
-```text
-option.Options
-box.Box
-adapter.Router
-adapter.OutboundManager
-adapter.ConnectionManager
-clashapi.Server
-daemon.StartedService
-any sing-box config struct
-any sing-box runtime object
-any experimental/libbox type
-```
-
-## 公开服务面
-
-公开服务是 qkbox 产品契约，不绑定 sing-box 内部 API。
-
-### EngineService
-
-```text
-Start
-Stop
-Reload
-Restart
-GetStatus
-SubscribeStatus
-SubscribeLogs
-GetRuntimeCapabilities
-SubscribeTraffic
-SubscribeConnections
-ListGroups
-SelectOutbound
+status stream
+log stream
+traffic snapshots
+connection snapshots
+outbound groups
+selector mutations
 URLTest
-CloseConnection
-CloseAllConnections
-GetStartedAt
-GetDeprecatedWarnings
+connection close
 ```
 
-### ProfileService
+When a RuntimeOwner cannot provide a capability, qkbox returns unavailable or
+unsupported product state. GUI must not fabricate counters, connections, groups,
+or logs.
 
-```text
-CreateProfile
-UpdateProfileDraft
-DeleteProfile
-ListProfiles
-GetProfile
-ImportProfile
-UpdateRemoteProfile
-ValidateProfileDraft
-GetProfileDiagnostics
-CreateProfileSnapshot
-ActivateProfileSnapshot
-GetActiveProfile
-GetActiveSnapshot
-RollbackToSnapshot
-```
+## Data Asset Plane
 
-### PlatformCapabilityService
+Data assets are product data, not runtime truth.
 
-```text
-GetPlatformCapabilities
-GetPermissionStatus
-PrepareFeature
-InstallPrivilegedComponent
-UninstallPrivilegedComponent
-GetSystemProxyStatus
-SetSystemProxyEnabled
-GetNetworkModeStatus
-RunRepairAction
-```
-
-feature name 是产品层概念：
-
-```text
-SYSTEM_PROXY
-TUN_MODE
-DNS_HIJACK
-BACKGROUND_SERVICE
-START_ON_BOOT
-PROCESS_LOOKUP
-CONNECTION_TRACKING
-```
-
-禁止公开的平台底层 API：
-
-```text
-OpenTun
-ApplyRoutePolicy
-ApplyDNSPolicy
-ConfigureFirewall
-arbitrary shell
-arbitrary file read
-```
-
-## IPC Contract
-
-IPC 必须满足：
-
-```text
-local only
-authenticated
-versioned
-capability-aware
-stream-friendly
-structured-error based
-protected by OS ACLs or peer credentials
-```
-
-建议 transport：
-
-```text
-Windows
-  Named Pipe with DACLs
-
-macOS / Linux
-  Unix socket with UID ownership and restrictive permissions
-```
-
-product build 不允许未鉴权 TCP control port。
-
-IPC 认证采用 OS 访问控制 + pre-shared token 两层，跨平台对称：
-
-```text
-OS 访问控制层
-  Windows: Named Pipe DACL，仅 grant 当前用户 SID
-  Unix: socket 文件权限 + SO_PEERCRED 验证 UID
-
-应用认证层
-  IPC 连接建立后，第一帧必须为 pre-shared token
-  token 不匹配则 provider 立即断开连接
-```
-
-token 管理：
-
-```text
-安装 provider 时生成随机 token (32 bytes)
-写入 provider 配置（root/Admin 只读）
-同时写入 qkboxd 可读副本（user 只读）
-```
-
-Provider ↔ qkboxd 之间认证方式相同，不引入平台特有的进程身份验证。
-
-结构化错误：
-
-```text
-code
-message
-detail
-source
-recoverable
-user_action
-debug_ref
-```
-
-错误 code 族：
-
-```text
-PROFILE_*
-CONFIG_*
-ENGINE_*
-PLATFORM_*
-PERMISSION_*
-IPC_*
-RUNTIME_*
-SINGBOX_ADAPTER_*
-ASSET_*
-UPDATE_*
-```
-
-## Runtime Observability
-
-observability 是 capability，不是 runtime 存在后的天然承诺。
-
-Source：
-
-```text
-LogSource
-TrafficSource
-ConnectionSource
-GroupSource
-URLTestSource
-ClashModeSource
-```
-
-Source 状态：
-
-```text
-available
-unavailable
-partial
-degraded
-unsupported
-```
-
-GUI 必须把不可用能力渲染为 unavailable，不得显示假数据或猜测数据。
-
-Clash API 不是 qkbox 的公开主控制面。它可以作为内部 compatibility source 或 observability source。
-
-## 状态机
-
-`qkboxd` 拥有 runtime state machine：
-
-```text
-UNINITIALIZED
-IDLE
-VALIDATING
-STARTING
-STARTED
-RELOADING
-STOPPING
-FATAL
-DEGRADED
-```
-
-GUI 只消费状态机，不根据进程状态推断 runtime truth。
-
-## Reload 语义
-
-Reload 是产品层操作，不承诺底层平台变更具备原子事务能力。
-
-v1 流程：
-
-```text
-validate target snapshot
-resolve capabilities
-prepare platform changes
-stop old runtime
-start new runtime
-publish state
-cleanup old resources
-return structured result
-```
-
-结果值：
-
-```text
-success
-failed_validation
-failed_permission
-failed_platform_prepare
-failed_runtime_start
-rolled_back
-degraded
-cleanup_failed
-```
-
-只有新 runtime 和必要平台能力成功启动后，active snapshot 才能切换。平台 rollback 是 best effort。
-
-## 更新模型
-
-App update 指替换完整可安装产品：
-
-```text
-GUI
-qkboxd
-embedded sing-box core
-platform components
-IPC schema
-migration logic
-packaging metadata
-```
-
-`qkboxd` 可以报告版本并协调停机，但不替换自身或 helper。
-
-Data asset update 独立处理：
+Supported asset categories:
 
 ```text
 remote profile content
-subscription content
-rule-set files
+subscription metadata
+rule-set assets
 geo assets
-provider cache
+provider/runtime cache metadata
 ```
 
-不支持：
+sing-geosite, sing-geoip, and srsc are the preferred upstream components to
+evaluate for geo and rule-set workflows. Asset updates create product-visible
+state and enter runtime only through snapshot/reload coordination.
+
+## Explicitly Rejected Shapes
 
 ```text
-CoreUpdate
-RuntimeBundleUpdate
-HelperUpdate
-component-level rollback
+GUI -> sing-box CLI
+GUI -> libbox / FFI runtime
+GUI process -> long-lived runtime
+GUI -> platform mutation
+qkboxd running as machine service to store user data
+provider storing profiles or secrets
+qkbox reimplementing sing-tun platform networking
+qkbox reimplementing DNS runtime
+macOS TUN mode via temporary root route hack
+unauthenticated localhost control plane
 ```
-
-## License Baseline
-
-qkbox 采用 GPL-compatible open-source 方向。最终 license 可以后定，但实现阶段不得引入与 bundle 或 embed sing-box 不兼容的依赖和分发方式。
-

@@ -491,61 +491,69 @@ func (s *Service) EngineStart(ctx context.Context, _ api.EngineStartRequest) (ap
 	s.opMu.Lock()
 	defer s.opMu.Unlock()
 
-	if sErr := s.engine.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return s.loadActiveEngineStartTarget(ctx)
+	if sErr := s.engine.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return s.loadActiveRuntimeStartTarget(ctx)
 	}); sErr != nil {
 		return api.EngineStartReply{}, sErr
 	}
 	return api.EngineStartReply{}, nil
 }
 
-func (s *Service) loadActiveEngineStartTarget(ctx context.Context) (EngineStartTarget, *api.StructuredError) {
+func (s *Service) loadActiveRuntimeStartTarget(ctx context.Context) (RuntimeStartTarget, *api.StructuredError) {
 	activeSnapshotID, err := s.db.GetActiveSnapshotID()
 	if err != nil {
-		return EngineStartTarget{}, qkboxdInternalError(err)
+		return RuntimeStartTarget{}, qkboxdInternalError(err)
 	}
 	if activeSnapshotID == "" {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot to start.", "qkboxd", true)
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot to start.", "qkboxd", true)
 	}
 
-	return s.loadPreparedEngineStartTarget(ctx, activeSnapshotID)
+	return s.loadPreparedRuntimeStartTarget(ctx, activeSnapshotID)
 }
 
-func (s *Service) loadPreparedEngineStartTarget(ctx context.Context, snapshotID string) (EngineStartTarget, *api.StructuredError) {
-	target, structured := s.loadEngineStartTargetByID(snapshotID)
+func (s *Service) loadPreparedRuntimeStartTarget(ctx context.Context, snapshotID string) (RuntimeStartTarget, *api.StructuredError) {
+	target, structured := s.loadRuntimeStartTargetByID(snapshotID)
 	if structured != nil {
-		return EngineStartTarget{}, structured
+		return RuntimeStartTarget{}, structured
 	}
-	if structured := s.prepareSnapshotCapabilities(ctx, target.SnapshotID, target.ConfigJSON); structured != nil {
-		return EngineStartTarget{}, structured
+	if structured := s.prepareRuntimeStartTargetCapabilities(ctx, target); structured != nil {
+		return RuntimeStartTarget{}, structured
 	}
 	return target, nil
 }
 
 func (s *Service) startPreparedSnapshotTarget(ctx context.Context, snapshotID string) *api.StructuredError {
-	return s.engine.Start(func() (EngineStartTarget, *api.StructuredError) {
-		return s.loadPreparedEngineStartTarget(ctx, snapshotID)
+	return s.engine.Start(func() (RuntimeStartTarget, *api.StructuredError) {
+		return s.loadPreparedRuntimeStartTarget(ctx, snapshotID)
 	})
 }
 
-func (s *Service) loadEngineStartTargetByID(snapshotID string) (EngineStartTarget, *api.StructuredError) {
+func (s *Service) loadRuntimeStartTargetByID(snapshotID string) (RuntimeStartTarget, *api.StructuredError) {
 	snapshot, contentID, err := s.db.GetSnapshot(snapshotID)
 	if err != nil {
-		return EngineStartTarget{}, qkboxdInternalError(err)
+		return RuntimeStartTarget{}, qkboxdInternalError(err)
 	}
 	if snapshot == nil {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorSnapshotNotFound, "Snapshot not found.", "qkboxd", true)
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorSnapshotNotFound, "Snapshot not found.", "qkboxd", true)
 	}
 	if contentID == "" {
-		return EngineStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "Snapshot has no content.", "qkboxd", true)
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "Snapshot has no content.", "qkboxd", true)
 	}
 
 	configJSON, err := s.decryptContent(contentID)
 	if err != nil {
-		return EngineStartTarget{}, qkboxdInternalErrorMessage("Failed to decrypt snapshot content: " + err.Error())
+		return RuntimeStartTarget{}, qkboxdInternalErrorMessage("Failed to decrypt snapshot content: " + err.Error())
 	}
 
-	return EngineStartTarget{SnapshotID: snapshotID, ConfigJSON: configJSON}, nil
+	required := snapshot.RequiredCapabilities
+	if len(required) == 0 {
+		required = extractRequiredCapabilities(configJSON)
+	}
+	return RuntimeStartTarget{
+		SnapshotID:           snapshotID,
+		ConfigJSON:           configJSON,
+		RequiredCapabilities: append([]string(nil), required...),
+	}, nil
 }
 
 func (s *Service) EngineStop(_ context.Context, _ api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError) {
@@ -597,7 +605,7 @@ func (s *Service) EngineReload(ctx context.Context, req api.EngineReloadRequest)
 	reply.PreviousSnapshotID = previousSnapshotID
 	reply.ActiveSnapshotID = previousSnapshotID
 
-	target, structured := s.loadEngineStartTargetByID(req.SnapshotID)
+	target, structured := s.loadRuntimeStartTargetByID(req.SnapshotID)
 	if structured != nil {
 		reply.Outcome = reloadOutcomeForTargetLoadFailure(structured)
 		reply.Failure = structured
@@ -616,13 +624,13 @@ func (s *Service) EngineReload(ctx context.Context, req api.EngineReloadRequest)
 		}
 		return reply, nil
 	}
-	if structured := s.prepareSnapshotCapabilities(ctx, target.SnapshotID, target.ConfigJSON); structured != nil {
+	if structured := s.prepareRuntimeStartTargetCapabilities(ctx, target); structured != nil {
 		reply.Outcome = api.ReloadOutcomeFailedPlatformPrepare
 		reply.Failure = structured
 		return reply, nil
 	}
 
-	if _, structured := s.loadEngineStartTargetByID(previousSnapshotID); structured != nil {
+	if _, structured := s.loadRuntimeStartTargetByID(previousSnapshotID); structured != nil {
 		reply.Outcome = api.ReloadOutcomeDegraded
 		reply.Failure = structured
 		return reply, nil
@@ -782,18 +790,8 @@ func (s *Service) decryptContent(contentID string) (string, error) {
 	return string(plaintext), nil
 }
 
-func (s *Service) prepareSnapshotCapabilities(ctx context.Context, snapshotID, configJSON string) *api.StructuredError {
-	snapshot, _, err := s.db.GetSnapshot(snapshotID)
-	if err != nil {
-		return qkboxdInternalError(err)
-	}
-	required := []string{}
-	if snapshot != nil && len(snapshot.RequiredCapabilities) > 0 {
-		required = snapshot.RequiredCapabilities
-	} else {
-		required = extractRequiredCapabilities(configJSON)
-	}
-	for _, feature := range required {
+func (s *Service) prepareRuntimeStartTargetCapabilities(ctx context.Context, target RuntimeStartTarget) *api.StructuredError {
+	for _, feature := range target.RequiredCapabilities {
 		if !isPrivilegedFeature(feature) {
 			continue
 		}

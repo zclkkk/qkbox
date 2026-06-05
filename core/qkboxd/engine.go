@@ -6,46 +6,24 @@ import (
 	"time"
 
 	"github.com/zclkkk/qkbox/internal/runtimeapi"
-	"github.com/zclkkk/qkbox/internal/singboxadapter"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
 )
 
-type EngineAdapter interface {
-	Start(ctx context.Context, configJSON string) error
-	Stop() error
-	RuntimeCapabilities() []api.Capability
-	TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError)
-	ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError)
-	ListGroups() ([]api.OutboundGroup, *api.StructuredError)
-	SelectOutbound(groupTag, outboundTag string) (api.OutboundGroup, *api.StructuredError)
-	URLTest(ctx context.Context, groupTag string, timeout time.Duration) ([]api.URLTestResult, *api.StructuredError)
-	CloseConnection(id string) *api.StructuredError
-	CloseAllConnections() *api.StructuredError
-	ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError)
-}
-
-type EngineStartTarget struct {
-	SnapshotID string
-	ConfigJSON string
-}
-
 type EngineController struct {
-	mu             sync.Mutex
-	runtimeCtx     context.Context
-	events         *RuntimeEventHub
-	adapterFactory func() EngineAdapter
-	adapter        EngineAdapter
-	status         api.EngineStatus
+	mu                  sync.Mutex
+	runtimeCtx          context.Context
+	events              *RuntimeEventHub
+	runtimeOwnerFactory RuntimeOwnerFactory
+	runtimeOwner        RuntimeOwner
+	status              api.EngineStatus
 }
 
 func NewEngineController(runtimeCtx context.Context, events *RuntimeEventHub) *EngineController {
 	controller := &EngineController{
-		runtimeCtx: runtimeCtx,
-		events:     events,
-		adapterFactory: func() EngineAdapter {
-			return singboxadapter.NewAdapter(events)
-		},
+		runtimeCtx:          runtimeCtx,
+		events:              events,
+		runtimeOwnerFactory: newLocalRuntimeOwnerFactory(events),
 		status: api.EngineStatus{
 			State: model.EngineStateIdle,
 		},
@@ -60,7 +38,7 @@ func (e *EngineController) GetStatus() api.EngineStatus {
 	return e.status
 }
 
-func (e *EngineController) Start(loadTarget func() (EngineStartTarget, *api.StructuredError)) *api.StructuredError {
+func (e *EngineController) Start(loadTarget func() (RuntimeStartTarget, *api.StructuredError)) *api.StructuredError {
 	e.mu.Lock()
 	if err := e.beginStartLocked(); err != nil {
 		e.mu.Unlock()
@@ -78,23 +56,18 @@ func (e *EngineController) Start(loadTarget func() (EngineStartTarget, *api.Stru
 
 	e.mu.Lock()
 	e.status.ActiveSnapshotID = target.SnapshotID
-	adapter := e.adapterFactory()
+	owner := e.runtimeOwnerFactory(target)
 	status = e.status
 	e.mu.Unlock()
 	e.publishStatus(status)
 
-	if err := adapter.Start(e.runtimeCtx, target.ConfigJSON); err != nil {
-		code := api.ErrorSingboxAdapterStartFailed
-		if ae, ok := err.(*singboxadapter.AdapterError); ok && ae.Code == "CONFIG_FAILED" {
-			code = api.ErrorSingboxAdapterConfigFailed
-		}
-		message := err.Error()
-		e.finishStartFailure(code, message)
-		return api.NewStructuredError(code, message, "singboxadapter", false)
+	if err := owner.Start(e.runtimeCtx, target); err != nil {
+		e.finishStartFailure(err.Code, err.Message)
+		return err
 	}
 
 	e.mu.Lock()
-	e.adapter = adapter
+	e.runtimeOwner = owner
 	e.status.State = model.EngineStateStarted
 	e.status.StartedAt = time.Now().UnixMilli()
 	status = e.status
@@ -106,7 +79,7 @@ func (e *EngineController) Start(loadTarget func() (EngineStartTarget, *api.Stru
 
 func (e *EngineController) Stop() *api.StructuredError {
 	e.mu.Lock()
-	adapter, structured := e.beginStopLocked()
+	owner, structured := e.beginStopLocked()
 	if structured != nil {
 		e.mu.Unlock()
 		return structured
@@ -115,16 +88,15 @@ func (e *EngineController) Stop() *api.StructuredError {
 	e.mu.Unlock()
 	e.publishStatus(status)
 
-	if err := adapter.Stop(); err != nil {
-		message := err.Error()
+	if err := owner.Stop(); err != nil {
 		e.mu.Lock()
 		e.status.State = model.EngineStateFatal
-		e.status.LastErrorCode = api.ErrorSingboxAdapterStopFailed
-		e.status.LastErrorMessage = message
+		e.status.LastErrorCode = err.Code
+		e.status.LastErrorMessage = err.Message
 		status = e.status
 		e.mu.Unlock()
 		e.publishStatus(status)
-		return api.NewStructuredError(api.ErrorSingboxAdapterStopFailed, message, "singboxadapter", false)
+		return err
 	}
 
 	e.finishStopSuccess()
@@ -133,7 +105,7 @@ func (e *EngineController) Stop() *api.StructuredError {
 
 func (e *EngineController) Shutdown() error {
 	e.mu.Lock()
-	adapter, structured := e.beginStopLocked()
+	owner, structured := e.beginStopLocked()
 	if structured != nil {
 		e.mu.Unlock()
 		if structured.Code == api.ErrorEngineNotStarted {
@@ -145,11 +117,11 @@ func (e *EngineController) Shutdown() error {
 	e.mu.Unlock()
 	e.publishStatus(status)
 
-	if err := adapter.Stop(); err != nil {
+	if err := owner.Stop(); err != nil {
 		e.mu.Lock()
 		e.status.State = model.EngineStateFatal
-		e.status.LastErrorCode = api.ErrorSingboxAdapterStopFailed
-		e.status.LastErrorMessage = err.Error()
+		e.status.LastErrorCode = err.Code
+		e.status.LastErrorMessage = err.Message
 		status = e.status
 		e.mu.Unlock()
 		e.publishStatus(status)
@@ -161,7 +133,7 @@ func (e *EngineController) Shutdown() error {
 
 func (e *EngineController) finishStopSuccess() {
 	e.mu.Lock()
-	e.adapter = nil
+	e.runtimeOwner = nil
 	e.status.State = model.EngineStateIdle
 	e.status.StartedAt = 0
 	e.status.LastErrorCode = ""
@@ -188,7 +160,7 @@ func (e *EngineController) beginStartLocked() *api.StructuredError {
 	case model.EngineStateStarting, model.EngineStateStopping:
 		return api.NewStructuredError(api.ErrorEngineBusy, "Engine is busy.", "qkboxd", true)
 	case model.EngineStateFatal:
-		if e.adapter != nil {
+		if e.runtimeOwner != nil {
 			return api.NewStructuredError(api.ErrorEngineBusy, "Engine is in a fatal runtime state. Stop it before starting again.", "qkboxd", true)
 		}
 	}
@@ -199,17 +171,17 @@ func (e *EngineController) beginStartLocked() *api.StructuredError {
 	return nil
 }
 
-func (e *EngineController) beginStopLocked() (EngineAdapter, *api.StructuredError) {
+func (e *EngineController) beginStopLocked() (RuntimeOwner, *api.StructuredError) {
 	switch e.status.State {
 	case model.EngineStateStarting, model.EngineStateStopping:
 		return nil, api.NewStructuredError(api.ErrorEngineBusy, "Engine is busy.", "qkboxd", true)
 	case model.EngineStateStarted, model.EngineStateFatal:
-		if e.adapter == nil {
+		if e.runtimeOwner == nil {
 			return nil, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine is not running.", "qkboxd", true)
 		}
-		adapter := e.adapter
+		owner := e.runtimeOwner
 		e.status.State = model.EngineStateStopping
-		return adapter, nil
+		return owner, nil
 	default:
 		return nil, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine is not running.", "qkboxd", true)
 	}
@@ -218,7 +190,7 @@ func (e *EngineController) beginStopLocked() (EngineAdapter, *api.StructuredErro
 func (e *EngineController) finishStartFailure(code, message string) {
 	e.mu.Lock()
 	e.status.State = model.EngineStateIdle
-	e.adapter = nil
+	e.runtimeOwner = nil
 	e.status.StartedAt = 0
 	e.status.LastErrorCode = code
 	e.status.LastErrorMessage = message
@@ -231,79 +203,79 @@ func (e *EngineController) blocksMutationsLocked() bool {
 	return e.status.State == model.EngineStateStarting ||
 		e.status.State == model.EngineStateStarted ||
 		e.status.State == model.EngineStateStopping ||
-		(e.status.State == model.EngineStateFatal && e.adapter != nil)
+		(e.status.State == model.EngineStateFatal && e.runtimeOwner != nil)
 }
 
 func (e *EngineController) RuntimeCapabilities() []api.Capability {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return api.RuntimeCapabilityShell()
 	}
-	return adapter.RuntimeCapabilities()
+	return owner.RuntimeCapabilities()
 }
 
 func (e *EngineController) TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError) {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return api.TrafficSnapshot{}, err
 	}
-	return adapter.TrafficSnapshot()
+	return owner.TrafficSnapshot()
 }
 
 func (e *EngineController) ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError) {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return api.ConnectionSnapshot{}, err
 	}
-	return adapter.ConnectionSnapshot()
+	return owner.ConnectionSnapshot()
 }
 
 func (e *EngineController) ListGroups() ([]api.OutboundGroup, *api.StructuredError) {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return nil, err
 	}
-	return adapter.ListGroups()
+	return owner.ListGroups()
 }
 
 func (e *EngineController) SelectOutbound(groupTag, outboundTag string) (api.OutboundGroup, *api.StructuredError) {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return api.OutboundGroup{}, err
 	}
-	return adapter.SelectOutbound(groupTag, outboundTag)
+	return owner.SelectOutbound(groupTag, outboundTag)
 }
 
 func (e *EngineController) URLTest(ctx context.Context, groupTag string, timeout time.Duration) ([]api.URLTestResult, *api.StructuredError) {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return nil, err
 	}
-	return adapter.URLTest(ctx, groupTag, timeout)
+	return owner.URLTest(ctx, groupTag, timeout)
 }
 
 func (e *EngineController) CloseConnection(id string) *api.StructuredError {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return err
 	}
-	return adapter.CloseConnection(id)
+	return owner.CloseConnection(id)
 }
 
 func (e *EngineController) CloseAllConnections() *api.StructuredError {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return err
 	}
-	return adapter.CloseAllConnections()
+	return owner.CloseAllConnections()
 }
 
 func (e *EngineController) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
-	adapter, err := e.runningAdapter()
+	owner, err := e.runningOwner()
 	if err != nil {
 		return nil, err
 	}
-	return adapter.ListenerInfo()
+	return owner.ListenerInfo()
 }
 
 func (e *EngineController) SubscribeTraffic(ctx context.Context) <-chan api.RuntimeEvent {
@@ -356,13 +328,13 @@ func (e *EngineController) subscribeSnapshots(ctx context.Context, eventName, un
 	return ch
 }
 
-func (e *EngineController) runningAdapter() (EngineAdapter, *api.StructuredError) {
+func (e *EngineController) runningOwner() (RuntimeOwner, *api.StructuredError) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.status.State != model.EngineStateStarted || e.adapter == nil {
+	if e.status.State != model.EngineStateStarted || e.runtimeOwner == nil {
 		return nil, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine is not running.", "qkboxd", true)
 	}
-	return e.adapter, nil
+	return e.runtimeOwner, nil
 }
 
 func (e *EngineController) publishStatus(status api.EngineStatus) {
