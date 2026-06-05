@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import AppShell from "./components/layout/AppShell.svelte";
-  import { router } from "./lib/routing";
+  import { router } from "./lib/routing.svelte";
   import { appState } from "./lib/state/app.svelte";
   import { runtimeEvents } from "./lib/state/runtime-events.svelte";
   import DiagnosticsView from "./views/DiagnosticsView.svelte";

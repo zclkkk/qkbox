@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Activity, Cpu, FileText, PlugZap, RefreshCw, ShieldCheck } from "@lucide/svelte";
   import type { HelloReply } from "../../lib/api/client";
-  import type { Route } from "../../lib/routing";
+  import type { Route } from "../../lib/routing.svelte";
   import ErrorNotice from "../shared/ErrorNotice.svelte";
   import IconButton from "../shared/IconButton.svelte";
 
