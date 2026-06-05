@@ -1,4 +1,4 @@
-import "./styles.css";
+import "./styles/global.css";
 import App from "./App.svelte";
 import { mount } from "svelte";
 

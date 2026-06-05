@@ -285,6 +285,62 @@ export class Platform {
     }
 }
 
+export class Profile {
+    /**
+     * Creates a new Profile instance.
+     * @param {Partial<Profile>} [$$source = {}] - The source object to create the Profile.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | null | undefined}
+             */
+            this["active_snapshot_id"] = undefined;
+        }
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["created_at"] = 0;
+        }
+        if (!("updated_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["updated_at"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Profile instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Profile}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Profile(/** @type {Partial<Profile>} */($$parsedSource));
+    }
+}
+
 export class ProfileSubscription {
     /**
      * Creates a new ProfileSubscription instance.
@@ -397,6 +453,261 @@ export class ProfileSubscription {
     }
 }
 
+export class ProfileSummary {
+    /**
+     * Creates a new ProfileSummary instance.
+     * @param {Partial<ProfileSummary>} [$$source = {}] - The source object to create the ProfileSummary.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("has_draft" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["has_draft"] = false;
+        }
+        if (!("has_active_snapshot" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["has_active_snapshot"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | null | undefined}
+             */
+            this["active_snapshot_id"] = undefined;
+        }
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["created_at"] = 0;
+        }
+        if (!("updated_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["updated_at"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProfileSummary instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProfileSummary}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProfileSummary(/** @type {Partial<ProfileSummary>} */($$parsedSource));
+    }
+}
+
+export class RuntimeSummary {
+    /**
+     * Creates a new RuntimeSummary instance.
+     * @param {Partial<RuntimeSummary>} [$$source = {}] - The source object to create the RuntimeSummary.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["inbound_types"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["outbound_types"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["protocols"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuntimeSummary instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RuntimeSummary}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType2;
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("inbound_types" in $$parsedSource) {
+            $$parsedSource["inbound_types"] = $$createField0_0($$parsedSource["inbound_types"]);
+        }
+        if ("outbound_types" in $$parsedSource) {
+            $$parsedSource["outbound_types"] = $$createField1_0($$parsedSource["outbound_types"]);
+        }
+        if ("protocols" in $$parsedSource) {
+            $$parsedSource["protocols"] = $$createField2_0($$parsedSource["protocols"]);
+        }
+        return new RuntimeSummary(/** @type {Partial<RuntimeSummary>} */($$parsedSource));
+    }
+}
+
+export class Snapshot {
+    /**
+     * Creates a new Snapshot instance.
+     * @param {Partial<Snapshot>} [$$source = {}] - The source object to create the Snapshot.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("profile_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["profile_id"] = "";
+        }
+        if (!("validation_status" in $$source)) {
+            /**
+             * @member
+             * @type {ValidationStatus}
+             */
+            this["validation_status"] = ValidationStatus.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ValidationDiagnostic[] | undefined}
+             */
+            this["diagnostics"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {RuntimeSummary | null | undefined}
+             */
+            this["runtime_summary"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["required_capabilities"] = undefined;
+        }
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["created_at"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Snapshot instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Snapshot}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType1;
+        const $$createField4_0 = $$createType4;
+        const $$createField5_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("diagnostics" in $$parsedSource) {
+            $$parsedSource["diagnostics"] = $$createField3_0($$parsedSource["diagnostics"]);
+        }
+        if ("runtime_summary" in $$parsedSource) {
+            $$parsedSource["runtime_summary"] = $$createField4_0($$parsedSource["runtime_summary"]);
+        }
+        if ("required_capabilities" in $$parsedSource) {
+            $$parsedSource["required_capabilities"] = $$createField5_0($$parsedSource["required_capabilities"]);
+        }
+        return new Snapshot(/** @type {Partial<Snapshot>} */($$parsedSource));
+    }
+}
+
+export class SnapshotSummary {
+    /**
+     * Creates a new SnapshotSummary instance.
+     * @param {Partial<SnapshotSummary>} [$$source = {}] - The source object to create the SnapshotSummary.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("profile_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["profile_id"] = "";
+        }
+        if (!("validation_status" in $$source)) {
+            /**
+             * @member
+             * @type {ValidationStatus}
+             */
+            this["validation_status"] = ValidationStatus.$zero;
+        }
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["created_at"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SnapshotSummary instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SnapshotSummary}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SnapshotSummary(/** @type {Partial<SnapshotSummary>} */($$parsedSource));
+    }
+}
+
 /**
  * @readonly
  * @enum {string}
@@ -485,3 +796,6 @@ export const ValidationStatus = {
 // Private type creation functions
 const $$createType0 = ValidationDiagnostic.createFrom;
 const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = RuntimeSummary.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);

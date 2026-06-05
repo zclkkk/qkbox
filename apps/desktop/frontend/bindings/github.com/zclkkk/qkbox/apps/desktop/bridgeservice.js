@@ -203,11 +203,48 @@ export function EngineURLTest(req) {
 }
 
 /**
+ * @returns {$CancellablePromise<api$0.GetActiveProfileResult>}
+ */
+export function GetActiveProfile() {
+    return $Call.ByID(2737630123).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType20($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.GetActiveSnapshotResult>}
+ */
+export function GetActiveSnapshot() {
+    return $Call.ByID(3125042362).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType21($result);
+    }));
+}
+
+/**
  * @returns {$CancellablePromise<api$0.HelloResult>}
  */
 export function Hello() {
     return $Call.ByID(1026108960).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType20($result);
+        return $$createType22($result);
+    }));
+}
+
+/**
+ * @returns {$CancellablePromise<api$0.ListProfilesResult>}
+ */
+export function ListProfiles() {
+    return $Call.ByID(4222064546).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType23($result);
+    }));
+}
+
+/**
+ * @param {api$0.ListSnapshotsRequest} req
+ * @returns {$CancellablePromise<api$0.ListSnapshotsResult>}
+ */
+export function ListSnapshots(req) {
+    return $Call.ByID(1817061349, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType24($result);
     }));
 }
 
@@ -216,7 +253,7 @@ export function Hello() {
  */
 export function PlatformGetCapabilities() {
     return $Call.ByID(521480311).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType21($result);
+        return $$createType25($result);
     }));
 }
 
@@ -225,7 +262,7 @@ export function PlatformGetCapabilities() {
  */
 export function PlatformGetPrivilegedProviderStatus() {
     return $Call.ByID(1026306247).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType22($result);
+        return $$createType26($result);
     }));
 }
 
@@ -234,7 +271,7 @@ export function PlatformGetPrivilegedProviderStatus() {
  */
 export function PlatformGetSystemProxyStatus() {
     return $Call.ByID(538798670).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType23($result);
+        return $$createType27($result);
     }));
 }
 
@@ -244,7 +281,7 @@ export function PlatformGetSystemProxyStatus() {
  */
 export function PlatformPrepareFeature(req) {
     return $Call.ByID(1517982888, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType24($result);
+        return $$createType28($result);
     }));
 }
 
@@ -254,7 +291,7 @@ export function PlatformPrepareFeature(req) {
  */
 export function PlatformRunRepairAction(req) {
     return $Call.ByID(4193203891, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType25($result);
+        return $$createType29($result);
     }));
 }
 
@@ -264,7 +301,7 @@ export function PlatformRunRepairAction(req) {
  */
 export function PlatformSetSystemProxyEnabled(req) {
     return $Call.ByID(1610130657, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType26($result);
+        return $$createType30($result);
     }));
 }
 
@@ -273,7 +310,7 @@ export function PlatformSetSystemProxyEnabled(req) {
  */
 export function StartRuntimeEventBridge() {
     return $Call.ByID(2560008773).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType27($result);
+        return $$createType31($result);
     }));
 }
 
@@ -282,7 +319,7 @@ export function StartRuntimeEventBridge() {
  */
 export function StopRuntimeEventBridge() {
     return $Call.ByID(3118977417).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType28($result);
+        return $$createType32($result);
     }));
 }
 
@@ -307,12 +344,16 @@ const $$createType16 = api$0.EngineSelectOutboundResult.createFrom;
 const $$createType17 = api$0.EngineStartResult.createFrom;
 const $$createType18 = api$0.EngineStopResult.createFrom;
 const $$createType19 = api$0.EngineURLTestResult.createFrom;
-const $$createType20 = api$0.HelloResult.createFrom;
-const $$createType21 = api$0.GetPlatformCapabilitiesResult.createFrom;
-const $$createType22 = api$0.GetPrivilegedProviderStatusResult.createFrom;
-const $$createType23 = api$0.GetSystemProxyStatusResult.createFrom;
-const $$createType24 = api$0.PrepareFeatureResult.createFrom;
-const $$createType25 = api$0.RunRepairActionResult.createFrom;
-const $$createType26 = api$0.SetSystemProxyEnabledResult.createFrom;
-const $$createType27 = api$0.RuntimeEventBridgeStartResult.createFrom;
-const $$createType28 = api$0.RuntimeEventBridgeStopResult.createFrom;
+const $$createType20 = api$0.GetActiveProfileResult.createFrom;
+const $$createType21 = api$0.GetActiveSnapshotResult.createFrom;
+const $$createType22 = api$0.HelloResult.createFrom;
+const $$createType23 = api$0.ListProfilesResult.createFrom;
+const $$createType24 = api$0.ListSnapshotsResult.createFrom;
+const $$createType25 = api$0.GetPlatformCapabilitiesResult.createFrom;
+const $$createType26 = api$0.GetPrivilegedProviderStatusResult.createFrom;
+const $$createType27 = api$0.GetSystemProxyStatusResult.createFrom;
+const $$createType28 = api$0.PrepareFeatureResult.createFrom;
+const $$createType29 = api$0.RunRepairActionResult.createFrom;
+const $$createType30 = api$0.SetSystemProxyEnabledResult.createFrom;
+const $$createType31 = api$0.RuntimeEventBridgeStartResult.createFrom;
+const $$createType32 = api$0.RuntimeEventBridgeStopResult.createFrom;
