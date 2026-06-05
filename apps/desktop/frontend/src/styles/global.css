@@ -334,7 +334,85 @@ h2 {
   gap: 8px;
 }
 
-.connection-list,
+.engine-toolbar,
+.reload-panel,
+.connection-controls,
+.log-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.engine-toolbar {
+  align-items: center;
+}
+
+.reload-panel > div,
+.connection-controls label,
+.log-controls label {
+  display: grid;
+  gap: 5px;
+  min-width: 160px;
+}
+
+.reload-panel select,
+.connection-controls input,
+.connection-controls select,
+.log-controls input,
+.log-controls select {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid #d5dce5;
+  border-radius: 6px;
+  color: #203040;
+  background: #ffffff;
+}
+
+.compact-notice {
+  display: grid;
+  align-items: start;
+  margin-top: 14px;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.traffic-chart {
+  display: flex;
+  align-items: end;
+  gap: 3px;
+  height: 72px;
+  margin-top: 14px;
+  padding: 8px;
+  border: 1px solid #e2e7ee;
+  border-radius: 6px;
+}
+
+.traffic-bar {
+  display: flex;
+  align-items: end;
+  gap: 1px;
+  width: 8px;
+  height: 100%;
+}
+
+.upload-bar,
+.download-bar {
+  display: block;
+  width: 3px;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+}
+
+.upload-bar {
+  background: #2662d9;
+}
+
+.download-bar {
+  background: #15957c;
+}
+
 .group-list,
 .logs {
   display: grid;
@@ -342,23 +420,44 @@ h2 {
   margin-top: 14px;
 }
 
-.connection-row,
 .group-row,
-.logs > div {
+.log-row {
   min-width: 0;
   padding: 10px;
   border: 1px solid #e2e7ee;
   border-radius: 6px;
 }
 
+.connection-table {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .connection-row {
   display: grid;
-  gap: 3px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e7ee;
+  border-radius: 6px;
+}
+
+.connection-row > div:first-child,
+.connection-metrics {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.connection-metrics {
+  justify-items: end;
 }
 
 .connection-row strong,
 .connection-row span,
-.logs > div {
+.log-row {
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 12px;
@@ -385,6 +484,7 @@ h2 {
 .panel button {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   min-height: 30px;
   padding: 5px 10px;
   border: 1px solid #d5dce5;
@@ -399,6 +499,13 @@ h2 {
   cursor: pointer;
 }
 
+.outbound-options button:disabled,
+.panel-title button:disabled,
+.panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .outbound-options button.active,
 .outbound-options span.active {
   color: #ffffff;
@@ -407,18 +514,43 @@ h2 {
 }
 
 .logs {
-  max-height: 220px;
+  max-height: 360px;
   overflow: auto;
 }
 
-.logs > div {
+.log-row {
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-columns: 64px 150px 110px 72px minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
 }
 
-.logs span {
+.log-row p {
+  margin: 0;
+}
+
+.log-row span {
   color: #657386;
+}
+
+.toggle-row {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-width: 120px;
+}
+
+.urltest-results {
+  display: grid;
+  gap: 6px;
+}
+
+.urltest-results > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
 }
 
 .empty {
@@ -608,16 +740,22 @@ h2 {
   background: #dcf6e9;
 }
 
+.state[data-state="STARTED"],
 .state[data-state="updated"] {
   color: #12633d;
   background: #dcf6e9;
 }
 
+.state[data-state="IDLE"],
+.state[data-state="UNINITIALIZED"],
 .state[data-state="unavailable"] {
   color: #735014;
   background: #fff0c7;
 }
 
+.state[data-state="VALIDATING"],
+.state[data-state="STARTING"],
+.state[data-state="STOPPING"],
 .state[data-state="pending"] {
   color: #735014;
   background: #fff0c7;
@@ -634,6 +772,12 @@ h2 {
 }
 
 .state[data-state="failed"] {
+  color: #9f1d21;
+  background: #fff4f4;
+}
+
+.state[data-state="FATAL"],
+.state[data-state="error"] {
   color: #9f1d21;
   background: #fff4f4;
 }
@@ -688,9 +832,21 @@ h2 {
   .diagnostics dl > div,
   .asset-row,
   .check-row,
+  .connection-row,
+  .log-row,
   .compact-form,
   .subscription-form,
   .asset-form {
     grid-template-columns: 1fr;
+  }
+
+  .connection-metrics {
+    justify-items: start;
+  }
+
+  .reload-panel > div,
+  .connection-controls label,
+  .log-controls label {
+    width: 100%;
   }
 }

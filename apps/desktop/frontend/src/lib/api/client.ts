@@ -2,6 +2,7 @@ import { Events } from "@wailsio/runtime";
 import { BridgeService } from "../../../bindings/github.com/zclkkk/qkbox/apps/desktop";
 import type {
   Capability,
+  EngineReloadReply,
   EngineStatus,
   GetSystemProxyStatusReply,
   HelloReply,
@@ -9,17 +10,20 @@ import type {
   PrivilegedProviderStatus,
   ProductDiagnosticsReport,
   StructuredError,
+  URLTestResult,
 } from "../../../bindings/github.com/zclkkk/qkbox/shared/api/models";
 
 export type {
   Capability,
+  EngineReloadReply,
   EngineStatus,
   GetSystemProxyStatusReply,
   HelloReply,
   OutboundGroup,
   PrivilegedProviderStatus,
   ProductDiagnosticsReport,
-  StructuredError
+  StructuredError,
+  URLTestResult
 };
 
 export type RuntimeLogEntry = {
@@ -102,6 +106,7 @@ export const api = {
       unwrap(BridgeService.EngineSelectOutbound({ group_tag: groupTag, outbound_tag: outboundTag })),
     urlTest: (groupTag: string, timeoutMS = 10_000) =>
       unwrap(BridgeService.EngineURLTest({ group_tag: groupTag, timeout_ms: timeoutMS }), { results: [] }),
+    closeConnection: (connectionID: string) => unwrap(BridgeService.EngineCloseConnection({ connection_id: connectionID }), {}),
     closeAllConnections: () => unwrap(BridgeService.EngineCloseAllConnections(), {})
   },
   profile: {

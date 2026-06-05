@@ -1,13 +1,18 @@
 import { api, formatStructuredError, QKBoxApiError } from "../api/client";
-import type { Capability, EngineStatus, OutboundGroup, StructuredError } from "../api/client";
+import type { Capability, EngineReloadReply, EngineStatus, OutboundGroup, StructuredError, URLTestResult } from "../api/client";
+import type { ProfileSnapshot } from "./profile.svelte";
 
 class EngineState {
   loading = $state(false);
   status = $state<EngineStatus | null>(null);
   capabilities = $state<Capability[]>([]);
   groups = $state<OutboundGroup[]>([]);
+  reloadSnapshots = $state<ProfileSnapshot[]>([]);
+  reloadTargetSnapshotID = $state("");
+  lastReloadResult = $state<EngineReloadReply | null>(null);
+  urlTestResults = $state<Record<string, URLTestResult[]>>({});
+  urlTestingGroup = $state<string | null>(null);
   error = $state<string | null>(null);
-  lastReloadSnapshotID = $state<string | null>(null);
 
   get started() {
     return this.status?.state === "STARTED";
@@ -15,6 +20,9 @@ class EngineState {
 
   setStatus(status: EngineStatus) {
     this.status = status;
+    if (status.state !== "STARTED") {
+      this.groups = [];
+    }
   }
 
   setEventError(error: StructuredError) {
@@ -61,6 +69,24 @@ class EngineState {
     }
   }
 
+  async refreshReloadTargets(profileID: string) {
+    if (!profileID) {
+      this.reloadSnapshots = [];
+      this.reloadTargetSnapshotID = "";
+      return;
+    }
+    try {
+      const reply = await api.profile.listSnapshots(profileID);
+      this.reloadSnapshots = (reply.snapshots ?? []) as ProfileSnapshot[];
+      if (this.reloadTargetSnapshotID && !this.reloadSnapshots.some((snapshot) => snapshot.id === this.reloadTargetSnapshotID)) {
+        this.reloadTargetSnapshotID = "";
+      }
+    } catch (error) {
+      this.reloadSnapshots = [];
+      this.capture(error);
+    }
+  }
+
   async start() {
     await this.withLoading(async () => {
       await api.engine.start();
@@ -77,8 +103,8 @@ class EngineState {
 
   async reload(snapshotID?: string) {
     await this.withLoading(async () => {
-      await api.engine.reload(snapshotID);
-      this.lastReloadSnapshotID = snapshotID ?? null;
+      const reply = await api.engine.reload(snapshotID);
+      this.lastReloadResult = reply as EngineReloadReply;
       await this.refresh();
     });
   }
@@ -95,9 +121,22 @@ class EngineState {
 
   async urlTest(groupTag: string) {
     this.error = null;
+    this.urlTestingGroup = groupTag;
     try {
-      await api.engine.urlTest(groupTag);
+      const reply = await api.engine.urlTest(groupTag);
+      this.urlTestResults = { ...this.urlTestResults, [groupTag]: reply.results ?? [] };
       await this.refreshGroups();
+    } catch (error) {
+      this.capture(error);
+    } finally {
+      this.urlTestingGroup = null;
+    }
+  }
+
+  async closeConnection(connectionID: string) {
+    this.error = null;
+    try {
+      await api.engine.closeConnection(connectionID);
     } catch (error) {
       this.capture(error);
     }
