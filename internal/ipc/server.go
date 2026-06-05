@@ -30,6 +30,10 @@ type Handler interface {
 	RefreshDataAsset(context.Context, api.RefreshDataAssetRequest) (api.RefreshDataAssetReply, *api.StructuredError)
 	DeleteDataAsset(context.Context, api.DeleteDataAssetRequest) (api.DeleteDataAssetReply, *api.StructuredError)
 
+	// Diagnostics and recovery
+	DiagnosticsGetReport(context.Context, api.GetDiagnosticsReportRequest) (api.GetDiagnosticsReportReply, *api.StructuredError)
+	DiagnosticsCreateDebugBundle(context.Context, api.CreateDebugBundleRequest) (api.CreateDebugBundleReply, *api.StructuredError)
+
 	// Snapshot lifecycle
 	ValidateProfileDraft(context.Context, api.ValidateProfileDraftRequest) (api.ValidateProfileDraftReply, *api.StructuredError)
 	GetProfileDiagnostics(context.Context, api.GetProfileDiagnosticsRequest) (api.GetProfileDiagnosticsReply, *api.StructuredError)
@@ -136,6 +140,10 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		dispatch(conn, req, s.handler.RefreshDataAsset, ctx)
 	case api.MethodAssetDeleteDataAsset:
 		dispatch(conn, req, s.handler.DeleteDataAsset, ctx)
+	case api.MethodDiagnosticsGetReport:
+		dispatch(conn, req, s.handler.DiagnosticsGetReport, ctx)
+	case api.MethodDiagnosticsCreateDebugBundle:
+		dispatch(conn, req, s.handler.DiagnosticsCreateDebugBundle, ctx)
 
 	case api.MethodValidateProfileDraft:
 		dispatch(conn, req, s.handler.ValidateProfileDraft, ctx)

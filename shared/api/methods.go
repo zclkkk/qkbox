@@ -20,6 +20,10 @@ const (
 	MethodAssetRefreshDataAsset           = "asset.refreshDataAsset"
 	MethodAssetDeleteDataAsset            = "asset.deleteDataAsset"
 
+	// Diagnostics and recovery
+	MethodDiagnosticsGetReport         = "diagnostics.getReport"
+	MethodDiagnosticsCreateDebugBundle = "diagnostics.createDebugBundle"
+
 	// Snapshot lifecycle
 	MethodValidateProfileDraft    = "validateProfileDraft"
 	MethodGetProfileDiagnostics   = "getProfileDiagnostics"
@@ -70,6 +74,8 @@ var MethodRegistry = map[string]struct{}{
 	MethodAssetListDataAssets:             {},
 	MethodAssetRefreshDataAsset:           {},
 	MethodAssetDeleteDataAsset:            {},
+	MethodDiagnosticsGetReport:            {},
+	MethodDiagnosticsCreateDebugBundle:    {},
 	MethodValidateProfileDraft:            {},
 	MethodGetProfileDiagnostics:           {},
 	MethodCreateProfileSnapshot:           {},

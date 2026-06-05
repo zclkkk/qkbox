@@ -40,6 +40,14 @@ func (db *DB) StateDir() string {
 	return db.stateDir
 }
 
+func (db *DB) SchemaVersion() (int, error) {
+	var version int
+	if err := db.conn.QueryRow("SELECT version FROM schema_version").Scan(&version); err != nil {
+		return 0, err
+	}
+	return version, nil
+}
+
 func (db *DB) Close() error {
 	return db.conn.Close()
 }

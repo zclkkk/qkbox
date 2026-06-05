@@ -51,6 +51,18 @@
     last_error_code?: string;
     last_error_message?: string;
   };
+  type DiagnosticCheck = {
+    name: string;
+    state: string;
+    reason?: string;
+    recovery?: string;
+  };
+  type ProductDiagnosticsReport = {
+    generated_at: number;
+    db_schema_version: number;
+    engine_status: EngineStatus;
+    checks: DiagnosticCheck[];
+  };
 
   let loading = $state(true);
   let reply = $state<HelloReply | null>(null);
@@ -73,6 +85,9 @@
   let subscriptions = $state<ProfileSubscription[]>([]);
   let dataAssets = $state<DataAsset[]>([]);
   let assetError = $state<string | null>(null);
+  let diagnosticsReport = $state<ProductDiagnosticsReport | null>(null);
+  let diagnosticsError = $state<string | null>(null);
+  let debugBundlePath = $state<string | null>(null);
 
   function formatStructuredError(err: { code: string; message: string }) {
     return `${err.code}: ${err.message}`;
@@ -172,6 +187,29 @@
     }
   }
 
+  async function refreshDiagnosticsReport() {
+    diagnosticsError = null;
+    const result = await BridgeService.DiagnosticsGetReport();
+    if (result.error) {
+      diagnosticsError = formatStructuredError(result.error);
+      diagnosticsReport = null;
+      return;
+    }
+    diagnosticsReport = result.reply?.report as ProductDiagnosticsReport;
+  }
+
+  async function createDebugBundle() {
+    diagnosticsError = null;
+    debugBundlePath = null;
+    const result = await BridgeService.DiagnosticsCreateDebugBundle();
+    if (result.error) {
+      diagnosticsError = formatStructuredError(result.error);
+      return;
+    }
+    debugBundlePath = result.reply?.bundle_path ?? null;
+    diagnosticsReport = result.reply?.report as ProductDiagnosticsReport;
+  }
+
   async function bootstrap() {
     loading = true;
     error = null;
@@ -199,6 +237,7 @@
       await refreshPrivilegedProviderStatus();
       await refreshProxyStatus();
       await refreshAssetState();
+      await refreshDiagnosticsReport();
     } catch (e) {
       engineError = e instanceof Error ? e.message : String(e);
     }
@@ -680,6 +719,37 @@
         <dd>{data.platform.os}/{data.platform.arch}</dd>
       </div>
     </dl>
+    <div class="panel-title" style="margin-top: 1rem;">
+      <h2>Support Bundle</h2>
+      <div class="button-row">
+        <button type="button" onclick={refreshDiagnosticsReport}>Refresh diagnostics</button>
+        <button type="button" onclick={createDebugBundle}>Create debug bundle</button>
+      </div>
+    </div>
+    {#if diagnosticsError}
+      <div class="notice error"><span>{diagnosticsError}</span></div>
+    {/if}
+    {#if debugBundlePath}
+      <div class="notice"><span>{debugBundlePath}</span></div>
+    {/if}
+    {#if diagnosticsReport}
+      <div class="check-list">
+        {#each diagnosticsReport.checks as check}
+          <div class="check-row">
+            <div>
+              <strong>{check.name}</strong>
+              {#if check.reason}
+                <span>{check.reason}</span>
+              {/if}
+              {#if check.recovery}
+                <span>{check.recovery}</span>
+              {/if}
+            </div>
+            <span class="state" data-state={check.state}>{check.state}</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
     <div class="panel-title" style="margin-top: 1rem;">
       <h2>Data Plane</h2>
       <button class="icon-button" type="button" aria-label="Refresh asset state" onclick={refreshAssetState}>

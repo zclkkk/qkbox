@@ -186,6 +186,99 @@ export class CreateDataAssetResult {
     }
 }
 
+export class CreateDebugBundleReply {
+    /**
+     * Creates a new CreateDebugBundleReply instance.
+     * @param {Partial<CreateDebugBundleReply>} [$$source = {}] - The source object to create the CreateDebugBundleReply.
+     */
+    constructor($$source = {}) {
+        if (!("bundle_path" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["bundle_path"] = "";
+        }
+        if (!("manifest" in $$source)) {
+            /**
+             * @member
+             * @type {DebugBundleManifest}
+             */
+            this["manifest"] = (new DebugBundleManifest());
+        }
+        if (!("report" in $$source)) {
+            /**
+             * @member
+             * @type {ProductDiagnosticsReport}
+             */
+            this["report"] = (new ProductDiagnosticsReport());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateDebugBundleReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CreateDebugBundleReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType5;
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("manifest" in $$parsedSource) {
+            $$parsedSource["manifest"] = $$createField1_0($$parsedSource["manifest"]);
+        }
+        if ("report" in $$parsedSource) {
+            $$parsedSource["report"] = $$createField2_0($$parsedSource["report"]);
+        }
+        return new CreateDebugBundleReply(/** @type {Partial<CreateDebugBundleReply>} */($$parsedSource));
+    }
+}
+
+export class CreateDebugBundleResult {
+    /**
+     * Creates a new CreateDebugBundleResult instance.
+     * @param {Partial<CreateDebugBundleResult>} [$$source = {}] - The source object to create the CreateDebugBundleResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {CreateDebugBundleReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateDebugBundleResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CreateDebugBundleResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new CreateDebugBundleResult(/** @type {Partial<CreateDebugBundleResult>} */($$parsedSource));
+    }
+}
+
 export class CreateProfileSubscriptionReply {
     /**
      * Creates a new CreateProfileSubscriptionReply instance.
@@ -209,7 +302,7 @@ export class CreateProfileSubscriptionReply {
      * @returns {CreateProfileSubscriptionReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType5;
+        const $$createField0_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subscription" in $$parsedSource) {
             $$parsedSource["subscription"] = $$createField0_0($$parsedSource["subscription"]);
@@ -297,7 +390,7 @@ export class CreateProfileSubscriptionResult {
      * @returns {CreateProfileSubscriptionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType7;
+        const $$createField0_0 = $$createType11;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -307,6 +400,66 @@ export class CreateProfileSubscriptionResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new CreateProfileSubscriptionResult(/** @type {Partial<CreateProfileSubscriptionResult>} */($$parsedSource));
+    }
+}
+
+export class DebugBundleManifest {
+    /**
+     * Creates a new DebugBundleManifest instance.
+     * @param {Partial<DebugBundleManifest>} [$$source = {}] - The source object to create the DebugBundleManifest.
+     */
+    constructor($$source = {}) {
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["created_at"] = 0;
+        }
+        if (!("app_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["app_version"] = "";
+        }
+        if (!("qkboxd_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["qkboxd_version"] = "";
+        }
+        if (!("files" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["files"] = [];
+        }
+        if (!("redaction" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["redaction"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DebugBundleManifest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DebugBundleManifest}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField3_0($$parsedSource["files"]);
+        }
+        return new DebugBundleManifest(/** @type {Partial<DebugBundleManifest>} */($$parsedSource));
     }
 }
 
@@ -389,7 +542,7 @@ export class DeleteDataAssetResult {
      * @returns {DeleteDataAssetResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType9;
+        const $$createField0_0 = $$createType14;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -481,7 +634,7 @@ export class DeleteProfileSubscriptionResult {
      * @returns {DeleteProfileSubscriptionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType11;
+        const $$createField0_0 = $$createType16;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -491,6 +644,265 @@ export class DeleteProfileSubscriptionResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new DeleteProfileSubscriptionResult(/** @type {Partial<DeleteProfileSubscriptionResult>} */($$parsedSource));
+    }
+}
+
+export class DiagnosticAssetSummary {
+    /**
+     * Creates a new DiagnosticAssetSummary instance.
+     * @param {Partial<DiagnosticAssetSummary>} [$$source = {}] - The source object to create the DiagnosticAssetSummary.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("redacted_source_url" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["redacted_source_url"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["cache_key"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["version"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["content_sha256"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["size_bytes"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_code"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_message"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_checked_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_updated_at"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DiagnosticAssetSummary instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DiagnosticAssetSummary}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DiagnosticAssetSummary(/** @type {Partial<DiagnosticAssetSummary>} */($$parsedSource));
+    }
+}
+
+export class DiagnosticCheck {
+    /**
+     * Creates a new DiagnosticCheck instance.
+     * @param {Partial<DiagnosticCheck>} [$$source = {}] - The source object to create the DiagnosticCheck.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("state" in $$source)) {
+            /**
+             * @member
+             * @type {CapabilityState}
+             */
+            this["state"] = CapabilityState.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["recovery"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DiagnosticCheck instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DiagnosticCheck}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DiagnosticCheck(/** @type {Partial<DiagnosticCheck>} */($$parsedSource));
+    }
+}
+
+export class DiagnosticSubscriptionSummary {
+    /**
+     * Creates a new DiagnosticSubscriptionSummary instance.
+     * @param {Partial<DiagnosticSubscriptionSummary>} [$$source = {}] - The source object to create the DiagnosticSubscriptionSummary.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("profile_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["profile_id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("redacted_url" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["redacted_url"] = "";
+        }
+        if (!("update_policy" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["update_policy"] = "";
+        }
+        if (!("last_status" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["last_status"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_code"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_message"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_checked_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_updated_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["content_sha256"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DiagnosticSubscriptionSummary instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DiagnosticSubscriptionSummary}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DiagnosticSubscriptionSummary(/** @type {Partial<DiagnosticSubscriptionSummary>} */($$parsedSource));
     }
 }
 
@@ -545,7 +957,7 @@ export class EngineCloseAllConnectionsResult {
      * @returns {EngineCloseAllConnectionsResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType18;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -637,7 +1049,7 @@ export class EngineCloseConnectionResult {
      * @returns {EngineCloseConnectionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType15;
+        const $$createField0_0 = $$createType20;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -673,7 +1085,7 @@ export class EngineGetRuntimeCapabilitiesReply {
      * @returns {EngineGetRuntimeCapabilitiesReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType17;
+        const $$createField0_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("capabilities" in $$parsedSource) {
             $$parsedSource["capabilities"] = $$createField0_0($$parsedSource["capabilities"]);
@@ -712,7 +1124,7 @@ export class EngineGetRuntimeCapabilitiesResult {
      * @returns {EngineGetRuntimeCapabilitiesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType19;
+        const $$createField0_0 = $$createType24;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -748,7 +1160,7 @@ export class EngineGetStatusReply {
      * @returns {EngineGetStatusReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType20;
+        const $$createField0_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField0_0($$parsedSource["status"]);
@@ -787,7 +1199,7 @@ export class EngineGetStatusResult {
      * @returns {EngineGetStatusResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType22;
+        const $$createField0_0 = $$createType27;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -823,7 +1235,7 @@ export class EngineListGroupsReply {
      * @returns {EngineListGroupsReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType24;
+        const $$createField0_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField0_0($$parsedSource["groups"]);
@@ -862,7 +1274,7 @@ export class EngineListGroupsResult {
      * @returns {EngineListGroupsResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType26;
+        const $$createField0_0 = $$createType31;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1004,7 +1416,7 @@ export class EngineReloadResult {
      * @returns {EngineReloadResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType28;
+        const $$createField0_0 = $$createType33;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1040,7 +1452,7 @@ export class EngineSelectOutboundReply {
      * @returns {EngineSelectOutboundReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType23;
+        const $$createField0_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("group" in $$parsedSource) {
             $$parsedSource["group"] = $$createField0_0($$parsedSource["group"]);
@@ -1114,7 +1526,7 @@ export class EngineSelectOutboundResult {
      * @returns {EngineSelectOutboundResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType30;
+        const $$createField0_0 = $$createType35;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1178,7 +1590,7 @@ export class EngineStartResult {
      * @returns {EngineStartResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType32;
+        const $$createField0_0 = $$createType37;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1298,7 +1710,7 @@ export class EngineStopResult {
      * @returns {EngineStopResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType34;
+        const $$createField0_0 = $$createType39;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1334,7 +1746,7 @@ export class EngineURLTestReply {
      * @returns {EngineURLTestReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType36;
+        const $$createField0_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("results" in $$parsedSource) {
             $$parsedSource["results"] = $$createField0_0($$parsedSource["results"]);
@@ -1408,7 +1820,7 @@ export class EngineURLTestResult {
      * @returns {EngineURLTestResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType38;
+        const $$createField0_0 = $$createType43;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1418,6 +1830,81 @@ export class EngineURLTestResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new EngineURLTestResult(/** @type {Partial<EngineURLTestResult>} */($$parsedSource));
+    }
+}
+
+export class GetDiagnosticsReportReply {
+    /**
+     * Creates a new GetDiagnosticsReportReply instance.
+     * @param {Partial<GetDiagnosticsReportReply>} [$$source = {}] - The source object to create the GetDiagnosticsReportReply.
+     */
+    constructor($$source = {}) {
+        if (!("report" in $$source)) {
+            /**
+             * @member
+             * @type {ProductDiagnosticsReport}
+             */
+            this["report"] = (new ProductDiagnosticsReport());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetDiagnosticsReportReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {GetDiagnosticsReportReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("report" in $$parsedSource) {
+            $$parsedSource["report"] = $$createField0_0($$parsedSource["report"]);
+        }
+        return new GetDiagnosticsReportReply(/** @type {Partial<GetDiagnosticsReportReply>} */($$parsedSource));
+    }
+}
+
+export class GetDiagnosticsReportResult {
+    /**
+     * Creates a new GetDiagnosticsReportResult instance.
+     * @param {Partial<GetDiagnosticsReportResult>} [$$source = {}] - The source object to create the GetDiagnosticsReportResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {GetDiagnosticsReportReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetDiagnosticsReportResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {GetDiagnosticsReportResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType45;
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new GetDiagnosticsReportResult(/** @type {Partial<GetDiagnosticsReportResult>} */($$parsedSource));
     }
 }
 
@@ -1444,7 +1931,7 @@ export class GetPlatformCapabilitiesReply {
      * @returns {GetPlatformCapabilitiesReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType17;
+        const $$createField0_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("capabilities" in $$parsedSource) {
             $$parsedSource["capabilities"] = $$createField0_0($$parsedSource["capabilities"]);
@@ -1483,7 +1970,7 @@ export class GetPlatformCapabilitiesResult {
      * @returns {GetPlatformCapabilitiesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType40;
+        const $$createField0_0 = $$createType47;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1519,7 +2006,7 @@ export class GetPrivilegedProviderStatusReply {
      * @returns {GetPrivilegedProviderStatusReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType41;
+        const $$createField0_0 = $$createType48;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField0_0($$parsedSource["status"]);
@@ -1558,7 +2045,7 @@ export class GetPrivilegedProviderStatusResult {
      * @returns {GetPrivilegedProviderStatusResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType43;
+        const $$createField0_0 = $$createType50;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1671,7 +2158,7 @@ export class GetSystemProxyStatusResult {
      * @returns {GetSystemProxyStatusResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType45;
+        const $$createField0_0 = $$createType52;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1756,9 +2243,9 @@ export class HelloReply {
      * @returns {HelloReply}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType46;
-        const $$createField6_0 = $$createType17;
-        const $$createField7_0 = $$createType17;
+        const $$createField5_0 = $$createType53;
+        const $$createField6_0 = $$createType22;
+        const $$createField7_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("platform" in $$parsedSource) {
             $$parsedSource["platform"] = $$createField5_0($$parsedSource["platform"]);
@@ -1803,7 +2290,7 @@ export class HelloResult {
      * @returns {HelloResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType48;
+        const $$createField0_0 = $$createType55;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1839,7 +2326,7 @@ export class ListDataAssetsReply {
      * @returns {ListDataAssetsReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType49;
+        const $$createField0_0 = $$createType56;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("assets" in $$parsedSource) {
             $$parsedSource["assets"] = $$createField0_0($$parsedSource["assets"]);
@@ -1906,7 +2393,7 @@ export class ListDataAssetsResult {
      * @returns {ListDataAssetsResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType51;
+        const $$createField0_0 = $$createType58;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1942,7 +2429,7 @@ export class ListProfileSubscriptionsReply {
      * @returns {ListProfileSubscriptionsReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType52;
+        const $$createField0_0 = $$createType59;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subscriptions" in $$parsedSource) {
             $$parsedSource["subscriptions"] = $$createField0_0($$parsedSource["subscriptions"]);
@@ -2009,7 +2496,7 @@ export class ListProfileSubscriptionsResult {
      * @returns {ListProfileSubscriptionsResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType54;
+        const $$createField0_0 = $$createType61;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2019,6 +2506,91 @@ export class ListProfileSubscriptionsResult {
             $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
         }
         return new ListProfileSubscriptionsResult(/** @type {Partial<ListProfileSubscriptionsResult>} */($$parsedSource));
+    }
+}
+
+export class NetworkExtensionStatus {
+    /**
+     * Creates a new NetworkExtensionStatus instance.
+     * @param {Partial<NetworkExtensionStatus>} [$$source = {}] - The source object to create the NetworkExtensionStatus.
+     */
+    constructor($$source = {}) {
+        if (!("installed" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["installed"] = false;
+        }
+        if (!("reachable" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["reachable"] = false;
+        }
+        if (!("authorized" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["authorized"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["bundle_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["version"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ProviderOwnerState | null | undefined}
+             */
+            this["owner_state"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {Capability[] | undefined}
+             */
+            this["capabilities"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NetworkExtensionStatus instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {NetworkExtensionStatus}
+     */
+    static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType63;
+        const $$createField6_0 = $$createType22;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("owner_state" in $$parsedSource) {
+            $$parsedSource["owner_state"] = $$createField5_0($$parsedSource["owner_state"]);
+        }
+        if ("capabilities" in $$parsedSource) {
+            $$parsedSource["capabilities"] = $$createField6_0($$parsedSource["capabilities"]);
+        }
+        return new NetworkExtensionStatus(/** @type {Partial<NetworkExtensionStatus>} */($$parsedSource));
     }
 }
 
@@ -2066,7 +2638,7 @@ export class OutboundGroup {
      * @returns {OutboundGroup}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType56;
+        const $$createField3_0 = $$createType65;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("outbounds" in $$parsedSource) {
             $$parsedSource["outbounds"] = $$createField3_0($$parsedSource["outbounds"]);
@@ -2217,7 +2789,7 @@ export class PrepareFeatureResult {
      * @returns {PrepareFeatureResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType58;
+        const $$createField0_0 = $$createType67;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2309,8 +2881,8 @@ export class PrivilegedProviderStatus {
      * @returns {PrivilegedProviderStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType60;
-        const $$createField7_0 = $$createType17;
+        const $$createField6_0 = $$createType63;
+        const $$createField7_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("owner_state" in $$parsedSource) {
             $$parsedSource["owner_state"] = $$createField6_0($$parsedSource["owner_state"]);
@@ -2319,6 +2891,211 @@ export class PrivilegedProviderStatus {
             $$parsedSource["capabilities"] = $$createField7_0($$parsedSource["capabilities"]);
         }
         return new PrivilegedProviderStatus(/** @type {Partial<PrivilegedProviderStatus>} */($$parsedSource));
+    }
+}
+
+export class ProductDiagnosticsReport {
+    /**
+     * Creates a new ProductDiagnosticsReport instance.
+     * @param {Partial<ProductDiagnosticsReport>} [$$source = {}] - The source object to create the ProductDiagnosticsReport.
+     */
+    constructor($$source = {}) {
+        if (!("generated_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["generated_at"] = 0;
+        }
+        if (!("api_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["api_version"] = "";
+        }
+        if (!("min_supported_api_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["min_supported_api_version"] = "";
+        }
+        if (!("schema_revision" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["schema_revision"] = "";
+        }
+        if (!("db_schema_version" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["db_schema_version"] = 0;
+        }
+        if (!("app_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["app_version"] = "";
+        }
+        if (!("qkboxd_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["qkboxd_version"] = "";
+        }
+        if (!("platform" in $$source)) {
+            /**
+             * @member
+             * @type {model$0.Platform}
+             */
+            this["platform"] = (new model$0.Platform());
+        }
+        if (!("engine_status" in $$source)) {
+            /**
+             * @member
+             * @type {EngineStatus}
+             */
+            this["engine_status"] = (new EngineStatus());
+        }
+        if (!("runtime_capabilities" in $$source)) {
+            /**
+             * @member
+             * @type {Capability[]}
+             */
+            this["runtime_capabilities"] = [];
+        }
+        if (!("platform_capabilities" in $$source)) {
+            /**
+             * @member
+             * @type {Capability[]}
+             */
+            this["platform_capabilities"] = [];
+        }
+        if (!("privileged_provider_status" in $$source)) {
+            /**
+             * @member
+             * @type {PrivilegedProviderStatus}
+             */
+            this["privileged_provider_status"] = (new PrivilegedProviderStatus());
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {NetworkExtensionStatus | null | undefined}
+             */
+            this["network_extension_status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {GetSystemProxyStatusReply | null | undefined}
+             */
+            this["system_proxy_status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["system_proxy_error"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["active_profile_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["active_snapshot_id"] = undefined;
+        }
+        if (!("subscriptions" in $$source)) {
+            /**
+             * @member
+             * @type {DiagnosticSubscriptionSummary[]}
+             */
+            this["subscriptions"] = [];
+        }
+        if (!("data_assets" in $$source)) {
+            /**
+             * @member
+             * @type {DiagnosticAssetSummary[]}
+             */
+            this["data_assets"] = [];
+        }
+        if (!("checks" in $$source)) {
+            /**
+             * @member
+             * @type {DiagnosticCheck[]}
+             */
+            this["checks"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProductDiagnosticsReport instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProductDiagnosticsReport}
+     */
+    static createFrom($$source = {}) {
+        const $$createField7_0 = $$createType53;
+        const $$createField8_0 = $$createType25;
+        const $$createField9_0 = $$createType22;
+        const $$createField10_0 = $$createType22;
+        const $$createField11_0 = $$createType48;
+        const $$createField12_0 = $$createType69;
+        const $$createField13_0 = $$createType52;
+        const $$createField14_0 = $$createType4;
+        const $$createField17_0 = $$createType71;
+        const $$createField18_0 = $$createType73;
+        const $$createField19_0 = $$createType75;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("platform" in $$parsedSource) {
+            $$parsedSource["platform"] = $$createField7_0($$parsedSource["platform"]);
+        }
+        if ("engine_status" in $$parsedSource) {
+            $$parsedSource["engine_status"] = $$createField8_0($$parsedSource["engine_status"]);
+        }
+        if ("runtime_capabilities" in $$parsedSource) {
+            $$parsedSource["runtime_capabilities"] = $$createField9_0($$parsedSource["runtime_capabilities"]);
+        }
+        if ("platform_capabilities" in $$parsedSource) {
+            $$parsedSource["platform_capabilities"] = $$createField10_0($$parsedSource["platform_capabilities"]);
+        }
+        if ("privileged_provider_status" in $$parsedSource) {
+            $$parsedSource["privileged_provider_status"] = $$createField11_0($$parsedSource["privileged_provider_status"]);
+        }
+        if ("network_extension_status" in $$parsedSource) {
+            $$parsedSource["network_extension_status"] = $$createField12_0($$parsedSource["network_extension_status"]);
+        }
+        if ("system_proxy_status" in $$parsedSource) {
+            $$parsedSource["system_proxy_status"] = $$createField13_0($$parsedSource["system_proxy_status"]);
+        }
+        if ("system_proxy_error" in $$parsedSource) {
+            $$parsedSource["system_proxy_error"] = $$createField14_0($$parsedSource["system_proxy_error"]);
+        }
+        if ("subscriptions" in $$parsedSource) {
+            $$parsedSource["subscriptions"] = $$createField17_0($$parsedSource["subscriptions"]);
+        }
+        if ("data_assets" in $$parsedSource) {
+            $$parsedSource["data_assets"] = $$createField18_0($$parsedSource["data_assets"]);
+        }
+        if ("checks" in $$parsedSource) {
+            $$parsedSource["checks"] = $$createField19_0($$parsedSource["checks"]);
+        }
+        return new ProductDiagnosticsReport(/** @type {Partial<ProductDiagnosticsReport>} */($$parsedSource));
     }
 }
 
@@ -2415,7 +3192,7 @@ export class ProviderOwnerState {
      * @returns {ProviderOwnerState}
      */
     static createFrom($$source = {}) {
-        const $$createField10_0 = $$createType61;
+        const $$createField10_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("repair_actions" in $$parsedSource) {
             $$parsedSource["repair_actions"] = $$createField10_0($$parsedSource["repair_actions"]);
@@ -2514,7 +3291,7 @@ export class RefreshDataAssetResult {
      * @returns {RefreshDataAssetResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType63;
+        const $$createField0_0 = $$createType77;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2557,8 +3334,8 @@ export class RefreshProfileSubscriptionReply {
      * @returns {RefreshProfileSubscriptionReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType5;
-        const $$createField1_0 = $$createType64;
+        const $$createField0_0 = $$createType9;
+        const $$createField1_0 = $$createType78;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subscription" in $$parsedSource) {
             $$parsedSource["subscription"] = $$createField0_0($$parsedSource["subscription"]);
@@ -2628,7 +3405,7 @@ export class RefreshProfileSubscriptionResult {
      * @returns {RefreshProfileSubscriptionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType66;
+        const $$createField0_0 = $$createType80;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2762,7 +3539,7 @@ export class RunRepairActionResult {
      * @returns {RunRepairActionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType68;
+        const $$createField0_0 = $$createType82;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2826,7 +3603,7 @@ export class RuntimeEventBridgeStartResult {
      * @returns {RuntimeEventBridgeStartResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType70;
+        const $$createField0_0 = $$createType84;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2890,7 +3667,7 @@ export class RuntimeEventBridgeStopResult {
      * @returns {RuntimeEventBridgeStopResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType72;
+        const $$createField0_0 = $$createType86;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2982,7 +3759,7 @@ export class SetSystemProxyEnabledResult {
      * @returns {SetSystemProxyEnabledResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType74;
+        const $$createField0_0 = $$createType88;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -3120,73 +3897,87 @@ const $$createType1 = CreateDataAssetReply.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
 const $$createType3 = StructuredError.createFrom;
 const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = model$0.ProfileSubscription.createFrom;
-const $$createType6 = CreateProfileSubscriptionReply.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = DeleteDataAssetReply.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = DeleteProfileSubscriptionReply.createFrom;
+const $$createType5 = DebugBundleManifest.createFrom;
+const $$createType6 = ProductDiagnosticsReport.createFrom;
+const $$createType7 = CreateDebugBundleReply.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = model$0.ProfileSubscription.createFrom;
+const $$createType10 = CreateProfileSubscriptionReply.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = EngineCloseAllConnectionsReply.createFrom;
-const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = EngineCloseConnectionReply.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = Capability.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = EngineGetRuntimeCapabilitiesReply.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = EngineStatus.createFrom;
-const $$createType21 = EngineGetStatusReply.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = OutboundGroup.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = EngineListGroupsReply.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = EngineReloadReply.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = EngineSelectOutboundReply.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = EngineStartReply.createFrom;
-const $$createType32 = $Create.Nullable($$createType31);
-const $$createType33 = EngineStopReply.createFrom;
-const $$createType34 = $Create.Nullable($$createType33);
-const $$createType35 = URLTestResult.createFrom;
-const $$createType36 = $Create.Array($$createType35);
-const $$createType37 = EngineURLTestReply.createFrom;
-const $$createType38 = $Create.Nullable($$createType37);
-const $$createType39 = GetPlatformCapabilitiesReply.createFrom;
-const $$createType40 = $Create.Nullable($$createType39);
-const $$createType41 = PrivilegedProviderStatus.createFrom;
-const $$createType42 = GetPrivilegedProviderStatusReply.createFrom;
+const $$createType12 = $Create.Array($Create.Any);
+const $$createType13 = DeleteDataAssetReply.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = DeleteProfileSubscriptionReply.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = EngineCloseAllConnectionsReply.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = EngineCloseConnectionReply.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = Capability.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = EngineGetRuntimeCapabilitiesReply.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = EngineStatus.createFrom;
+const $$createType26 = EngineGetStatusReply.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = OutboundGroup.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = EngineListGroupsReply.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = EngineReloadReply.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = EngineSelectOutboundReply.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = EngineStartReply.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = EngineStopReply.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = URLTestResult.createFrom;
+const $$createType41 = $Create.Array($$createType40);
+const $$createType42 = EngineURLTestReply.createFrom;
 const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = GetSystemProxyStatusReply.createFrom;
+const $$createType44 = GetDiagnosticsReportReply.createFrom;
 const $$createType45 = $Create.Nullable($$createType44);
-const $$createType46 = model$0.Platform.createFrom;
-const $$createType47 = HelloReply.createFrom;
-const $$createType48 = $Create.Nullable($$createType47);
-const $$createType49 = $Create.Array($$createType0);
-const $$createType50 = ListDataAssetsReply.createFrom;
-const $$createType51 = $Create.Nullable($$createType50);
-const $$createType52 = $Create.Array($$createType5);
-const $$createType53 = ListProfileSubscriptionsReply.createFrom;
-const $$createType54 = $Create.Nullable($$createType53);
-const $$createType55 = OutboundOption.createFrom;
-const $$createType56 = $Create.Array($$createType55);
-const $$createType57 = PrepareFeatureReply.createFrom;
+const $$createType46 = GetPlatformCapabilitiesReply.createFrom;
+const $$createType47 = $Create.Nullable($$createType46);
+const $$createType48 = PrivilegedProviderStatus.createFrom;
+const $$createType49 = GetPrivilegedProviderStatusReply.createFrom;
+const $$createType50 = $Create.Nullable($$createType49);
+const $$createType51 = GetSystemProxyStatusReply.createFrom;
+const $$createType52 = $Create.Nullable($$createType51);
+const $$createType53 = model$0.Platform.createFrom;
+const $$createType54 = HelloReply.createFrom;
+const $$createType55 = $Create.Nullable($$createType54);
+const $$createType56 = $Create.Array($$createType0);
+const $$createType57 = ListDataAssetsReply.createFrom;
 const $$createType58 = $Create.Nullable($$createType57);
-const $$createType59 = ProviderOwnerState.createFrom;
-const $$createType60 = $Create.Nullable($$createType59);
-const $$createType61 = $Create.Array($Create.Any);
-const $$createType62 = RefreshDataAssetReply.createFrom;
+const $$createType59 = $Create.Array($$createType9);
+const $$createType60 = ListProfileSubscriptionsReply.createFrom;
+const $$createType61 = $Create.Nullable($$createType60);
+const $$createType62 = ProviderOwnerState.createFrom;
 const $$createType63 = $Create.Nullable($$createType62);
-const $$createType64 = model$0.Diagnostics.createFrom;
-const $$createType65 = RefreshProfileSubscriptionReply.createFrom;
-const $$createType66 = $Create.Nullable($$createType65);
-const $$createType67 = RunRepairActionReply.createFrom;
-const $$createType68 = $Create.Nullable($$createType67);
-const $$createType69 = RuntimeEventBridgeStartReply.createFrom;
-const $$createType70 = $Create.Nullable($$createType69);
-const $$createType71 = RuntimeEventBridgeStopReply.createFrom;
-const $$createType72 = $Create.Nullable($$createType71);
-const $$createType73 = SetSystemProxyEnabledReply.createFrom;
-const $$createType74 = $Create.Nullable($$createType73);
+const $$createType64 = OutboundOption.createFrom;
+const $$createType65 = $Create.Array($$createType64);
+const $$createType66 = PrepareFeatureReply.createFrom;
+const $$createType67 = $Create.Nullable($$createType66);
+const $$createType68 = NetworkExtensionStatus.createFrom;
+const $$createType69 = $Create.Nullable($$createType68);
+const $$createType70 = DiagnosticSubscriptionSummary.createFrom;
+const $$createType71 = $Create.Array($$createType70);
+const $$createType72 = DiagnosticAssetSummary.createFrom;
+const $$createType73 = $Create.Array($$createType72);
+const $$createType74 = DiagnosticCheck.createFrom;
+const $$createType75 = $Create.Array($$createType74);
+const $$createType76 = RefreshDataAssetReply.createFrom;
+const $$createType77 = $Create.Nullable($$createType76);
+const $$createType78 = model$0.Diagnostics.createFrom;
+const $$createType79 = RefreshProfileSubscriptionReply.createFrom;
+const $$createType80 = $Create.Nullable($$createType79);
+const $$createType81 = RunRepairActionReply.createFrom;
+const $$createType82 = $Create.Nullable($$createType81);
+const $$createType83 = RuntimeEventBridgeStartReply.createFrom;
+const $$createType84 = $Create.Nullable($$createType83);
+const $$createType85 = RuntimeEventBridgeStopReply.createFrom;
+const $$createType86 = $Create.Nullable($$createType85);
+const $$createType87 = SetSystemProxyEnabledReply.createFrom;
+const $$createType88 = $Create.Nullable($$createType87);

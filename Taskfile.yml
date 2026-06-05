@@ -12,9 +12,23 @@ tasks:
       - npm run test
 
   build:
-    summary: Builds qkboxd and the Wails desktop app
+    summary: Builds qkboxd, qkbox-provider, and the Wails desktop app
     cmds:
       - npm run build
+
+  package:windows:nsis:
+    summary: Builds the Windows NSIS installer from existing binaries
+    deps:
+      - task: build
+    cmds:
+      - powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/build-nsis.ps1
+
+  package:linux:deb:
+    summary: Builds the Linux DEB package from existing Linux binaries
+    deps:
+      - task: build
+    cmds:
+      - bash packaging/linux/build-deb.sh
 
   build:qkboxd:
     summary: Builds the user-scope qkboxd executable

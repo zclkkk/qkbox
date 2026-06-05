@@ -64,6 +64,7 @@ func TestNewMethodRegistryEntries(t *testing.T) {
 		MethodAssetRefreshProfileSubscription, MethodAssetDeleteProfileSubscription,
 		MethodAssetCreateDataAsset, MethodAssetListDataAssets,
 		MethodAssetRefreshDataAsset, MethodAssetDeleteDataAsset,
+		MethodDiagnosticsGetReport, MethodDiagnosticsCreateDebugBundle,
 		MethodValidateProfileDraft, MethodGetProfileDiagnostics,
 		MethodCreateProfileSnapshot, MethodActivateProfileSnapshot,
 		MethodGetActiveProfile, MethodGetActiveSnapshot,
@@ -102,7 +103,7 @@ func TestSnapshotJSONShape(t *testing.T) {
 	}
 }
 
-func TestDiagnosticsJSONShape(t *testing.T) {
+func TestProductDiagnosticsJSONShape(t *testing.T) {
 	reply := ValidateProfileDraftReply{}
 	got, err := json.Marshal(reply)
 	if err != nil {
@@ -131,6 +132,32 @@ func TestAssetPlaneJSONShape(t *testing.T) {
 		`"asset"`,
 		`"assets"`,
 		`"asset"`,
+	}
+	for i, value := range values {
+		got, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !contains(string(got), needles[i]) {
+			t.Fatalf("expected %s in %s", needles[i], got)
+		}
+	}
+}
+
+func TestDiagnosticsJSONShape(t *testing.T) {
+	values := []interface{}{
+		GetDiagnosticsReportReply{},
+		CreateDebugBundleReply{},
+		ProductDiagnosticsReport{},
+		DebugBundleManifest{},
+		DiagnosticCheck{},
+	}
+	needles := []string{
+		`"report"`,
+		`"bundle_path"`,
+		`"generated_at"`,
+		`"redaction"`,
+		`"state"`,
 	}
 	for i, value := range values {
 		got, err := json.Marshal(value)

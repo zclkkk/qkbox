@@ -83,6 +83,16 @@ func (c *Client) DeleteDataAsset(ctx context.Context, req api.DeleteDataAssetReq
 	return do[api.DeleteDataAssetRequest, api.DeleteDataAssetReply](c, ctx, api.MethodAssetDeleteDataAsset, req)
 }
 
+// Diagnostics and recovery
+
+func (c *Client) DiagnosticsGetReport(ctx context.Context, req api.GetDiagnosticsReportRequest) (api.GetDiagnosticsReportReply, *api.StructuredError) {
+	return do[api.GetDiagnosticsReportRequest, api.GetDiagnosticsReportReply](c, ctx, api.MethodDiagnosticsGetReport, req)
+}
+
+func (c *Client) DiagnosticsCreateDebugBundle(ctx context.Context, req api.CreateDebugBundleRequest) (api.CreateDebugBundleReply, *api.StructuredError) {
+	return do[api.CreateDebugBundleRequest, api.CreateDebugBundleReply](c, ctx, api.MethodDiagnosticsCreateDebugBundle, req)
+}
+
 // Snapshot lifecycle
 
 func (c *Client) ValidateProfileDraft(ctx context.Context, req api.ValidateProfileDraftRequest) (api.ValidateProfileDraftReply, *api.StructuredError) {

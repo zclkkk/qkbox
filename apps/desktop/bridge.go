@@ -253,6 +253,24 @@ func (b *BridgeService) AssetDeleteDataAsset(ctx context.Context, req api.Delete
 	return api.DeleteDataAssetResult{Reply: &reply}
 }
 
+// Diagnostics and recovery
+
+func (b *BridgeService) DiagnosticsGetReport(ctx context.Context) api.GetDiagnosticsReportResult {
+	reply, structured := b.client.DiagnosticsGetReport(ctx, api.GetDiagnosticsReportRequest{})
+	if structured != nil {
+		return api.GetDiagnosticsReportResult{Error: structured}
+	}
+	return api.GetDiagnosticsReportResult{Reply: &reply}
+}
+
+func (b *BridgeService) DiagnosticsCreateDebugBundle(ctx context.Context) api.CreateDebugBundleResult {
+	reply, structured := b.client.DiagnosticsCreateDebugBundle(ctx, api.CreateDebugBundleRequest{})
+	if structured != nil {
+		return api.CreateDebugBundleResult{Error: structured}
+	}
+	return api.CreateDebugBundleResult{Reply: &reply}
+}
+
 // Platform capabilities
 
 func (b *BridgeService) PlatformGetCapabilities(ctx context.Context) api.GetPlatformCapabilitiesResult {

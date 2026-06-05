@@ -1,14 +1,17 @@
 package qkboxd
 
 import (
+	"archive/zip"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -598,6 +601,104 @@ func TestDataAssetRefreshWritesContentAddressedCache(t *testing.T) {
 	cachePath := filepath.Join(svc.db.StateDir(), "assets", filepath.FromSlash(refreshReply.Asset.CacheKey))
 	if _, statErr := os.Stat(cachePath); statErr != nil {
 		t.Fatalf("cache file missing: %v", statErr)
+	}
+}
+
+func TestDiagnosticsReportRedactsRemoteURLs(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    "diag",
+		Content: `{"inbounds":[],"outbounds":[{"type":"direct"}]}`,
+	})
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	if _, err := svc.CreateProfileSubscription(ctx, api.CreateProfileSubscriptionRequest{
+		ProfileID: createReply.Profile.ID,
+		Name:      "secret subscription",
+		URL:       "https://user:secret@example.com/sub.json?token=abc123",
+	}); err != nil {
+		t.Fatalf("create subscription: %v", err)
+	}
+	if _, err := svc.CreateDataAsset(ctx, api.CreateDataAssetRequest{
+		Kind:      "rule_set",
+		Name:      "secret asset",
+		SourceURL: "https://example.com/token-in-path/rules.json?access_token=abc123",
+	}); err != nil {
+		t.Fatalf("create asset: %v", err)
+	}
+
+	reply, err := svc.DiagnosticsGetReport(ctx, api.GetDiagnosticsReportRequest{})
+	if err != nil {
+		t.Fatalf("diagnostics report: %v", err)
+	}
+	payload, marshalErr := json.Marshal(reply.Report)
+	if marshalErr != nil {
+		t.Fatal(marshalErr)
+	}
+	if strings.Contains(string(payload), "abc123") || strings.Contains(string(payload), "user:secret") || strings.Contains(string(payload), "token-in-path") {
+		t.Fatalf("diagnostics leaked URL secret: %s", payload)
+	}
+	if !strings.Contains(string(payload), "redacted=1") {
+		t.Fatalf("diagnostics missing redacted URL marker: %s", payload)
+	}
+}
+
+func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
+		Name:    "bundle",
+		Content: `{"inbounds":[],"outbounds":[{"type":"direct"}],"password":"super-secret"}`,
+	})
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	if _, err := svc.CreateProfileSubscription(ctx, api.CreateProfileSubscriptionRequest{
+		ProfileID: createReply.Profile.ID,
+		Name:      "secret subscription",
+		URL:       "https://example.com/sub.json?token=abc123",
+	}); err != nil {
+		t.Fatalf("create subscription: %v", err)
+	}
+
+	reply, err := svc.DiagnosticsCreateDebugBundle(ctx, api.CreateDebugBundleRequest{})
+	if err != nil {
+		t.Fatalf("debug bundle: %v", err)
+	}
+	reader, openErr := zip.OpenReader(reply.BundlePath)
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
+	defer reader.Close()
+
+	var bundle strings.Builder
+	for _, file := range reader.File {
+		rc, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		payload, err := io.ReadAll(rc)
+		_ = rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		bundle.WriteString(file.Name)
+		bundle.Write(payload)
+	}
+	content := bundle.String()
+	for _, forbidden := range []string{"super-secret", "abc123", "encrypted_content", "proxy_owner"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("debug bundle leaked %q in %s", forbidden, content)
+		}
+	}
+	for _, required := range []string{"manifest.json", "diagnostics.json", "README.txt"} {
+		if !strings.Contains(content, required) {
+			t.Fatalf("debug bundle missing %s", required)
+		}
 	}
 }
 

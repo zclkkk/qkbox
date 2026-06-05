@@ -35,6 +35,8 @@ const (
 	ErrorAssetValidationFailed = "ASSET_VALIDATION_FAILED"
 	ErrorAssetCacheFailed      = "ASSET_CACHE_FAILED"
 
+	ErrorDiagnosticsBundleFailed = "DIAGNOSTICS_BUNDLE_FAILED"
+
 	ErrorEngineNoActiveSnapshot = "ENGINE_NO_ACTIVE_SNAPSHOT"
 	ErrorEngineAlreadyStarted   = "ENGINE_ALREADY_STARTED"
 	ErrorEngineNotStarted       = "ENGINE_NOT_STARTED"

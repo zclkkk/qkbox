@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=qkbox
+Comment=qkbox desktop client
+Exec=/usr/bin/qkbox
+Icon=qkbox
+Terminal=false
+Categories=Network;

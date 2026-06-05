@@ -246,6 +246,12 @@ h2 {
   margin-top: 14px;
 }
 
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .connection-list,
 .group-list,
 .logs {
@@ -384,7 +390,14 @@ h2 {
   gap: 8px;
 }
 
-.asset-row {
+.check-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.asset-row,
+.check-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
@@ -394,7 +407,8 @@ h2 {
   border-radius: 6px;
 }
 
-.asset-row > div {
+.asset-row > div,
+.check-row > div {
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -402,16 +416,20 @@ h2 {
 
 .asset-row strong,
 .asset-row span,
+.check-row strong,
+.check-row span,
 .asset-meta {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.asset-row strong {
+.asset-row strong,
+.check-row strong {
   font-size: 13px;
 }
 
 .asset-row div > span,
+.check-row div > span,
 .asset-meta {
   color: #657386;
   font-size: 12px;
@@ -528,7 +546,8 @@ h2 {
   }
 
   .diagnostics dl > div,
-  .asset-row {
+  .asset-row,
+  .check-row {
     grid-template-columns: 1fr;
   }
 }

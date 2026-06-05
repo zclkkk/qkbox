@@ -2,6 +2,7 @@ package redact
 
 import (
 	"encoding/json"
+	"net/url"
 	"strings"
 )
 
@@ -35,6 +36,27 @@ func Content(content string) string {
 		return "[redaction error]"
 	}
 	return string(b)
+}
+
+func URL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "[invalid URL]"
+	}
+	if parsed.User != nil {
+		parsed.User = url.User(redactedValue)
+	}
+	if parsed.Path != "" && parsed.Path != "/" {
+		parsed.Path = "/..."
+		parsed.RawPath = ""
+	}
+	if parsed.RawQuery != "" {
+		parsed.RawQuery = "redacted=1"
+	}
+	if parsed.Fragment != "" {
+		parsed.Fragment = ""
+	}
+	return parsed.String()
 }
 
 func scrubValue(v interface{}) interface{} {

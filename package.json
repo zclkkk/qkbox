@@ -14,6 +14,8 @@
     "frontend:build": "wails3 task -dir apps/desktop build:frontend",
     "build:qkboxd": "wails3 task build:qkboxd",
     "build:qkbox-provider": "wails3 task build:qkbox-provider",
-    "build:desktop": "wails3 task -dir apps/desktop build"
+    "build:desktop": "wails3 task -dir apps/desktop build",
+    "package:windows": "wails3 task package:windows:nsis",
+    "package:linux": "wails3 task package:linux:deb"
   }
 }
