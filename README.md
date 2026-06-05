@@ -48,8 +48,3 @@ npm run build
 ```
 
 `npm run build` builds `bin/qkboxd.exe` first, then builds the Wails desktop app.
-
-## Architecture
-
-Read `docs/ARCHITECTURE.md` before changing runtime, provider, platform, or
-public API boundaries.
