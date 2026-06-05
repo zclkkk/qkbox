@@ -5,6 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -458,6 +462,142 @@ func TestProfileCRUD(t *testing.T) {
 	}
 	if err.Code != api.ErrorProfileNotFound {
 		t.Fatalf("code = %s", err.Code)
+	}
+}
+
+func TestProfileSubscriptionRefreshUpdatesDraftOnly(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	initial := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"old"}]}`
+	updated := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"new"}]}`
+	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{Name: "remote", Content: initial})
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	snapshotReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: createReply.Profile.ID})
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotReply.Snapshot.ID}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(updated))
+	}))
+	defer server.Close()
+
+	subReply, err := svc.CreateProfileSubscription(ctx, api.CreateProfileSubscriptionRequest{
+		ProfileID: createReply.Profile.ID,
+		Name:      "remote source",
+		URL:       server.URL,
+	})
+	if err != nil {
+		t.Fatalf("create subscription: %v", err)
+	}
+	refreshReply, err := svc.RefreshProfileSubscription(ctx, api.RefreshProfileSubscriptionRequest{SubscriptionID: subReply.Subscription.ID})
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+	if refreshReply.Diagnostics.Status != "valid" {
+		t.Fatalf("diagnostics = %+v", refreshReply.Diagnostics)
+	}
+	if refreshReply.Subscription.ContentSHA256 == "" || refreshReply.Subscription.LastStatus != "updated" {
+		t.Fatalf("subscription = %+v", refreshReply.Subscription)
+	}
+
+	profileReply, err := svc.GetProfile(ctx, api.GetProfileRequest{ProfileID: createReply.Profile.ID})
+	if err != nil {
+		t.Fatalf("get profile: %v", err)
+	}
+	if profileReply.Content != updated {
+		t.Fatalf("draft content = %s", profileReply.Content)
+	}
+	activeReply, err := svc.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
+	if err != nil {
+		t.Fatalf("active snapshot: %v", err)
+	}
+	if activeReply.Snapshot == nil || activeReply.Snapshot.ID != snapshotReply.Snapshot.ID {
+		t.Fatalf("active snapshot changed: %+v", activeReply.Snapshot)
+	}
+}
+
+func TestInvalidProfileSubscriptionRefreshDoesNotReplaceDraft(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	initial := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"old"}]}`
+	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{Name: "remote", Content: initial})
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`not json`))
+	}))
+	defer server.Close()
+
+	subReply, err := svc.CreateProfileSubscription(ctx, api.CreateProfileSubscriptionRequest{
+		ProfileID: createReply.Profile.ID,
+		Name:      "remote source",
+		URL:       server.URL,
+	})
+	if err != nil {
+		t.Fatalf("create subscription: %v", err)
+	}
+	_, err = svc.RefreshProfileSubscription(ctx, api.RefreshProfileSubscriptionRequest{SubscriptionID: subReply.Subscription.ID})
+	if err == nil || err.Code != api.ErrorConfigValidationFailed {
+		t.Fatalf("expected validation failure, got %v", err)
+	}
+
+	profileReply, err := svc.GetProfile(ctx, api.GetProfileRequest{ProfileID: createReply.Profile.ID})
+	if err != nil {
+		t.Fatalf("get profile: %v", err)
+	}
+	if profileReply.Content != initial {
+		t.Fatalf("draft content changed: %s", profileReply.Content)
+	}
+	subsReply, err := svc.ListProfileSubscriptions(ctx, api.ListProfileSubscriptionsRequest{ProfileID: createReply.Profile.ID})
+	if err != nil {
+		t.Fatalf("list subscriptions: %v", err)
+	}
+	if len(subsReply.Subscriptions) != 1 || subsReply.Subscriptions[0].LastStatus != "failed" || subsReply.Subscriptions[0].LastErrorCode != api.ErrorConfigValidationFailed {
+		t.Fatalf("subscription state = %+v", subsReply.Subscriptions)
+	}
+}
+
+func TestDataAssetRefreshWritesContentAddressedCache(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	content := []byte(`{"rules":[{"domain_suffix":["example.com"]}]}`)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("ETag", `"asset-v1"`)
+		_, _ = w.Write(content)
+	}))
+	defer server.Close()
+
+	createReply, err := svc.CreateDataAsset(ctx, api.CreateDataAssetRequest{
+		Kind:      "rule_set",
+		Name:      "rules",
+		SourceURL: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("create asset: %v", err)
+	}
+	refreshReply, err := svc.RefreshDataAsset(ctx, api.RefreshDataAssetRequest{AssetID: createReply.Asset.ID})
+	if err != nil {
+		t.Fatalf("refresh asset: %v", err)
+	}
+	if refreshReply.Asset.Status != "available" || refreshReply.Asset.CacheKey == "" || refreshReply.Asset.ContentSHA256 == "" {
+		t.Fatalf("asset = %+v", refreshReply.Asset)
+	}
+	if refreshReply.Asset.Version != `"asset-v1"` {
+		t.Fatalf("version = %s", refreshReply.Asset.Version)
+	}
+	cachePath := filepath.Join(svc.db.StateDir(), "assets", filepath.FromSlash(refreshReply.Asset.CacheKey))
+	if _, statErr := os.Stat(cachePath); statErr != nil {
+		t.Fatalf("cache file missing: %v", statErr)
 	}
 }
 

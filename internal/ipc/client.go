@@ -14,6 +14,8 @@ type Client struct {
 }
 
 const defaultCallTimeout = 5 * time.Second
+const subscriptionRefreshTimeout = 60 * time.Second
+const dataAssetRefreshTimeout = 5 * time.Minute
 
 func NewClient() *Client {
 	return &Client{dial: Dial}
@@ -45,6 +47,40 @@ func (c *Client) ListProfiles(ctx context.Context, req api.ListProfilesRequest) 
 
 func (c *Client) GetProfile(ctx context.Context, req api.GetProfileRequest) (api.GetProfileReply, *api.StructuredError) {
 	return do[api.GetProfileRequest, api.GetProfileReply](c, ctx, api.MethodGetProfile, req)
+}
+
+// Data assets and subscriptions
+
+func (c *Client) CreateProfileSubscription(ctx context.Context, req api.CreateProfileSubscriptionRequest) (api.CreateProfileSubscriptionReply, *api.StructuredError) {
+	return do[api.CreateProfileSubscriptionRequest, api.CreateProfileSubscriptionReply](c, ctx, api.MethodAssetCreateProfileSubscription, req)
+}
+
+func (c *Client) ListProfileSubscriptions(ctx context.Context, req api.ListProfileSubscriptionsRequest) (api.ListProfileSubscriptionsReply, *api.StructuredError) {
+	return do[api.ListProfileSubscriptionsRequest, api.ListProfileSubscriptionsReply](c, ctx, api.MethodAssetListProfileSubscriptions, req)
+}
+
+func (c *Client) RefreshProfileSubscription(ctx context.Context, req api.RefreshProfileSubscriptionRequest) (api.RefreshProfileSubscriptionReply, *api.StructuredError) {
+	return doWithTimeout[api.RefreshProfileSubscriptionRequest, api.RefreshProfileSubscriptionReply](c, ctx, api.MethodAssetRefreshProfileSubscription, req, subscriptionRefreshTimeout)
+}
+
+func (c *Client) DeleteProfileSubscription(ctx context.Context, req api.DeleteProfileSubscriptionRequest) (api.DeleteProfileSubscriptionReply, *api.StructuredError) {
+	return do[api.DeleteProfileSubscriptionRequest, api.DeleteProfileSubscriptionReply](c, ctx, api.MethodAssetDeleteProfileSubscription, req)
+}
+
+func (c *Client) CreateDataAsset(ctx context.Context, req api.CreateDataAssetRequest) (api.CreateDataAssetReply, *api.StructuredError) {
+	return do[api.CreateDataAssetRequest, api.CreateDataAssetReply](c, ctx, api.MethodAssetCreateDataAsset, req)
+}
+
+func (c *Client) ListDataAssets(ctx context.Context, req api.ListDataAssetsRequest) (api.ListDataAssetsReply, *api.StructuredError) {
+	return do[api.ListDataAssetsRequest, api.ListDataAssetsReply](c, ctx, api.MethodAssetListDataAssets, req)
+}
+
+func (c *Client) RefreshDataAsset(ctx context.Context, req api.RefreshDataAssetRequest) (api.RefreshDataAssetReply, *api.StructuredError) {
+	return doWithTimeout[api.RefreshDataAssetRequest, api.RefreshDataAssetReply](c, ctx, api.MethodAssetRefreshDataAsset, req, dataAssetRefreshTimeout)
+}
+
+func (c *Client) DeleteDataAsset(ctx context.Context, req api.DeleteDataAssetRequest) (api.DeleteDataAssetReply, *api.StructuredError) {
+	return do[api.DeleteDataAssetRequest, api.DeleteDataAssetReply](c, ctx, api.MethodAssetDeleteDataAsset, req)
 }
 
 // Snapshot lifecycle
@@ -168,7 +204,11 @@ func (c *Client) PlatformSetSystemProxyEnabled(ctx context.Context, req api.SetS
 // generic dispatch
 
 func do[Req any, Reply any](c *Client, ctx context.Context, method string, req Req) (Reply, *api.StructuredError) {
-	ctx, cancel := context.WithTimeout(ctx, defaultCallTimeout)
+	return doWithTimeout[Req, Reply](c, ctx, method, req, defaultCallTimeout)
+}
+
+func doWithTimeout[Req any, Reply any](c *Client, ctx context.Context, method string, req Req, timeout time.Duration) (Reply, *api.StructuredError) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	dial := c.dial
@@ -180,7 +220,7 @@ func do[Req any, Reply any](c *Client, ctx context.Context, method string, req R
 		return zero[Reply](), api.NewStructuredError(api.ErrorIPCTransport, err.Error(), "ipc", true)
 	}
 	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(defaultCallTimeout))
+	_ = conn.SetDeadline(time.Now().Add(timeout))
 
 	payload, err := json.Marshal(req)
 	if err != nil {

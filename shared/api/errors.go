@@ -16,12 +16,24 @@ const (
 	ErrorProfileContentEmpty = "PROFILE_CONTENT_EMPTY"
 	ErrorProfileHasSnapshot  = "PROFILE_HAS_ACTIVE_SNAPSHOT"
 
+	ErrorSubscriptionNotFound    = "SUBSCRIPTION_NOT_FOUND"
+	ErrorSubscriptionURLEmpty    = "SUBSCRIPTION_URL_EMPTY"
+	ErrorSubscriptionURLInvalid  = "SUBSCRIPTION_URL_INVALID"
+	ErrorSubscriptionFetchFailed = "SUBSCRIPTION_FETCH_FAILED"
+
 	ErrorSnapshotNotFound      = "SNAPSHOT_NOT_FOUND"
 	ErrorSnapshotCreateFailed  = "SNAPSHOT_CREATE_FAILED"
 	ErrorSnapshotAlreadyActive = "SNAPSHOT_ALREADY_ACTIVE"
 
 	ErrorConfigValidationFailed = "CONFIG_VALIDATION_FAILED"
 	ErrorConfigInvalidJSON      = "CONFIG_INVALID_JSON"
+
+	ErrorAssetNotFound         = "ASSET_NOT_FOUND"
+	ErrorAssetSourceURLInvalid = "ASSET_SOURCE_URL_INVALID"
+	ErrorAssetKindUnsupported  = "ASSET_KIND_UNSUPPORTED"
+	ErrorAssetFetchFailed      = "ASSET_FETCH_FAILED"
+	ErrorAssetValidationFailed = "ASSET_VALIDATION_FAILED"
+	ErrorAssetCacheFailed      = "ASSET_CACHE_FAILED"
 
 	ErrorEngineNoActiveSnapshot = "ENGINE_NO_ACTIVE_SNAPSHOT"
 	ErrorEngineAlreadyStarted   = "ENGINE_ALREADY_STARTED"

@@ -60,6 +60,10 @@ func TestNewMethodRegistryEntries(t *testing.T) {
 	newMethods := []string{
 		MethodCreateProfile, MethodUpdateProfileDraft, MethodDeleteProfile,
 		MethodListProfiles, MethodGetProfile,
+		MethodAssetCreateProfileSubscription, MethodAssetListProfileSubscriptions,
+		MethodAssetRefreshProfileSubscription, MethodAssetDeleteProfileSubscription,
+		MethodAssetCreateDataAsset, MethodAssetListDataAssets,
+		MethodAssetRefreshDataAsset, MethodAssetDeleteDataAsset,
 		MethodValidateProfileDraft, MethodGetProfileDiagnostics,
 		MethodCreateProfileSnapshot, MethodActivateProfileSnapshot,
 		MethodGetActiveProfile, MethodGetActiveSnapshot,
@@ -107,6 +111,34 @@ func TestDiagnosticsJSONShape(t *testing.T) {
 	for _, needle := range []string{`"diagnostics"`, `"profile_id"`, `"status"`, `"entries"`} {
 		if !contains(string(got), needle) {
 			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
+func TestAssetPlaneJSONShape(t *testing.T) {
+	values := []interface{}{
+		CreateProfileSubscriptionReply{},
+		ListProfileSubscriptionsReply{},
+		RefreshProfileSubscriptionReply{},
+		CreateDataAssetReply{},
+		ListDataAssetsReply{},
+		RefreshDataAssetReply{},
+	}
+	needles := []string{
+		`"subscription"`,
+		`"subscriptions"`,
+		`"diagnostics"`,
+		`"asset"`,
+		`"assets"`,
+		`"asset"`,
+	}
+	for i, value := range values {
+		got, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !contains(string(got), needles[i]) {
+			t.Fatalf("expected %s in %s", needles[i], got)
 		}
 	}
 }

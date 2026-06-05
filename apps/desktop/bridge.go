@@ -187,6 +187,72 @@ func (b *BridgeService) EngineCloseAllConnections(ctx context.Context) api.Engin
 	return api.EngineCloseAllConnectionsResult{Reply: &reply}
 }
 
+// Data assets and subscriptions
+
+func (b *BridgeService) AssetCreateProfileSubscription(ctx context.Context, req api.CreateProfileSubscriptionRequest) api.CreateProfileSubscriptionResult {
+	reply, structured := b.client.CreateProfileSubscription(ctx, req)
+	if structured != nil {
+		return api.CreateProfileSubscriptionResult{Error: structured}
+	}
+	return api.CreateProfileSubscriptionResult{Reply: &reply}
+}
+
+func (b *BridgeService) AssetListProfileSubscriptions(ctx context.Context, req api.ListProfileSubscriptionsRequest) api.ListProfileSubscriptionsResult {
+	reply, structured := b.client.ListProfileSubscriptions(ctx, req)
+	if structured != nil {
+		return api.ListProfileSubscriptionsResult{Error: structured}
+	}
+	return api.ListProfileSubscriptionsResult{Reply: &reply}
+}
+
+func (b *BridgeService) AssetRefreshProfileSubscription(ctx context.Context, req api.RefreshProfileSubscriptionRequest) api.RefreshProfileSubscriptionResult {
+	reply, structured := b.client.RefreshProfileSubscription(ctx, req)
+	if structured != nil {
+		return api.RefreshProfileSubscriptionResult{Error: structured}
+	}
+	return api.RefreshProfileSubscriptionResult{Reply: &reply}
+}
+
+func (b *BridgeService) AssetDeleteProfileSubscription(ctx context.Context, req api.DeleteProfileSubscriptionRequest) api.DeleteProfileSubscriptionResult {
+	reply, structured := b.client.DeleteProfileSubscription(ctx, req)
+	if structured != nil {
+		return api.DeleteProfileSubscriptionResult{Error: structured}
+	}
+	return api.DeleteProfileSubscriptionResult{Reply: &reply}
+}
+
+func (b *BridgeService) AssetCreateDataAsset(ctx context.Context, req api.CreateDataAssetRequest) api.CreateDataAssetResult {
+	reply, structured := b.client.CreateDataAsset(ctx, req)
+	if structured != nil {
+		return api.CreateDataAssetResult{Error: structured}
+	}
+	return api.CreateDataAssetResult{Reply: &reply}
+}
+
+func (b *BridgeService) AssetListDataAssets(ctx context.Context, req api.ListDataAssetsRequest) api.ListDataAssetsResult {
+	reply, structured := b.client.ListDataAssets(ctx, req)
+	if structured != nil {
+		return api.ListDataAssetsResult{Error: structured}
+	}
+	return api.ListDataAssetsResult{Reply: &reply}
+}
+
+func (b *BridgeService) AssetRefreshDataAsset(ctx context.Context, req api.RefreshDataAssetRequest) api.RefreshDataAssetResult {
+	reply, structured := b.client.RefreshDataAsset(ctx, req)
+	if structured != nil {
+		return api.RefreshDataAssetResult{Error: structured}
+	}
+	return api.RefreshDataAssetResult{Reply: &reply}
+}
+
+func (b *BridgeService) AssetDeleteDataAsset(ctx context.Context, req api.DeleteDataAssetRequest) api.DeleteDataAssetResult {
+	reply, structured := b.client.DeleteDataAsset(ctx, req)
+	if structured != nil {
+		return api.DeleteDataAssetResult{Error: structured}
+	}
+	return api.DeleteDataAssetResult{Reply: &reply}
+}
+
 // Platform capabilities
 
 func (b *BridgeService) PlatformGetCapabilities(ctx context.Context) api.GetPlatformCapabilitiesResult {

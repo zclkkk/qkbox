@@ -45,6 +45,40 @@ var migrations = []string{
 	`INSERT INTO runtime_state (id, active_snapshot_id, updated_at)
 	 SELECT 1, NULL, 0
 	 WHERE NOT EXISTS (SELECT 1 FROM runtime_state WHERE id = 1);`,
+
+	`CREATE TABLE IF NOT EXISTS profile_subscriptions (
+		id TEXT PRIMARY KEY,
+		profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+		name TEXT NOT NULL,
+		url TEXT NOT NULL,
+		update_policy TEXT NOT NULL,
+		last_status TEXT NOT NULL,
+		last_error_code TEXT,
+		last_error_message TEXT,
+		last_checked_at INTEGER,
+		last_updated_at INTEGER,
+		content_sha256 TEXT,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL
+	);`,
+
+	`CREATE TABLE IF NOT EXISTS data_assets (
+		id TEXT PRIMARY KEY,
+		kind TEXT NOT NULL,
+		name TEXT NOT NULL,
+		source_url TEXT NOT NULL,
+		status TEXT NOT NULL,
+		cache_key TEXT,
+		version TEXT,
+		content_sha256 TEXT,
+		size_bytes INTEGER,
+		last_error_code TEXT,
+		last_error_message TEXT,
+		last_checked_at INTEGER,
+		last_updated_at INTEGER,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL
+	);`,
 }
 
 func (db *DB) migrate() error {

@@ -6,6 +6,231 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+export class DataAsset {
+    /**
+     * Creates a new DataAsset instance.
+     * @param {Partial<DataAsset>} [$$source = {}] - The source object to create the DataAsset.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {DataAssetKind}
+             */
+            this["kind"] = DataAssetKind.$zero;
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("source_url" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source_url"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {DataAssetStatus}
+             */
+            this["status"] = DataAssetStatus.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["cache_key"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["version"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["content_sha256"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["size_bytes"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_code"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_message"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_checked_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_updated_at"] = undefined;
+        }
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["created_at"] = 0;
+        }
+        if (!("updated_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["updated_at"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DataAsset instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DataAsset}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DataAsset(/** @type {Partial<DataAsset>} */($$parsedSource));
+    }
+}
+
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const DataAssetKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    DataAssetKindRuleSet: "rule_set",
+    DataAssetKindGeoSite: "geo_site",
+    DataAssetKindGeoIP: "geo_ip",
+    DataAssetKindSRSC: "srsc",
+};
+
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const DataAssetStatus = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    DataAssetStatusPending: "pending",
+    DataAssetStatusAvailable: "available",
+    DataAssetStatusFailed: "failed",
+};
+
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const DiagnosticSeverity = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    SeverityError: "error",
+    SeverityWarning: "warning",
+    SeverityInfo: "info",
+};
+
+export class Diagnostics {
+    /**
+     * Creates a new Diagnostics instance.
+     * @param {Partial<Diagnostics>} [$$source = {}] - The source object to create the Diagnostics.
+     */
+    constructor($$source = {}) {
+        if (!("profile_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["profile_id"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {ValidationStatus}
+             */
+            this["status"] = ValidationStatus.$zero;
+        }
+        if (!("entries" in $$source)) {
+            /**
+             * @member
+             * @type {ValidationDiagnostic[]}
+             */
+            this["entries"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["redacted_preview"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Diagnostics instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Diagnostics}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField2_0($$parsedSource["entries"]);
+        }
+        return new Diagnostics(/** @type {Partial<Diagnostics>} */($$parsedSource));
+    }
+}
+
 /**
  * @readonly
  * @enum {string}
@@ -59,3 +284,204 @@ export class Platform {
         return new Platform(/** @type {Partial<Platform>} */($$parsedSource));
     }
 }
+
+export class ProfileSubscription {
+    /**
+     * Creates a new ProfileSubscription instance.
+     * @param {Partial<ProfileSubscription>} [$$source = {}] - The source object to create the ProfileSubscription.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("profile_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["profile_id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("url" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["url"] = "";
+        }
+        if (!("update_policy" in $$source)) {
+            /**
+             * @member
+             * @type {SubscriptionUpdatePolicy}
+             */
+            this["update_policy"] = SubscriptionUpdatePolicy.$zero;
+        }
+        if (!("last_status" in $$source)) {
+            /**
+             * @member
+             * @type {SubscriptionStatus}
+             */
+            this["last_status"] = SubscriptionStatus.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_code"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_error_message"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_checked_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_updated_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["content_sha256"] = undefined;
+        }
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["created_at"] = 0;
+        }
+        if (!("updated_at" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["updated_at"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProfileSubscription instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProfileSubscription}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProfileSubscription(/** @type {Partial<ProfileSubscription>} */($$parsedSource));
+    }
+}
+
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const SubscriptionStatus = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    SubscriptionStatusPending: "pending",
+    SubscriptionStatusUpdated: "updated",
+    SubscriptionStatusFailed: "failed",
+};
+
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const SubscriptionUpdatePolicy = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    SubscriptionUpdateManual: "manual",
+};
+
+export class ValidationDiagnostic {
+    /**
+     * Creates a new ValidationDiagnostic instance.
+     * @param {Partial<ValidationDiagnostic>} [$$source = {}] - The source object to create the ValidationDiagnostic.
+     */
+    constructor($$source = {}) {
+        if (!("severity" in $$source)) {
+            /**
+             * @member
+             * @type {DiagnosticSeverity}
+             */
+            this["severity"] = DiagnosticSeverity.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["field"] = undefined;
+        }
+        if (!("message" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ValidationDiagnostic instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ValidationDiagnostic}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ValidationDiagnostic(/** @type {Partial<ValidationDiagnostic>} */($$parsedSource));
+    }
+}
+
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const ValidationStatus = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    ValidationStatusValid: "valid",
+    ValidationStatusInvalid: "invalid",
+    ValidationStatusUnknown: "unknown",
+};
+
+// Private type creation functions
+const $$createType0 = ValidationDiagnostic.createFrom;
+const $$createType1 = $Create.Array($$createType0);

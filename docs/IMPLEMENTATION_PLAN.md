@@ -39,38 +39,12 @@ provider runtime owner lock and stale owner repair
 provider runtime status/log/traffic/connection/group/URLTest bridge
 Apple NetworkExtension runtime owner and capability boundary
 reload with validation, prepare, rollback, and degradation reporting
+remote profile subscription metadata and refresh
+content-addressed data asset cache
+rule-set and geo asset metadata, validation, and diagnostics
 ```
 
-The next work is to complete data asset and subscription support, then release
-diagnostics.
-
-## Milestone: Data Asset And Subscription Plane
-
-### Goal
-
-Support data refresh independently from binary/runtime updates while preserving
-snapshot/reload ownership.
-
-### Work
-
-```text
-remote profile content update
-subscription metadata and update policy
-rule-set asset cache
-geo asset cache
-asset validation and version diagnostics
-evaluate sing-geosite, sing-geoip, and srsc for asset workflows
-coordinate runtime changes through draft/snapshot/reload only
-```
-
-### Acceptance
-
-```text
-asset updates never replace binaries
-asset updates do not directly mutate active runtime
-failed asset updates do not corrupt active snapshots
-runtime sees asset changes only after product-approved snapshot/reload
-```
+The next work is release diagnostics and recovery.
 
 ## Milestone: Release, Diagnostics, And Recovery
 

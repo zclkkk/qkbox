@@ -40,3 +40,18 @@ func TestRuntimeStateOwnsActiveSnapshotSchema(t *testing.T) {
 		t.Fatalf("runtime_state singleton rows = %d", stateRows)
 	}
 }
+
+func TestAssetPlaneSchema(t *testing.T) {
+	db, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	for _, table := range []string{"profile_subscriptions", "data_assets"} {
+		var name string
+		if err := db.conn.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
+			t.Fatalf("missing table %s: %v", table, err)
+		}
+	}
+}

@@ -26,6 +26,31 @@
     download: number;
   };
   type ConnectionSnapshot = { timestamp: number; upload_total: number; download_total: number; connections: RuntimeConnection[] };
+  type ProfileSubscription = {
+    id: string;
+    profile_id: string;
+    name: string;
+    url: string;
+    update_policy: string;
+    last_status: string;
+    last_error_code?: string;
+    last_error_message?: string;
+    last_checked_at?: number;
+    last_updated_at?: number;
+    content_sha256?: string;
+  };
+  type DataAsset = {
+    id: string;
+    kind: string;
+    name: string;
+    source_url: string;
+    status: string;
+    version?: string;
+    content_sha256?: string;
+    size_bytes?: number;
+    last_error_code?: string;
+    last_error_message?: string;
+  };
 
   let loading = $state(true);
   let reply = $state<HelloReply | null>(null);
@@ -45,6 +70,9 @@
   let proxyLoading = $state(false);
   let privilegedProviderStatus = $state<PrivilegedProviderStatus | null>(null);
   let platformError = $state<string | null>(null);
+  let subscriptions = $state<ProfileSubscription[]>([]);
+  let dataAssets = $state<DataAsset[]>([]);
+  let assetError = $state<string | null>(null);
 
   function formatStructuredError(err: { code: string; message: string }) {
     return `${err.code}: ${err.message}`;
@@ -126,6 +154,24 @@
     groups = result.reply?.groups ?? [];
   }
 
+  async function refreshAssetState() {
+    assetError = null;
+    const subResult = await BridgeService.AssetListProfileSubscriptions({ profile_id: "" });
+    if (subResult.error) {
+      assetError = formatStructuredError(subResult.error);
+      subscriptions = [];
+    } else {
+      subscriptions = (subResult.reply?.subscriptions ?? []) as ProfileSubscription[];
+    }
+    const assetResult = await BridgeService.AssetListDataAssets({ kind: "" });
+    if (assetResult.error) {
+      assetError = formatStructuredError(assetResult.error);
+      dataAssets = [];
+    } else {
+      dataAssets = (assetResult.reply?.assets ?? []) as DataAsset[];
+    }
+  }
+
   async function bootstrap() {
     loading = true;
     error = null;
@@ -152,6 +198,7 @@
       await refreshPlatformCapabilities();
       await refreshPrivilegedProviderStatus();
       await refreshProxyStatus();
+      await refreshAssetState();
     } catch (e) {
       engineError = e instanceof Error ? e.message : String(e);
     }
@@ -633,5 +680,51 @@
         <dd>{data.platform.os}/{data.platform.arch}</dd>
       </div>
     </dl>
+    <div class="panel-title" style="margin-top: 1rem;">
+      <h2>Data Plane</h2>
+      <button class="icon-button" type="button" aria-label="Refresh asset state" onclick={refreshAssetState}>
+        <RefreshCw size={16} />
+      </button>
+    </div>
+    {#if assetError}
+      <div class="notice error"><span>{assetError}</span></div>
+    {/if}
+    <h3>Subscriptions</h3>
+    <div class="asset-list">
+      {#each subscriptions as sub}
+        <div class="asset-row">
+          <div>
+            <strong>{sub.name}</strong>
+            <span>{sub.url}</span>
+          </div>
+          <span class="state" data-state={sub.last_status}>{sub.last_status}</span>
+        </div>
+        {#if sub.last_error_message}
+          <div class="notice error"><span>{sub.last_error_code}: {sub.last_error_message}</span></div>
+        {/if}
+      {:else}
+        <p class="empty">No profile subscriptions</p>
+      {/each}
+    </div>
+    <h3>Assets</h3>
+    <div class="asset-list">
+      {#each dataAssets as asset}
+        <div class="asset-row">
+          <div>
+            <strong>{asset.name}</strong>
+            <span>{asset.kind} / {asset.source_url}</span>
+          </div>
+          <span class="state" data-state={asset.status}>{asset.status}</span>
+        </div>
+        {#if asset.content_sha256}
+          <p class="asset-meta">{asset.content_sha256.slice(0, 12)} / {formatBytes(asset.size_bytes ?? 0)}{asset.version ? ` / ${asset.version}` : ""}</p>
+        {/if}
+        {#if asset.last_error_message}
+          <div class="notice error"><span>{asset.last_error_code}: {asset.last_error_message}</span></div>
+        {/if}
+      {:else}
+        <p class="empty">No cached data assets</p>
+      {/each}
+    </div>
   </section>
 {/snippet}

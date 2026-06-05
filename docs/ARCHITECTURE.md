@@ -351,6 +351,16 @@ sing-geosite, sing-geoip, and srsc are the preferred upstream components to
 evaluate for geo and rule-set workflows. Asset updates create product-visible
 state and enter runtime only through snapshot/reload coordination.
 
+Remote profile subscription refresh updates profile draft content only after the
+downloaded content passes product validation. It never replaces an active
+snapshot and never reloads the runtime by itself.
+
+Rule-set and geo assets are cached as content-addressed data under qkbox state
+storage with metadata in SQLite. Cache metadata records source URL, version
+hint, hash, size, status, and last error. These assets are product data; they are
+not binaries and are not hot-swapped into a running runtime outside the
+snapshot/reload pipeline.
+
 ## Explicitly Rejected Shapes
 
 ```text

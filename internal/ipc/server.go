@@ -20,6 +20,16 @@ type Handler interface {
 	ListProfiles(context.Context, api.ListProfilesRequest) (api.ListProfilesReply, *api.StructuredError)
 	GetProfile(context.Context, api.GetProfileRequest) (api.GetProfileReply, *api.StructuredError)
 
+	// Data assets and subscriptions
+	CreateProfileSubscription(context.Context, api.CreateProfileSubscriptionRequest) (api.CreateProfileSubscriptionReply, *api.StructuredError)
+	ListProfileSubscriptions(context.Context, api.ListProfileSubscriptionsRequest) (api.ListProfileSubscriptionsReply, *api.StructuredError)
+	RefreshProfileSubscription(context.Context, api.RefreshProfileSubscriptionRequest) (api.RefreshProfileSubscriptionReply, *api.StructuredError)
+	DeleteProfileSubscription(context.Context, api.DeleteProfileSubscriptionRequest) (api.DeleteProfileSubscriptionReply, *api.StructuredError)
+	CreateDataAsset(context.Context, api.CreateDataAssetRequest) (api.CreateDataAssetReply, *api.StructuredError)
+	ListDataAssets(context.Context, api.ListDataAssetsRequest) (api.ListDataAssetsReply, *api.StructuredError)
+	RefreshDataAsset(context.Context, api.RefreshDataAssetRequest) (api.RefreshDataAssetReply, *api.StructuredError)
+	DeleteDataAsset(context.Context, api.DeleteDataAssetRequest) (api.DeleteDataAssetReply, *api.StructuredError)
+
 	// Snapshot lifecycle
 	ValidateProfileDraft(context.Context, api.ValidateProfileDraftRequest) (api.ValidateProfileDraftReply, *api.StructuredError)
 	GetProfileDiagnostics(context.Context, api.GetProfileDiagnosticsRequest) (api.GetProfileDiagnosticsReply, *api.StructuredError)
@@ -109,6 +119,23 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		dispatch(conn, req, s.handler.ListProfiles, ctx)
 	case api.MethodGetProfile:
 		dispatch(conn, req, s.handler.GetProfile, ctx)
+
+	case api.MethodAssetCreateProfileSubscription:
+		dispatch(conn, req, s.handler.CreateProfileSubscription, ctx)
+	case api.MethodAssetListProfileSubscriptions:
+		dispatch(conn, req, s.handler.ListProfileSubscriptions, ctx)
+	case api.MethodAssetRefreshProfileSubscription:
+		dispatch(conn, req, s.handler.RefreshProfileSubscription, ctx)
+	case api.MethodAssetDeleteProfileSubscription:
+		dispatch(conn, req, s.handler.DeleteProfileSubscription, ctx)
+	case api.MethodAssetCreateDataAsset:
+		dispatch(conn, req, s.handler.CreateDataAsset, ctx)
+	case api.MethodAssetListDataAssets:
+		dispatch(conn, req, s.handler.ListDataAssets, ctx)
+	case api.MethodAssetRefreshDataAsset:
+		dispatch(conn, req, s.handler.RefreshDataAsset, ctx)
+	case api.MethodAssetDeleteDataAsset:
+		dispatch(conn, req, s.handler.DeleteDataAsset, ctx)
 
 	case api.MethodValidateProfileDraft:
 		dispatch(conn, req, s.handler.ValidateProfileDraft, ctx)
@@ -218,12 +245,25 @@ func dispatch[Req any, Reply any](conn net.Conn, req Request, fn func(context.Co
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", true))
 		return
 	}
-	reply, structured := fn(ctx, params)
+	reqCtx, cancel := requestLifetimeContext(ctx, conn)
+	defer cancel()
+
+	reply, structured := fn(reqCtx, params)
 	if structured != nil {
 		writeError(conn, req.ID, structured)
 		return
 	}
 	writeResult(conn, req.ID, reply)
+}
+
+func requestLifetimeContext(ctx context.Context, conn net.Conn) (context.Context, context.CancelFunc) {
+	reqCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		var discard Request
+		_ = ReadFrame(conn, &discard)
+		cancel()
+	}()
+	return reqCtx, cancel
 }
 
 func writeResult(conn net.Conn, id string, value interface{}) {

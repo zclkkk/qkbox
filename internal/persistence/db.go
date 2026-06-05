@@ -9,7 +9,8 @@ import (
 )
 
 type DB struct {
-	conn *sql.DB
+	conn     *sql.DB
+	stateDir string
 }
 
 func Open(stateDir string) (*DB, error) {
@@ -27,12 +28,16 @@ func Open(stateDir string) (*DB, error) {
 		conn.Close()
 		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
-	db := &DB{conn: conn}
+	db := &DB{conn: conn, stateDir: stateDir}
 	if err := db.migrate(); err != nil {
 		conn.Close()
 		return nil, err
 	}
 	return db, nil
+}
+
+func (db *DB) StateDir() string {
+	return db.stateDir
 }
 
 func (db *DB) Close() error {

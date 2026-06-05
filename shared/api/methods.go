@@ -10,6 +10,16 @@ const (
 	MethodListProfiles       = "listProfiles"
 	MethodGetProfile         = "getProfile"
 
+	// Data assets and subscriptions
+	MethodAssetCreateProfileSubscription  = "asset.createProfileSubscription"
+	MethodAssetListProfileSubscriptions   = "asset.listProfileSubscriptions"
+	MethodAssetRefreshProfileSubscription = "asset.refreshProfileSubscription"
+	MethodAssetDeleteProfileSubscription  = "asset.deleteProfileSubscription"
+	MethodAssetCreateDataAsset            = "asset.createDataAsset"
+	MethodAssetListDataAssets             = "asset.listDataAssets"
+	MethodAssetRefreshDataAsset           = "asset.refreshDataAsset"
+	MethodAssetDeleteDataAsset            = "asset.deleteDataAsset"
+
 	// Snapshot lifecycle
 	MethodValidateProfileDraft    = "validateProfileDraft"
 	MethodGetProfileDiagnostics   = "getProfileDiagnostics"
@@ -46,20 +56,28 @@ const (
 )
 
 var MethodRegistry = map[string]struct{}{
-	MethodHello:                   {},
-	MethodCreateProfile:           {},
-	MethodUpdateProfileDraft:      {},
-	MethodDeleteProfile:           {},
-	MethodListProfiles:            {},
-	MethodGetProfile:              {},
-	MethodValidateProfileDraft:    {},
-	MethodGetProfileDiagnostics:   {},
-	MethodCreateProfileSnapshot:   {},
-	MethodActivateProfileSnapshot: {},
-	MethodGetActiveProfile:        {},
-	MethodGetActiveSnapshot:       {},
-	MethodListSnapshots:           {},
-	MethodRollbackToSnapshot:      {},
+	MethodHello:                           {},
+	MethodCreateProfile:                   {},
+	MethodUpdateProfileDraft:              {},
+	MethodDeleteProfile:                   {},
+	MethodListProfiles:                    {},
+	MethodGetProfile:                      {},
+	MethodAssetCreateProfileSubscription:  {},
+	MethodAssetListProfileSubscriptions:   {},
+	MethodAssetRefreshProfileSubscription: {},
+	MethodAssetDeleteProfileSubscription:  {},
+	MethodAssetCreateDataAsset:            {},
+	MethodAssetListDataAssets:             {},
+	MethodAssetRefreshDataAsset:           {},
+	MethodAssetDeleteDataAsset:            {},
+	MethodValidateProfileDraft:            {},
+	MethodGetProfileDiagnostics:           {},
+	MethodCreateProfileSnapshot:           {},
+	MethodActivateProfileSnapshot:         {},
+	MethodGetActiveProfile:                {},
+	MethodGetActiveSnapshot:               {},
+	MethodListSnapshots:                   {},
+	MethodRollbackToSnapshot:              {},
 
 	MethodEngineStart:                  {},
 	MethodEngineStop:                   {},

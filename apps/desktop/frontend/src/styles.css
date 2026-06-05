@@ -348,7 +348,7 @@ h2 {
   margin: 14px 0 0;
 }
 
-.diagnostics div {
+.diagnostics dl > div {
   display: grid;
   grid-template-columns: 160px minmax(0, 1fr);
   gap: 12px;
@@ -372,6 +372,53 @@ h2 {
   overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 600;
+}
+
+.diagnostics h3 {
+  margin: 16px 0 8px;
+  font-size: 13px;
+}
+
+.asset-list {
+  display: grid;
+  gap: 8px;
+}
+
+.asset-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid #e2e7ee;
+  border-radius: 6px;
+}
+
+.asset-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.asset-row strong,
+.asset-row span,
+.asset-meta {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-row strong {
+  font-size: 13px;
+}
+
+.asset-row div > span,
+.asset-meta {
+  color: #657386;
+  font-size: 12px;
+}
+
+.asset-meta {
+  margin-left: 10px;
 }
 
 .capabilities {
@@ -422,7 +469,17 @@ h2 {
   background: #dcf6e9;
 }
 
+.state[data-state="updated"] {
+  color: #12633d;
+  background: #dcf6e9;
+}
+
 .state[data-state="unavailable"] {
+  color: #735014;
+  background: #fff0c7;
+}
+
+.state[data-state="pending"] {
   color: #735014;
   background: #fff0c7;
 }
@@ -435,6 +492,11 @@ h2 {
 .state[data-state="degraded"] {
   color: #8a2f13;
   background: #ffe3d4;
+}
+
+.state[data-state="failed"] {
+  color: #9f1d21;
+  background: #fff4f4;
 }
 
 @media (max-width: 860px) {
@@ -465,7 +527,8 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .diagnostics div {
+  .diagnostics dl > div,
+  .asset-row {
     grid-template-columns: 1fr;
   }
 }
