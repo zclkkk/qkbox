@@ -34,40 +34,15 @@ runtime status/log/traffic/connection/group/URLTest observability
 system proxy snapshot/apply/restore ownership
 privileged provider auth/status/prepare/repair shell
 Windows provider-hosted machine network runtime
+Linux provider-hosted machine network runtime
 provider runtime owner lock and stale owner repair
 provider runtime status/log/traffic/connection/group/URLTest bridge
 Apple NetworkExtension runtime owner and capability boundary
 reload with validation, prepare, rollback, and degradation reporting
 ```
 
-The next work is to complete Linux machine-network runtime support, then move
-into data assets and release diagnostics.
-
-## Milestone: Linux Provider-Hosted Machine Network Mode
-
-### Goal
-
-Implement Linux machine network mode with a formal privileged runtime container.
-
-### Work
-
-```text
-use provider-hosted RuntimeOwner for machine network snapshots
-run embedded sing-box inside the privileged provider
-let sing-box/sing-tun perform TUN, route, DNS, and nftables mechanics
-integrate systemd/root helper or polkit-class authorization
-store owner lock and stale runtime state only
-map platform support reasons into qkbox capabilities
-```
-
-### Acceptance
-
-```text
-Linux machine network mode uses official sing-box/sing-tun networking
-provider owner state is exclusive, cleanable, and repairable
-qkbox does not implement its own route or DNS engine
-unsupported environments return structured reasons
-```
+The next work is to complete data asset and subscription support, then release
+diagnostics.
 
 ## Milestone: Data Asset And Subscription Plane
 

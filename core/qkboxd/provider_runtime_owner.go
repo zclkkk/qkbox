@@ -337,5 +337,5 @@ func newRuntimeSessionID() string {
 }
 
 func supportsProviderHostedMachineRuntime() bool {
-	return runtimeGOOS == "windows"
+	return runtimeGOOS == "windows" || runtimeGOOS == "linux"
 }

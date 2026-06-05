@@ -996,7 +996,7 @@ func TestLoadRuntimeStartTargetCarriesRequiredCapabilities(t *testing.T) {
 
 func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
 	if !supportsProviderHostedMachineRuntime() {
-		t.Skip("provider-hosted machine runtime selection is Windows-only in this milestone")
+		t.Skip("provider-hosted machine runtime selection is only available on Windows and Linux")
 	}
 	privileged := readyFakePrivilegedProvider()
 	privileged.prepare = map[string]api.PrepareFeatureReply{
@@ -1031,6 +1031,33 @@ func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
 	}
 	if len(privileged.runtimeStops) != 1 {
 		t.Fatalf("runtime stops = %d, want provider-hosted stop", len(privileged.runtimeStops))
+	}
+}
+
+func TestEngineStartUsesProviderHostedOwnerOnLinux(t *testing.T) {
+	oldGOOS := runtimeGOOS
+	runtimeGOOS = "linux"
+	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+
+	privileged := readyFakePrivilegedProvider()
+	privileged.prepare = map[string]api.PrepareFeatureReply{
+		api.CapabilityTunMode: {Feature: api.CapabilityTunMode, State: api.CapabilityAvailable},
+	}
+	svc := newTestServiceWithPlatform(t, nil, privileged)
+	ctx := context.Background()
+	snapshotID := createSnapshotWithContent(t, svc, ctx, "linux-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotID}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+
+	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if len(privileged.runtimeStarts) != 1 {
+		t.Fatalf("runtime starts = %d, want provider-hosted start", len(privileged.runtimeStarts))
+	}
+	if start := privileged.runtimeStarts[0]; start.Mode != api.RuntimeModeMachineNetwork || start.SnapshotID != snapshotID {
+		t.Fatalf("runtime start = %+v", start)
 	}
 }
 
