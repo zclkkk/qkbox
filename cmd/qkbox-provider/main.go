@@ -10,11 +10,13 @@ import (
 	"syscall"
 
 	"github.com/zclkkk/qkbox/internal/provideripc"
+	"github.com/zclkkk/qkbox/internal/providerruntime"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
 type providerHandler struct {
 	version string
+	runtime *providerruntime.Controller
 }
 
 func main() {
@@ -73,7 +75,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	handler := &providerHandler{version: cfg.Version}
+	available, reason := machineNetworkAvailable()
+	handler := &providerHandler{
+		version: cfg.Version,
+		runtime: providerruntime.NewController(dir, available, reason),
+	}
+	defer handler.runtime.Close()
 	if err := provideripc.NewServer(cfg.Token, handler).Serve(ctx, listener); err != nil {
 		log.Fatal(err)
 	}
@@ -98,7 +105,9 @@ func resolveEndpoint(flagValue, serverPath string) string {
 
 func (h *providerHandler) GetStatus(context.Context, struct{}) (provideripc.StatusReply, *api.StructuredError) {
 	return provideripc.StatusReply{
-		Version: h.version,
+		Version:      h.version,
+		OwnerState:   h.runtime.OwnerState(),
+		Capabilities: h.runtime.Capabilities(),
 	}, nil
 }
 
@@ -107,16 +116,73 @@ func (h *providerHandler) PrepareFeature(_ context.Context, req api.PrepareFeatu
 	case api.CapabilityBackgroundService:
 		return api.PrepareFeatureReply{Feature: req.Feature, State: api.CapabilityAvailable}, nil
 	case api.CapabilityTunMode, api.CapabilityDNSHijack:
-		return api.PrepareFeatureReply{
-			Feature: req.Feature,
-			State:   api.CapabilityUnavailable,
-			Reason:  "Privileged network mutation is not available in this provider build.",
-		}, nil
+		for _, cap := range h.runtime.Capabilities() {
+			if cap.Name == req.Feature {
+				return api.PrepareFeatureReply{Feature: req.Feature, State: cap.State, Reason: cap.Reason}, nil
+			}
+		}
+		return api.PrepareFeatureReply{Feature: req.Feature, State: api.CapabilityUnavailable, Reason: "Machine network capability is unavailable."}, nil
 	default:
 		return api.PrepareFeatureReply{}, api.NewStructuredError(api.ErrorPlatformFeatureUnsupported, "Feature is not supported by the privileged provider.", "provider", true)
 	}
 }
 
-func (h *providerHandler) RunRepairAction(_ context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {
-	return api.RunRepairActionReply{}, api.NewStructuredError(api.ErrorPlatformRepairActionNotFound, "Repair action is not allowlisted.", "provider", true)
+func (h *providerHandler) RunRepairAction(ctx context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {
+	return h.runtime.RunRepairAction(ctx, req)
+}
+
+func (h *providerHandler) RuntimeStart(ctx context.Context, req provideripc.RuntimeStartRequest) (provideripc.RuntimeStartReply, *api.StructuredError) {
+	return h.runtime.RuntimeStart(ctx, req)
+}
+
+func (h *providerHandler) RuntimeStop(ctx context.Context, req provideripc.RuntimeStopRequest) (provideripc.RuntimeStopReply, *api.StructuredError) {
+	return h.runtime.RuntimeStop(ctx, req)
+}
+
+func (h *providerHandler) RuntimeHeartbeat(ctx context.Context, req provideripc.RuntimeHeartbeatRequest) (provideripc.RuntimeHeartbeatReply, *api.StructuredError) {
+	return h.runtime.RuntimeHeartbeat(ctx, req)
+}
+
+func (h *providerHandler) RuntimeGetStatus(ctx context.Context, req provideripc.RuntimeGetStatusRequest) (provideripc.RuntimeGetStatusReply, *api.StructuredError) {
+	return h.runtime.RuntimeGetStatus(ctx, req)
+}
+
+func (h *providerHandler) RuntimeGetRuntimeCapabilities(ctx context.Context, req provideripc.RuntimeGetRuntimeCapabilitiesRequest) (provideripc.RuntimeGetRuntimeCapabilitiesReply, *api.StructuredError) {
+	return h.runtime.RuntimeGetRuntimeCapabilities(ctx, req)
+}
+
+func (h *providerHandler) RuntimeGetTraffic(ctx context.Context, req provideripc.RuntimeGetTrafficRequest) (provideripc.RuntimeGetTrafficReply, *api.StructuredError) {
+	return h.runtime.RuntimeGetTraffic(ctx, req)
+}
+
+func (h *providerHandler) RuntimeGetConnections(ctx context.Context, req provideripc.RuntimeGetConnectionsRequest) (provideripc.RuntimeGetConnectionsReply, *api.StructuredError) {
+	return h.runtime.RuntimeGetConnections(ctx, req)
+}
+
+func (h *providerHandler) RuntimeListGroups(ctx context.Context, req provideripc.RuntimeListGroupsRequest) (provideripc.RuntimeListGroupsReply, *api.StructuredError) {
+	return h.runtime.RuntimeListGroups(ctx, req)
+}
+
+func (h *providerHandler) RuntimeSelectOutbound(ctx context.Context, req provideripc.RuntimeSelectOutboundRequest) (provideripc.RuntimeSelectOutboundReply, *api.StructuredError) {
+	return h.runtime.RuntimeSelectOutbound(ctx, req)
+}
+
+func (h *providerHandler) RuntimeURLTest(ctx context.Context, req provideripc.RuntimeURLTestRequest) (provideripc.RuntimeURLTestReply, *api.StructuredError) {
+	return h.runtime.RuntimeURLTest(ctx, req)
+}
+
+func (h *providerHandler) RuntimeCloseConnection(ctx context.Context, req provideripc.RuntimeCloseConnectionRequest) (provideripc.RuntimeCloseConnectionReply, *api.StructuredError) {
+	return h.runtime.RuntimeCloseConnection(ctx, req)
+}
+
+func (h *providerHandler) RuntimeCloseAllConnections(ctx context.Context, req provideripc.RuntimeCloseAllConnectionsRequest) (provideripc.RuntimeCloseAllConnectionsReply, *api.StructuredError) {
+	return h.runtime.RuntimeCloseAllConnections(ctx, req)
+}
+
+func (h *providerHandler) RuntimeListenerInfo(ctx context.Context, req provideripc.RuntimeListenerInfoRequest) (provideripc.RuntimeListenerInfoReply, *api.StructuredError) {
+	return h.runtime.RuntimeListenerInfo(ctx, req)
+}
+
+func (h *providerHandler) RuntimeSubscribeEvents(ctx context.Context, req provideripc.RuntimeSubscribeEventsRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+	return h.runtime.RuntimeSubscribeEvents(ctx, req)
 }

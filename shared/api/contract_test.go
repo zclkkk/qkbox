@@ -234,14 +234,15 @@ func TestPrivilegedProviderStatusJSONShape(t *testing.T) {
 			Version:         "0.1.0",
 			ExpectedVersion: "0.1.0",
 			Endpoint:        "provider",
-			OwnerState:      &ProviderOwnerState{Owned: true, UID: "1000"},
+			OwnerState:      &ProviderOwnerState{Owned: true, Stale: true, UID: "1000", SessionID: "session", RuntimeID: "runtime", SnapshotID: "snapshot", Mode: RuntimeModeMachineNetwork, RepairActions: []string{RepairActionClearMachineNetworkOwner}},
+			Capabilities:    []Capability{{Name: CapabilityTunMode, State: CapabilityAvailable}},
 		},
 	}
 	got, err := json.Marshal(reply)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, needle := range []string{`"status"`, `"installed"`, `"reachable"`, `"authenticated"`, `"expected_version"`, `"owner_state"`} {
+	for _, needle := range []string{`"status"`, `"installed"`, `"reachable"`, `"authenticated"`, `"expected_version"`, `"owner_state"`, `"capabilities"`, `"stale"`, `"snapshot_id"`, `"repair_actions"`} {
 		if !contains(string(got), needle) {
 			t.Fatalf("expected %s in %s", needle, got)
 		}

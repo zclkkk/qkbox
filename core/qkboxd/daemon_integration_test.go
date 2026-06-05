@@ -66,6 +66,67 @@ func (integrationProviderHandler) RunRepairAction(_ context.Context, req api.Run
 	return api.RunRepairActionReply{Action: req.Action, Outcome: "success"}, nil
 }
 
+func (integrationProviderHandler) RuntimeStart(_ context.Context, req provideripc.RuntimeStartRequest) (provideripc.RuntimeStartReply, *api.StructuredError) {
+	return provideripc.RuntimeStartReply{OwnerState: api.ProviderOwnerState{Owned: true, SessionID: req.SessionID, RuntimeID: req.RuntimeID, SnapshotID: req.SnapshotID, Mode: req.Mode}}, nil
+}
+
+func (integrationProviderHandler) RuntimeStop(context.Context, provideripc.RuntimeStopRequest) (provideripc.RuntimeStopReply, *api.StructuredError) {
+	return provideripc.RuntimeStopReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeHeartbeat(_ context.Context, req provideripc.RuntimeHeartbeatRequest) (provideripc.RuntimeHeartbeatReply, *api.StructuredError) {
+	return provideripc.RuntimeHeartbeatReply{OwnerState: api.ProviderOwnerState{Owned: true, SessionID: req.SessionID, RuntimeID: req.RuntimeID}}, nil
+}
+
+func (integrationProviderHandler) RuntimeGetStatus(context.Context, provideripc.RuntimeGetStatusRequest) (provideripc.RuntimeGetStatusReply, *api.StructuredError) {
+	return provideripc.RuntimeGetStatusReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeGetRuntimeCapabilities(context.Context, provideripc.RuntimeGetRuntimeCapabilitiesRequest) (provideripc.RuntimeGetRuntimeCapabilitiesReply, *api.StructuredError) {
+	return provideripc.RuntimeGetRuntimeCapabilitiesReply{Capabilities: api.RuntimeCapabilityShell()}, nil
+}
+
+func (integrationProviderHandler) RuntimeGetTraffic(context.Context, provideripc.RuntimeGetTrafficRequest) (provideripc.RuntimeGetTrafficReply, *api.StructuredError) {
+	return provideripc.RuntimeGetTrafficReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeGetConnections(context.Context, provideripc.RuntimeGetConnectionsRequest) (provideripc.RuntimeGetConnectionsReply, *api.StructuredError) {
+	return provideripc.RuntimeGetConnectionsReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeListGroups(context.Context, provideripc.RuntimeListGroupsRequest) (provideripc.RuntimeListGroupsReply, *api.StructuredError) {
+	return provideripc.RuntimeListGroupsReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeSelectOutbound(context.Context, provideripc.RuntimeSelectOutboundRequest) (provideripc.RuntimeSelectOutboundReply, *api.StructuredError) {
+	return provideripc.RuntimeSelectOutboundReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeURLTest(context.Context, provideripc.RuntimeURLTestRequest) (provideripc.RuntimeURLTestReply, *api.StructuredError) {
+	return provideripc.RuntimeURLTestReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeCloseConnection(context.Context, provideripc.RuntimeCloseConnectionRequest) (provideripc.RuntimeCloseConnectionReply, *api.StructuredError) {
+	return provideripc.RuntimeCloseConnectionReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeCloseAllConnections(context.Context, provideripc.RuntimeCloseAllConnectionsRequest) (provideripc.RuntimeCloseAllConnectionsReply, *api.StructuredError) {
+	return provideripc.RuntimeCloseAllConnectionsReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeListenerInfo(context.Context, provideripc.RuntimeListenerInfoRequest) (provideripc.RuntimeListenerInfoReply, *api.StructuredError) {
+	return provideripc.RuntimeListenerInfoReply{}, nil
+}
+
+func (integrationProviderHandler) RuntimeSubscribeEvents(ctx context.Context, _ provideripc.RuntimeSubscribeEventsRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+	ch := make(chan api.RuntimeEvent)
+	go func() {
+		<-ctx.Done()
+		close(ch)
+	}()
+	return ch, nil
+}
+
 func startProviderForDaemonTest(t *testing.T, stateDir string) {
 	t.Helper()
 	endpoint := daemonTestProviderEndpoint(t)

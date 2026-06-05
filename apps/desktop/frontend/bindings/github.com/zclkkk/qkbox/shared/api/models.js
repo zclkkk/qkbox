@@ -1657,6 +1657,13 @@ export class PrivilegedProviderStatus {
         if (/** @type {any} */(false)) {
             /**
              * @member
+             * @type {Capability[] | undefined}
+             */
+            this["capabilities"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
              * @type {string | undefined}
              */
             this["reason"] = undefined;
@@ -1672,9 +1679,13 @@ export class PrivilegedProviderStatus {
      */
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType44;
+        const $$createField7_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("owner_state" in $$parsedSource) {
             $$parsedSource["owner_state"] = $$createField6_0($$parsedSource["owner_state"]);
+        }
+        if ("capabilities" in $$parsedSource) {
+            $$parsedSource["capabilities"] = $$createField7_0($$parsedSource["capabilities"]);
         }
         return new PrivilegedProviderStatus(/** @type {Partial<PrivilegedProviderStatus>} */($$parsedSource));
     }
@@ -1692,6 +1703,13 @@ export class ProviderOwnerState {
              * @type {boolean}
              */
             this["owned"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["stale"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1719,6 +1737,13 @@ export class ProviderOwnerState {
              * @member
              * @type {string | undefined}
              */
+            this["snapshot_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
             this["mode"] = undefined;
         }
         if (/** @type {any} */(false)) {
@@ -1727,6 +1752,27 @@ export class ProviderOwnerState {
              * @type {number | undefined}
              */
             this["started_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["last_heartbeat_at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["repair_actions"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -1738,7 +1784,11 @@ export class ProviderOwnerState {
      * @returns {ProviderOwnerState}
      */
     static createFrom($$source = {}) {
+        const $$createField10_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("repair_actions" in $$parsedSource) {
+            $$parsedSource["repair_actions"] = $$createField10_0($$parsedSource["repair_actions"]);
+        }
         return new ProviderOwnerState(/** @type {Partial<ProviderOwnerState>} */($$parsedSource));
     }
 }
@@ -1864,7 +1914,7 @@ export class RunRepairActionResult {
      * @returns {RunRepairActionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType46;
+        const $$createField0_0 = $$createType47;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1928,7 +1978,7 @@ export class RuntimeEventBridgeStartResult {
      * @returns {RuntimeEventBridgeStartResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType48;
+        const $$createField0_0 = $$createType49;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -1992,7 +2042,7 @@ export class RuntimeEventBridgeStopResult {
      * @returns {RuntimeEventBridgeStopResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType50;
+        const $$createField0_0 = $$createType51;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2084,7 +2134,7 @@ export class SetSystemProxyEnabledResult {
      * @returns {SetSystemProxyEnabledResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType52;
+        const $$createField0_0 = $$createType53;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2262,11 +2312,12 @@ const $$createType41 = PrepareFeatureReply.createFrom;
 const $$createType42 = $Create.Nullable($$createType41);
 const $$createType43 = ProviderOwnerState.createFrom;
 const $$createType44 = $Create.Nullable($$createType43);
-const $$createType45 = RunRepairActionReply.createFrom;
-const $$createType46 = $Create.Nullable($$createType45);
-const $$createType47 = RuntimeEventBridgeStartReply.createFrom;
-const $$createType48 = $Create.Nullable($$createType47);
-const $$createType49 = RuntimeEventBridgeStopReply.createFrom;
-const $$createType50 = $Create.Nullable($$createType49);
-const $$createType51 = SetSystemProxyEnabledReply.createFrom;
-const $$createType52 = $Create.Nullable($$createType51);
+const $$createType45 = $Create.Array($Create.Any);
+const $$createType46 = RunRepairActionReply.createFrom;
+const $$createType47 = $Create.Nullable($$createType46);
+const $$createType48 = RuntimeEventBridgeStartReply.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = RuntimeEventBridgeStopReply.createFrom;
+const $$createType51 = $Create.Nullable($$createType50);
+const $$createType52 = SetSystemProxyEnabledReply.createFrom;
+const $$createType53 = $Create.Nullable($$createType52);

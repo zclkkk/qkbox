@@ -6,6 +6,7 @@ import (
 
 	"github.com/zclkkk/qkbox/internal/runtimeapi"
 	"github.com/zclkkk/qkbox/internal/singboxadapter"
+	"github.com/zclkkk/qkbox/platform/capability"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
@@ -31,6 +32,79 @@ type RuntimeStartTarget struct {
 }
 
 type RuntimeOwnerFactory func(target RuntimeStartTarget) RuntimeOwner
+
+func newRuntimeOwnerFactory(events *RuntimeEventHub, privileged capability.PrivilegedProvider, sessionID string) RuntimeOwnerFactory {
+	local := newLocalRuntimeOwnerFactory(events)
+	return func(target RuntimeStartTarget) RuntimeOwner {
+		if requiresProviderHostedRuntime(target) {
+			if supportsProviderHostedMachineRuntime() {
+				return newProviderRuntimeOwner(privileged, events, sessionID)
+			}
+			return unsupportedRuntimeOwner{
+				err: api.NewStructuredError(api.ErrorPlatformFeatureUnsupported, "Provider-hosted machine network mode is not available on this platform.", "qkboxd", true),
+			}
+		}
+		return local(target)
+	}
+}
+
+func requiresProviderHostedRuntime(target RuntimeStartTarget) bool {
+	for _, capName := range target.RequiredCapabilities {
+		switch capName {
+		case api.CapabilityTunMode, api.CapabilityDNSHijack:
+			return true
+		}
+	}
+	return false
+}
+
+type unsupportedRuntimeOwner struct {
+	err *api.StructuredError
+}
+
+func (o unsupportedRuntimeOwner) Start(context.Context, RuntimeStartTarget) *api.StructuredError {
+	return o.err
+}
+
+func (o unsupportedRuntimeOwner) Stop() *api.StructuredError {
+	return nil
+}
+
+func (o unsupportedRuntimeOwner) RuntimeCapabilities() []api.Capability {
+	return api.RuntimeCapabilityShell()
+}
+
+func (o unsupportedRuntimeOwner) TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError) {
+	return api.TrafficSnapshot{}, o.err
+}
+
+func (o unsupportedRuntimeOwner) ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError) {
+	return api.ConnectionSnapshot{}, o.err
+}
+
+func (o unsupportedRuntimeOwner) ListGroups() ([]api.OutboundGroup, *api.StructuredError) {
+	return nil, o.err
+}
+
+func (o unsupportedRuntimeOwner) SelectOutbound(string, string) (api.OutboundGroup, *api.StructuredError) {
+	return api.OutboundGroup{}, o.err
+}
+
+func (o unsupportedRuntimeOwner) URLTest(context.Context, string, time.Duration) ([]api.URLTestResult, *api.StructuredError) {
+	return nil, o.err
+}
+
+func (o unsupportedRuntimeOwner) CloseConnection(string) *api.StructuredError {
+	return o.err
+}
+
+func (o unsupportedRuntimeOwner) CloseAllConnections() *api.StructuredError {
+	return o.err
+}
+
+func (o unsupportedRuntimeOwner) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
+	return nil, o.err
+}
 
 func newLocalRuntimeOwnerFactory(events *RuntimeEventHub) RuntimeOwnerFactory {
 	return func(RuntimeStartTarget) RuntimeOwner {

@@ -217,6 +217,35 @@ h2 {
   border-radius: 6px;
 }
 
+.owner-state {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.owner-state > div {
+  display: grid;
+  gap: 4px;
+  min-height: 54px;
+  padding: 10px;
+  border: 1px solid #e2e7ee;
+  border-radius: 6px;
+}
+
+.owner-state strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.repair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .connection-list,
 .group-list,
 .logs {
@@ -403,6 +432,11 @@ h2 {
   background: #eef2f6;
 }
 
+.state[data-state="degraded"] {
+  color: #8a2f13;
+  background: #ffe3d4;
+}
+
 @media (max-width: 860px) {
   .shell {
     grid-template-columns: 1fr;
@@ -426,7 +460,8 @@ h2 {
 
   .summary,
   .columns,
-  .metrics {
+  .metrics,
+  .owner-state {
     grid-template-columns: 1fr;
   }
 

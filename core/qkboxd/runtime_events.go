@@ -60,6 +60,15 @@ func (h *RuntimeEventHub) PublishRuntimeLog(source, level, message string) {
 	h.mu.Unlock()
 }
 
+func (h *RuntimeEventHub) PublishBridgeError(err *api.StructuredError) {
+	if h == nil || err == nil {
+		return
+	}
+	h.mu.Lock()
+	h.broadcastLocked(h.logSubscribers, api.RuntimeEvent{Event: api.EventEngineEventBridgeError, Error: err})
+	h.mu.Unlock()
+}
+
 func (h *RuntimeEventHub) SubscribeStatus(ctx context.Context) <-chan api.RuntimeEvent {
 	ch := make(chan api.RuntimeEvent, runtimeLogRingLimit+16)
 	h.mu.Lock()

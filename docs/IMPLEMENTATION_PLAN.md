@@ -33,68 +33,14 @@ embedded local sing-box runtime
 runtime status/log/traffic/connection/group/URLTest observability
 system proxy snapshot/apply/restore ownership
 privileged provider auth/status/prepare/repair shell
+Windows provider-hosted machine network runtime
+provider runtime owner lock and stale owner repair
+provider runtime status/log/traffic/connection/group/URLTest bridge
 reload with validation, prepare, rollback, and degradation reporting
 ```
 
-The next work is a foundation refactor, not a feature layer.
-
-## Milestone: SagerNet-First Foundation Refactor
-
-### Goal
-
-Make the repository look as if official SagerNet components were considered from
-the first architecture pass.
-
-### Work
-
-```text
-rewrite docs into target-shape architecture and roadmap
-make RuntimeOwner the explicit engine runtime abstraction
-inject runtime owner factory into EngineController
-keep local embedded owner behavior unchanged
-keep provider-hosted runtime unimplemented until the machine-network milestone
-keep sing-box/sing imports confined to internal/singboxadapter
-```
-
-### Acceptance
-
-```text
-docs describe sing-box / sing-tun / sing-dns / sing-geosite / sing-geoip / srsc adoption
-docs do not frame current architecture as an early-stage historical scaffold
-EngineController is not directly bound to singboxadapter.NewAdapter
-existing local runtime, reload, observability, system proxy, and provider status behavior still pass
-```
-
-## Milestone: Windows Provider-Hosted Machine Network Mode
-
-### Goal
-
-Deliver the first machine-level network mode on the platform available for local
-development, while preserving the three-platform target shape.
-
-### Work
-
-```text
-classify snapshots that require machine network mode
-select provider-hosted RuntimeOwner for those snapshots
-extend provider IPC with runtime start/stop/status and event bridge
-run embedded sing-box inside the provider-hosted owner
-let sing-box/sing-tun perform Wintun, route, DNS, and WFP mechanics
-store provider owner lock and stale runtime state only
-surface NETWORK_MODE_OWNED_BY_ANOTHER_SESSION and repairable stale state
-keep qkboxd user-scope and keep user data out of provider storage
-```
-
-### Acceptance
-
-```text
-Windows machine network runtime starts from an active snapshot
-only one owner can hold machine network mode
-clean stop releases owner state
-stale state is diagnosable and repairable
-runtime events still reach GUI through qkbox product events
-provider never persists decrypted config or secrets
-```
+The next work is to complete the native macOS and Linux machine-network runtime
+containers, then move into data assets and release diagnostics.
 
 ## Milestone: Apple NetworkExtension Runtime Container
 

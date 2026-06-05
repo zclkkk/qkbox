@@ -10,6 +10,7 @@ import (
 
 	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
 	"github.com/zclkkk/qkbox/internal/persistence"
+	"github.com/zclkkk/qkbox/internal/provideripc"
 	"github.com/zclkkk/qkbox/platform/capability"
 	"github.com/zclkkk/qkbox/shared/api"
 )
@@ -106,6 +107,10 @@ type fakePrivilegedProvider struct {
 	prepared            []string
 	repairErr           *api.StructuredError
 	repairCalls         []string
+	runtimeStartErr     *api.StructuredError
+	runtimeStarts       []provideripc.RuntimeStartRequest
+	runtimeStops        []provideripc.RuntimeStopRequest
+	runtimeHeartbeats   []provideripc.RuntimeHeartbeatRequest
 }
 
 func readyFakePrivilegedProvider() *fakePrivilegedProvider {
@@ -161,6 +166,79 @@ func (f *fakePrivilegedProvider) RunRepairAction(_ context.Context, action strin
 		return api.RunRepairActionReply{}, f.repairErr
 	}
 	return api.RunRepairActionReply{Action: action, Outcome: "success"}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeStart(_ context.Context, req provideripc.RuntimeStartRequest) (provideripc.RuntimeStartReply, *api.StructuredError) {
+	f.runtimeStarts = append(f.runtimeStarts, req)
+	if f.runtimeStartErr != nil {
+		return provideripc.RuntimeStartReply{}, f.runtimeStartErr
+	}
+	return provideripc.RuntimeStartReply{OwnerState: api.ProviderOwnerState{
+		Owned:      true,
+		SessionID:  req.SessionID,
+		RuntimeID:  req.RuntimeID,
+		SnapshotID: req.SnapshotID,
+		Mode:       req.Mode,
+	}}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeStop(_ context.Context, req provideripc.RuntimeStopRequest) (provideripc.RuntimeStopReply, *api.StructuredError) {
+	f.runtimeStops = append(f.runtimeStops, req)
+	return provideripc.RuntimeStopReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeHeartbeat(_ context.Context, req provideripc.RuntimeHeartbeatRequest) (provideripc.RuntimeHeartbeatReply, *api.StructuredError) {
+	f.runtimeHeartbeats = append(f.runtimeHeartbeats, req)
+	return provideripc.RuntimeHeartbeatReply{OwnerState: api.ProviderOwnerState{Owned: true, SessionID: req.SessionID, RuntimeID: req.RuntimeID}}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeGetStatus(context.Context, provideripc.RuntimeGetStatusRequest) (provideripc.RuntimeGetStatusReply, *api.StructuredError) {
+	return provideripc.RuntimeGetStatusReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeGetRuntimeCapabilities(context.Context, provideripc.RuntimeGetRuntimeCapabilitiesRequest) (provideripc.RuntimeGetRuntimeCapabilitiesReply, *api.StructuredError) {
+	return provideripc.RuntimeGetRuntimeCapabilitiesReply{Capabilities: api.RuntimeCapabilityShell()}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeGetTraffic(context.Context, provideripc.RuntimeGetTrafficRequest) (provideripc.RuntimeGetTrafficReply, *api.StructuredError) {
+	return provideripc.RuntimeGetTrafficReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeGetConnections(context.Context, provideripc.RuntimeGetConnectionsRequest) (provideripc.RuntimeGetConnectionsReply, *api.StructuredError) {
+	return provideripc.RuntimeGetConnectionsReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeListGroups(context.Context, provideripc.RuntimeListGroupsRequest) (provideripc.RuntimeListGroupsReply, *api.StructuredError) {
+	return provideripc.RuntimeListGroupsReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeSelectOutbound(context.Context, provideripc.RuntimeSelectOutboundRequest) (provideripc.RuntimeSelectOutboundReply, *api.StructuredError) {
+	return provideripc.RuntimeSelectOutboundReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeURLTest(context.Context, provideripc.RuntimeURLTestRequest) (provideripc.RuntimeURLTestReply, *api.StructuredError) {
+	return provideripc.RuntimeURLTestReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeCloseConnection(context.Context, provideripc.RuntimeCloseConnectionRequest) (provideripc.RuntimeCloseConnectionReply, *api.StructuredError) {
+	return provideripc.RuntimeCloseConnectionReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeCloseAllConnections(context.Context, provideripc.RuntimeCloseAllConnectionsRequest) (provideripc.RuntimeCloseAllConnectionsReply, *api.StructuredError) {
+	return provideripc.RuntimeCloseAllConnectionsReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeListenerInfo(context.Context, provideripc.RuntimeListenerInfoRequest) (provideripc.RuntimeListenerInfoReply, *api.StructuredError) {
+	return provideripc.RuntimeListenerInfoReply{}, nil
+}
+
+func (f *fakePrivilegedProvider) RuntimeSubscribeEvents(ctx context.Context, _ provideripc.RuntimeSubscribeEventsRequest) (<-chan provideripc.EventFrame, *api.StructuredError) {
+	ch := make(chan provideripc.EventFrame)
+	go func() {
+		<-ctx.Done()
+		close(ch)
+	}()
+	return ch, nil
 }
 
 func TestHelloReturnsCapabilityShells(t *testing.T) {
@@ -774,6 +852,46 @@ func TestLoadRuntimeStartTargetCarriesRequiredCapabilities(t *testing.T) {
 	}
 	if len(target.RequiredCapabilities) != 1 || target.RequiredCapabilities[0] != api.CapabilityTunMode {
 		t.Fatalf("required capabilities = %+v", target.RequiredCapabilities)
+	}
+}
+
+func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
+	if !supportsProviderHostedMachineRuntime() {
+		t.Skip("provider-hosted machine runtime selection is Windows-only in this milestone")
+	}
+	privileged := readyFakePrivilegedProvider()
+	privileged.prepare = map[string]api.PrepareFeatureReply{
+		api.CapabilityTunMode: {Feature: api.CapabilityTunMode, State: api.CapabilityAvailable},
+	}
+	svc := newTestServiceWithPlatform(t, nil, privileged)
+	ctx := context.Background()
+	snapshotID := createSnapshotWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotID}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+
+	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if len(privileged.runtimeStarts) != 1 {
+		t.Fatalf("runtime starts = %d, want provider-hosted start", len(privileged.runtimeStarts))
+	}
+	start := privileged.runtimeStarts[0]
+	if start.Mode != api.RuntimeModeMachineNetwork || start.SnapshotID != snapshotID {
+		t.Fatalf("runtime start = %+v", start)
+	}
+	if start.ConfigJSON == "" {
+		t.Fatal("provider runtime start must receive config JSON in memory")
+	}
+	if len(start.RequiredCapabilities) != 1 || start.RequiredCapabilities[0] != api.CapabilityTunMode {
+		t.Fatalf("required capabilities = %+v", start.RequiredCapabilities)
+	}
+
+	if _, err := svc.EngineStop(ctx, api.EngineStopRequest{}); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if len(privileged.runtimeStops) != 1 {
+		t.Fatalf("runtime stops = %d, want provider-hosted stop", len(privileged.runtimeStops))
 	}
 }
 

@@ -51,6 +51,13 @@ const (
 	ErrorPlatformPrepareFailed           = "PLATFORM_PREPARE_FAILED"
 	ErrorPlatformRepairActionNotFound    = "PLATFORM_REPAIR_ACTION_NOT_FOUND"
 	ErrorPlatformRepairFailed            = "PLATFORM_REPAIR_FAILED"
+
+	ErrorNetworkModeOwnedByAnotherSession = "NETWORK_MODE_OWNED_BY_ANOTHER_SESSION"
+	ErrorProviderRuntimeUnavailable       = "PROVIDER_RUNTIME_UNAVAILABLE"
+	ErrorProviderRuntimeStale             = "PROVIDER_RUNTIME_STALE"
+	ErrorProviderRuntimeStartFailed       = "PROVIDER_RUNTIME_START_FAILED"
+	ErrorProviderRuntimeStopFailed        = "PROVIDER_RUNTIME_STOP_FAILED"
+	ErrorProviderRuntimeEventStreamFailed = "PROVIDER_RUNTIME_EVENT_STREAM_FAILED"
 )
 
 type StructuredError struct {

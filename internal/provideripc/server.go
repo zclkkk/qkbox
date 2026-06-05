@@ -18,6 +18,20 @@ type Handler interface {
 	GetStatus(context.Context, struct{}) (StatusReply, *api.StructuredError)
 	PrepareFeature(context.Context, api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError)
 	RunRepairAction(context.Context, api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError)
+	RuntimeStart(context.Context, RuntimeStartRequest) (RuntimeStartReply, *api.StructuredError)
+	RuntimeStop(context.Context, RuntimeStopRequest) (RuntimeStopReply, *api.StructuredError)
+	RuntimeHeartbeat(context.Context, RuntimeHeartbeatRequest) (RuntimeHeartbeatReply, *api.StructuredError)
+	RuntimeGetStatus(context.Context, RuntimeGetStatusRequest) (RuntimeGetStatusReply, *api.StructuredError)
+	RuntimeGetRuntimeCapabilities(context.Context, RuntimeGetRuntimeCapabilitiesRequest) (RuntimeGetRuntimeCapabilitiesReply, *api.StructuredError)
+	RuntimeGetTraffic(context.Context, RuntimeGetTrafficRequest) (RuntimeGetTrafficReply, *api.StructuredError)
+	RuntimeGetConnections(context.Context, RuntimeGetConnectionsRequest) (RuntimeGetConnectionsReply, *api.StructuredError)
+	RuntimeListGroups(context.Context, RuntimeListGroupsRequest) (RuntimeListGroupsReply, *api.StructuredError)
+	RuntimeSelectOutbound(context.Context, RuntimeSelectOutboundRequest) (RuntimeSelectOutboundReply, *api.StructuredError)
+	RuntimeURLTest(context.Context, RuntimeURLTestRequest) (RuntimeURLTestReply, *api.StructuredError)
+	RuntimeCloseConnection(context.Context, RuntimeCloseConnectionRequest) (RuntimeCloseConnectionReply, *api.StructuredError)
+	RuntimeCloseAllConnections(context.Context, RuntimeCloseAllConnectionsRequest) (RuntimeCloseAllConnectionsReply, *api.StructuredError)
+	RuntimeListenerInfo(context.Context, RuntimeListenerInfoRequest) (RuntimeListenerInfoReply, *api.StructuredError)
+	RuntimeSubscribeEvents(context.Context, RuntimeSubscribeEventsRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
 }
 
 type Server struct {
@@ -105,6 +119,34 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		dispatch(conn, req, s.handler.PrepareFeature, ctx)
 	case MethodRunRepairAction:
 		dispatch(conn, req, s.handler.RunRepairAction, ctx)
+	case MethodRuntimeStart:
+		dispatch(conn, req, s.handler.RuntimeStart, ctx)
+	case MethodRuntimeStop:
+		dispatch(conn, req, s.handler.RuntimeStop, ctx)
+	case MethodRuntimeHeartbeat:
+		dispatch(conn, req, s.handler.RuntimeHeartbeat, ctx)
+	case MethodRuntimeGetStatus:
+		dispatch(conn, req, s.handler.RuntimeGetStatus, ctx)
+	case MethodRuntimeGetRuntimeCapabilities:
+		dispatch(conn, req, s.handler.RuntimeGetRuntimeCapabilities, ctx)
+	case MethodRuntimeGetTraffic:
+		dispatch(conn, req, s.handler.RuntimeGetTraffic, ctx)
+	case MethodRuntimeGetConnections:
+		dispatch(conn, req, s.handler.RuntimeGetConnections, ctx)
+	case MethodRuntimeListGroups:
+		dispatch(conn, req, s.handler.RuntimeListGroups, ctx)
+	case MethodRuntimeSelectOutbound:
+		dispatch(conn, req, s.handler.RuntimeSelectOutbound, ctx)
+	case MethodRuntimeURLTest:
+		dispatch(conn, req, s.handler.RuntimeURLTest, ctx)
+	case MethodRuntimeCloseConnection:
+		dispatch(conn, req, s.handler.RuntimeCloseConnection, ctx)
+	case MethodRuntimeCloseAllConnections:
+		dispatch(conn, req, s.handler.RuntimeCloseAllConnections, ctx)
+	case MethodRuntimeListenerInfo:
+		dispatch(conn, req, s.handler.RuntimeListenerInfo, ctx)
+	case MethodRuntimeSubscribeEvents:
+		serveSubscription(conn, req, s.handler.RuntimeSubscribeEvents, ctx)
 	default:
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown provider method.", "provider", false))
 	}
@@ -156,6 +198,45 @@ func dispatch[Req any, Reply any](conn net.Conn, req Request, fn func(context.Co
 	writeResult(conn, req.ID, reply)
 }
 
+func serveSubscription[Req any](conn net.Conn, req Request, fn func(context.Context, Req) (<-chan api.RuntimeEvent, *api.StructuredError), ctx context.Context) {
+	var params Req
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "provider", true))
+		return
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	events, structured := fn(subCtx, params)
+	if structured != nil {
+		writeError(conn, req.ID, structured)
+		return
+	}
+	writeResult(conn, req.ID, RuntimeSubscribeEventsReply{})
+	_ = conn.SetReadDeadline(time.Time{})
+
+	go func() {
+		var discard Request
+		_ = ReadFrame(conn, &discard)
+		cancel()
+	}()
+
+	for {
+		select {
+		case <-subCtx.Done():
+			return
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
+			if err := writeEvent(conn, req.ID, event); err != nil {
+				return
+			}
+		}
+	}
+}
+
 func writeResult(conn net.Conn, id string, result interface{}) {
 	_ = conn.SetWriteDeadline(time.Now().Add(defaultServerIOTimeout))
 	payload, err := json.Marshal(result)
@@ -169,4 +250,18 @@ func writeResult(conn net.Conn, id string, result interface{}) {
 func writeError(conn net.Conn, id string, err *api.StructuredError) {
 	_ = conn.SetWriteDeadline(time.Now().Add(defaultServerIOTimeout))
 	_ = WriteFrame(conn, Response{ID: id, Error: err})
+}
+
+func writeEvent(conn net.Conn, id string, event api.RuntimeEvent) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(defaultServerIOTimeout))
+	frame := EventFrame{ID: id, Event: event.Event, Error: event.Error}
+	if event.Data != nil {
+		payload, err := json.Marshal(event.Data)
+		if err != nil {
+			frame.Error = api.NewStructuredError(api.ErrorIPCTransport, err.Error(), "provider", false)
+		} else {
+			frame.Data = payload
+		}
+	}
+	return WriteFrame(conn, frame)
 }

@@ -31,11 +31,13 @@ const privilegedCapabilityProbeTimeout = 500 * time.Millisecond
 
 func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider) *Service {
 	events := NewRuntimeEventHub()
+	engine := NewEngineController(runtimeCtx, events)
+	engine.runtimeOwnerFactory = newRuntimeOwnerFactory(events, privileged, newRuntimeSessionID())
 	return &Service{
 		db:         db,
 		key:        key,
 		events:     events,
-		engine:     NewEngineController(runtimeCtx, events),
+		engine:     engine,
 		proxy:      proxy,
 		privileged: privileged,
 	}
@@ -99,6 +101,10 @@ func (s *Service) applyPrivilegedCapabilities(ctx context.Context, caps []api.Ca
 		status = s.privileged.Status(probeCtx)
 	}
 	providerReady := status.Installed && status.Reachable && status.Authenticated && status.Version == status.ExpectedVersion
+	providerCaps := map[string]api.Capability{}
+	for _, cap := range status.Capabilities {
+		providerCaps[cap.Name] = cap
+	}
 	for i, cap := range caps {
 		switch cap.Name {
 		case api.CapabilityBackgroundService:
@@ -111,8 +117,13 @@ func (s *Service) applyPrivilegedCapabilities(ctx context.Context, caps []api.Ca
 			}
 		case api.CapabilityTunMode, api.CapabilityDNSHijack:
 			if providerReady {
-				caps[i].State = api.CapabilityUnavailable
-				caps[i].Reason = "Privileged network mutation is not available in this provider build."
+				if providerCap, ok := providerCaps[cap.Name]; ok {
+					caps[i].State = providerCap.State
+					caps[i].Reason = providerCap.Reason
+				} else {
+					caps[i].State = api.CapabilityUnavailable
+					caps[i].Reason = "Privileged provider did not report this capability."
+				}
 			} else {
 				caps[i].State = api.CapabilityUnavailable
 				caps[i].Reason = providerStatusReason(status)

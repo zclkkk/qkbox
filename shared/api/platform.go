@@ -30,17 +30,28 @@ type PrivilegedProviderStatus struct {
 	ExpectedVersion string              `json:"expected_version,omitempty"`
 	Endpoint        string              `json:"endpoint,omitempty"`
 	OwnerState      *ProviderOwnerState `json:"owner_state,omitempty"`
+	Capabilities    []Capability        `json:"capabilities,omitempty"`
 	Reason          string              `json:"reason,omitempty"`
 }
 
 type ProviderOwnerState struct {
-	Owned     bool   `json:"owned"`
-	UID       string `json:"uid,omitempty"`
-	SessionID string `json:"session_id,omitempty"`
-	RuntimeID string `json:"runtime_id,omitempty"`
-	Mode      string `json:"mode,omitempty"`
-	StartedAt int64  `json:"started_at,omitempty"`
+	Owned           bool     `json:"owned"`
+	Stale           bool     `json:"stale,omitempty"`
+	UID             string   `json:"uid,omitempty"`
+	SessionID       string   `json:"session_id,omitempty"`
+	RuntimeID       string   `json:"runtime_id,omitempty"`
+	SnapshotID      string   `json:"snapshot_id,omitempty"`
+	Mode            string   `json:"mode,omitempty"`
+	StartedAt       int64    `json:"started_at,omitempty"`
+	LastHeartbeatAt int64    `json:"last_heartbeat_at,omitempty"`
+	Reason          string   `json:"reason,omitempty"`
+	RepairActions   []string `json:"repair_actions,omitempty"`
 }
+
+const (
+	RuntimeModeMachineNetwork            = "machine_network"
+	RepairActionClearMachineNetworkOwner = "clear_machine_network_owner"
+)
 
 type PrepareFeatureRequest struct {
 	Feature string `json:"feature"`

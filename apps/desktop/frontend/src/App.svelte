@@ -103,6 +103,17 @@
     privilegedProviderStatus = result.reply?.status ?? null;
   }
 
+  async function runProviderRepair(action: string) {
+    platformError = null;
+    const result = await BridgeService.PlatformRunRepairAction({ action });
+    if (result.error) {
+      platformError = formatStructuredError(result.error);
+      return;
+    }
+    await refreshPrivilegedProviderStatus();
+    await refreshPlatformCapabilities();
+  }
+
   async function refreshGroups() {
     const result = await BridgeService.EngineListGroups();
     if (result.error) {
@@ -481,6 +492,38 @@
                 <div class="notice" style="margin-top: 1rem;">
                   <span>{privilegedProviderStatus.reason}</span>
                 </div>
+              {/if}
+              {#if privilegedProviderStatus.owner_state?.owned}
+                <div class="owner-state">
+                  <div>
+                    <span class="label">Owner</span>
+                    <strong>{privilegedProviderStatus.owner_state.mode || "runtime"}</strong>
+                  </div>
+                  {#if privilegedProviderStatus.owner_state.snapshot_id}
+                    <div>
+                      <span class="label">Snapshot</span>
+                      <strong>{privilegedProviderStatus.owner_state.snapshot_id}</strong>
+                    </div>
+                  {/if}
+                  <div>
+                    <span class="label">State</span>
+                    <span class="state" data-state={privilegedProviderStatus.owner_state.stale ? "degraded" : "available"}>
+                      {privilegedProviderStatus.owner_state.stale ? "Stale" : "Owned"}
+                    </span>
+                  </div>
+                </div>
+                {#if privilegedProviderStatus.owner_state.reason}
+                  <div class="notice" style="margin-top: 1rem;">
+                    <span>{privilegedProviderStatus.owner_state.reason}</span>
+                  </div>
+                {/if}
+                {#if privilegedProviderStatus.owner_state.repair_actions?.length}
+                  <div class="repair-actions">
+                    {#each privilegedProviderStatus.owner_state.repair_actions as action}
+                      <button type="button" onclick={() => runProviderRepair(action)}>{action}</button>
+                    {/each}
+                  </div>
+                {/if}
               {/if}
             {:else if platformError}
               <div class="notice error"><span>{platformError}</span></div>
