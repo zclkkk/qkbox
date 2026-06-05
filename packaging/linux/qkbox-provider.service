@@ -1,0 +1,17 @@
+[Unit]
+Description=qkbox privileged provider
+Documentation=https://github.com/zclkkk/qkbox
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/qkbox/provider-server.json
+
+[Service]
+Type=simple
+StateDirectory=qkbox
+StateDirectoryMode=0700
+ExecStart=/usr/bin/qkbox-provider --serve --state-dir /var/lib/qkbox
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target

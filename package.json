@@ -16,6 +16,8 @@
     "build:qkbox-provider": "wails3 task build:qkbox-provider",
     "build:desktop": "wails3 task -dir apps/desktop build",
     "package:windows": "wails3 task package:windows:nsis",
-    "package:linux": "wails3 task package:linux:deb"
+    "package:linux": "wails3 task package:linux:deb",
+    "package:macos": "wails3 task package:macos:dmg",
+    "release:verify": "node packaging/verify-release.mjs"
   }
 }

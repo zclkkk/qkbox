@@ -13,10 +13,14 @@
 !define APP_NAME "qkbox"
 !define PUBLISHER "qkbox contributors"
 
+SetCompressor /SOLID lzma
 Name "${APP_NAME}"
 OutFile "${OUT_DIR}\qkbox-${APP_VERSION}-setup.exe"
 InstallDir "$LOCALAPPDATA\Programs\qkbox"
+InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "InstallLocation"
 RequestExecutionLevel highest
+ShowInstDetails show
+ShowUninstDetails show
 
 !include "MUI2.nsh"
 
@@ -43,6 +47,9 @@ Section "qkbox"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "Publisher" "${PUBLISHER}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "UninstallString" "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "DisplayIcon" "$INSTDIR\qkbox.exe"
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "NoModify" 1
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "NoRepair" 1
 SectionEnd
 
 Section "Uninstall"

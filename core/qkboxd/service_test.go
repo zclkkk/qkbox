@@ -660,7 +660,7 @@ func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
 	if _, err := svc.CreateProfileSubscription(ctx, api.CreateProfileSubscriptionRequest{
 		ProfileID: createReply.Profile.ID,
 		Name:      "secret subscription",
-		URL:       "https://example.com/sub.json?token=abc123",
+		URL:       "https://user:secret@example.com/private/sub.json?token=abc123#frag",
 	}); err != nil {
 		t.Fatalf("create subscription: %v", err)
 	}
@@ -690,7 +690,7 @@ func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
 		bundle.Write(payload)
 	}
 	content := bundle.String()
-	for _, forbidden := range []string{"super-secret", "abc123", "encrypted_content", "proxy_owner"} {
+	for _, forbidden := range []string{"super-secret", "abc123", "user:secret", "private/sub.json", "#frag", "encrypted_content", "proxy_owner"} {
 		if strings.Contains(content, forbidden) {
 			t.Fatalf("debug bundle leaked %q in %s", forbidden, content)
 		}
@@ -698,6 +698,11 @@ func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
 	for _, required := range []string{"manifest.json", "diagnostics.json", "README.txt"} {
 		if !strings.Contains(content, required) {
 			t.Fatalf("debug bundle missing %s", required)
+		}
+	}
+	for _, required := range []string{"api_version", "schema_revision", "platform", "URL paths"} {
+		if !strings.Contains(content, required) {
+			t.Fatalf("debug bundle missing manifest/redaction marker %s", required)
 		}
 	}
 }

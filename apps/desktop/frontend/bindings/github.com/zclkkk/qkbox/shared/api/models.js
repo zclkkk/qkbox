@@ -721,6 +721,20 @@ export class DebugBundleManifest {
              */
             this["created_at"] = 0;
         }
+        if (!("api_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["api_version"] = "";
+        }
+        if (!("schema_revision" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["schema_revision"] = "";
+        }
         if (!("app_version" in $$source)) {
             /**
              * @member
@@ -734,6 +748,13 @@ export class DebugBundleManifest {
              * @type {string}
              */
             this["qkboxd_version"] = "";
+        }
+        if (!("platform" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["platform"] = "";
         }
         if (!("files" in $$source)) {
             /**
@@ -759,10 +780,10 @@ export class DebugBundleManifest {
      * @returns {DebugBundleManifest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType20;
+        const $$createField6_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
-            $$parsedSource["files"] = $$createField3_0($$parsedSource["files"]);
+            $$parsedSource["files"] = $$createField6_0($$parsedSource["files"]);
         }
         return new DebugBundleManifest(/** @type {Partial<DebugBundleManifest>} */($$parsedSource));
     }

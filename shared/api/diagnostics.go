@@ -87,9 +87,12 @@ type DiagnosticCheck struct {
 }
 
 type DebugBundleManifest struct {
-	CreatedAt     int64    `json:"created_at"`
-	AppVersion    string   `json:"app_version"`
-	QKBoxDVersion string   `json:"qkboxd_version"`
-	Files         []string `json:"files"`
-	Redaction     string   `json:"redaction"`
+	CreatedAt      int64    `json:"created_at"`
+	APIVersion     string   `json:"api_version"`
+	SchemaRevision string   `json:"schema_revision"`
+	AppVersion     string   `json:"app_version"`
+	QKBoxDVersion  string   `json:"qkboxd_version"`
+	Platform       string   `json:"platform"`
+	Files          []string `json:"files"`
+	Redaction      string   `json:"redaction"`
 }

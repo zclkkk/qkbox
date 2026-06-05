@@ -19,3 +19,7 @@ npm run package:windows
 The NSIS installer includes `qkbox.exe`, `qkboxd.exe`, and
 `qkbox-provider.exe`. The default install location is per-user, and the
 directory page still allows an elevated Program Files install.
+
+The installer creates a Start Menu shortcut and an HKCU uninstall entry. It does
+not install provider credentials, does not start the provider, and does not
+remove qkbox user data during uninstall.

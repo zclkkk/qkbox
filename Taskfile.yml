@@ -30,6 +30,13 @@ tasks:
     cmds:
       - bash packaging/linux/build-deb.sh
 
+  package:macos:dmg:
+    summary: Builds the macOS app bundle and DMG from existing macOS binaries
+    deps:
+      - task: build
+    cmds:
+      - bash packaging/macos/build-dmg.sh
+
   build:qkboxd:
     summary: Builds the user-scope qkboxd executable
     cmds:

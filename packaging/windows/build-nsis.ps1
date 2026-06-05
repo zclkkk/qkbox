@@ -8,6 +8,11 @@ $ErrorActionPreference = "Stop"
 $manifest = Get-Content (Join-Path $RootDir "package.json") -Raw | ConvertFrom-Json
 $version = $manifest.version
 
+$makensis = Get-Command makensis -ErrorAction SilentlyContinue
+if ($null -eq $makensis) {
+    throw "makensis was not found in PATH. Install NSIS 3 and retry."
+}
+
 foreach ($binary in @("qkbox.exe", "qkboxd.exe", "qkbox-provider.exe")) {
     $path = Join-Path $RootDir "bin\$binary"
     if (-not (Test-Path $path)) {
@@ -17,7 +22,9 @@ foreach ($binary in @("qkbox.exe", "qkboxd.exe", "qkbox-provider.exe")) {
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-& makensis `
+$installer = Join-Path $OutDir "qkbox-$version-setup.exe"
+
+& $makensis.Source `
     "/DROOT_DIR=$RootDir" `
     "/DOUT_DIR=$OutDir" `
     "/DAPP_VERSION=$version" `
@@ -26,3 +33,9 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "makensis failed with exit code $LASTEXITCODE"
 }
+
+if (-not (Test-Path $installer)) {
+    throw "NSIS completed but installer was not created: $installer"
+}
+
+Write-Host "Created $installer"

@@ -170,6 +170,27 @@ func TestDiagnosticsJSONShape(t *testing.T) {
 	}
 }
 
+func TestDebugBundleManifestJSONShape(t *testing.T) {
+	got, err := json.Marshal(DebugBundleManifest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{
+		`"created_at"`,
+		`"api_version"`,
+		`"schema_revision"`,
+		`"app_version"`,
+		`"qkboxd_version"`,
+		`"platform"`,
+		`"files"`,
+		`"redaction"`,
+	} {
+		if !contains(string(got), needle) {
+			t.Fatalf("expected %s in %s", needle, got)
+		}
+	}
+}
+
 func contains(value, needle string) bool {
 	return strings.Contains(value, needle)
 }

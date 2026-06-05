@@ -1,0 +1,6 @@
+packaging/**/*.sh text eol=lf
+packaging/**/*.mjs text eol=lf
+packaging/**/*.service text eol=lf
+packaging/**/*.desktop text eol=lf
+packaging/**/*.nsi text eol=lf
+packaging/**/*.ps1 text eol=crlf

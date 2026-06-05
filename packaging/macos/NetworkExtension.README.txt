@@ -1,0 +1,6 @@
+qkbox macOS machine-network mode is owned by an Apple NetworkExtension runtime container.
+
+Local unsigned builds can package the desktop app and helper binaries, but production
+NetworkExtension delivery requires Apple signing identities, entitlements, provisioning
+profiles, and notarization. qkbox does not use a root route mutation installer as a
+substitute for NetworkExtension.
