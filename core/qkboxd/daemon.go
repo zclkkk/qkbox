@@ -37,6 +37,7 @@ func Run(ctx context.Context) error {
 	proxy := capability.NewSystemProxyProvider()
 	repairStaleProxy(db, proxy)
 	privileged := capability.NewPrivilegedProvider(stateDir)
+	extension := capability.NewNetworkExtensionRuntime(stateDir)
 
 	listener, err := ipc.Listen()
 	if err != nil {
@@ -44,7 +45,7 @@ func Run(ctx context.Context) error {
 	}
 	defer listener.Close()
 
-	service := NewService(ctx, db, key, proxy, privileged)
+	service := NewServiceWithNetworkExtension(ctx, db, key, proxy, privileged, extension)
 	defer service.Close()
 
 	return ipc.NewServer(service).Serve(ctx, listener)

@@ -34,6 +34,17 @@ type PrivilegedProviderStatus struct {
 	Reason          string              `json:"reason,omitempty"`
 }
 
+type NetworkExtensionStatus struct {
+	Installed    bool                `json:"installed"`
+	Reachable    bool                `json:"reachable"`
+	Authorized   bool                `json:"authorized"`
+	BundleID     string              `json:"bundle_id,omitempty"`
+	Version      string              `json:"version,omitempty"`
+	OwnerState   *ProviderOwnerState `json:"owner_state,omitempty"`
+	Capabilities []Capability        `json:"capabilities,omitempty"`
+	Reason       string              `json:"reason,omitempty"`
+}
+
 type ProviderOwnerState struct {
 	Owned           bool     `json:"owned"`
 	Stale           bool     `json:"stale,omitempty"`
@@ -50,6 +61,7 @@ type ProviderOwnerState struct {
 
 const (
 	RuntimeModeMachineNetwork            = "machine_network"
+	RuntimeModeAppleNetworkExtension     = "apple_network_extension"
 	RepairActionClearMachineNetworkOwner = "clear_machine_network_owner"
 )
 

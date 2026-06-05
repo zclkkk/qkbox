@@ -34,9 +34,16 @@ type RuntimeStartTarget struct {
 type RuntimeOwnerFactory func(target RuntimeStartTarget) RuntimeOwner
 
 func newRuntimeOwnerFactory(events *RuntimeEventHub, privileged capability.PrivilegedProvider, sessionID string) RuntimeOwnerFactory {
+	return newRuntimeOwnerFactoryWithNetworkExtension(events, privileged, nil, sessionID)
+}
+
+func newRuntimeOwnerFactoryWithNetworkExtension(events *RuntimeEventHub, privileged capability.PrivilegedProvider, extension capability.NetworkExtensionRuntime, sessionID string) RuntimeOwnerFactory {
 	local := newLocalRuntimeOwnerFactory(events)
 	return func(target RuntimeStartTarget) RuntimeOwner {
 		if requiresProviderHostedRuntime(target) {
+			if supportsAppleNetworkExtensionRuntime() {
+				return newNetworkExtensionRuntimeOwner(extension, events, sessionID)
+			}
 			if supportsProviderHostedMachineRuntime() {
 				return newProviderRuntimeOwner(privileged, events, sessionID)
 			}

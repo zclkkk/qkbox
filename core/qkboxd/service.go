@@ -24,15 +24,20 @@ type Service struct {
 	events     *RuntimeEventHub
 	proxy      capability.SystemProxyProvider
 	privileged capability.PrivilegedProvider
+	extension  capability.NetworkExtensionRuntime
 	opMu       sync.Mutex
 }
 
 const privilegedCapabilityProbeTimeout = 500 * time.Millisecond
 
 func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider) *Service {
+	return NewServiceWithNetworkExtension(runtimeCtx, db, key, proxy, privileged, nil)
+}
+
+func NewServiceWithNetworkExtension(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider, extension capability.NetworkExtensionRuntime) *Service {
 	events := NewRuntimeEventHub()
 	engine := NewEngineController(runtimeCtx, events)
-	engine.runtimeOwnerFactory = newRuntimeOwnerFactory(events, privileged, newRuntimeSessionID())
+	engine.runtimeOwnerFactory = newRuntimeOwnerFactoryWithNetworkExtension(events, privileged, extension, newRuntimeSessionID())
 	return &Service{
 		db:         db,
 		key:        key,
@@ -40,6 +45,7 @@ func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte, prox
 		engine:     engine,
 		proxy:      proxy,
 		privileged: privileged,
+		extension:  extension,
 	}
 }
 
@@ -94,6 +100,9 @@ func (s *Service) platformCapabilities(ctx context.Context) []api.Capability {
 }
 
 func (s *Service) applyPrivilegedCapabilities(ctx context.Context, caps []api.Capability) []api.Capability {
+	if runtimeGOOS == "darwin" {
+		return s.applyNetworkExtensionCapabilities(ctx, caps)
+	}
 	status := api.PrivilegedProviderStatus{Reason: "Privileged provider is not configured."}
 	if s.privileged != nil {
 		probeCtx, cancel := context.WithTimeout(ctx, privilegedCapabilityProbeTimeout)
@@ -131,6 +140,51 @@ func (s *Service) applyPrivilegedCapabilities(ctx context.Context, caps []api.Ca
 		}
 	}
 	return caps
+}
+
+func (s *Service) applyNetworkExtensionCapabilities(ctx context.Context, caps []api.Capability) []api.Capability {
+	status := api.NetworkExtensionStatus{Reason: "NetworkExtension runtime is not configured."}
+	if s.extension != nil {
+		probeCtx, cancel := context.WithTimeout(ctx, privilegedCapabilityProbeTimeout)
+		defer cancel()
+		status = s.extension.Status(probeCtx)
+	}
+	extensionCaps := map[string]api.Capability{}
+	for _, cap := range status.Capabilities {
+		extensionCaps[cap.Name] = cap
+	}
+	for i, cap := range caps {
+		switch cap.Name {
+		case api.CapabilityTunMode, api.CapabilityDNSHijack, api.CapabilityConnectionTracking:
+			if extensionCap, ok := extensionCaps[cap.Name]; ok {
+				caps[i].State = extensionCap.State
+				caps[i].Reason = extensionCap.Reason
+			} else {
+				caps[i].State = api.CapabilityUnavailable
+				caps[i].Reason = networkExtensionStatusReason(status)
+			}
+		case api.CapabilityBackgroundService:
+			caps[i].State = api.CapabilityUnsupported
+			caps[i].Reason = "macOS machine network mode is owned by NetworkExtension."
+		}
+	}
+	return caps
+}
+
+func networkExtensionStatusReason(status api.NetworkExtensionStatus) string {
+	if status.Reason != "" {
+		return status.Reason
+	}
+	if !status.Installed {
+		return "NetworkExtension container is not installed."
+	}
+	if !status.Reachable {
+		return "NetworkExtension container is not reachable."
+	}
+	if !status.Authorized {
+		return "NetworkExtension container is not authorized."
+	}
+	return "NetworkExtension runtime is unavailable."
 }
 
 func providerStatusReason(status api.PrivilegedProviderStatus) string {
@@ -806,10 +860,7 @@ func (s *Service) prepareRuntimeStartTargetCapabilities(ctx context.Context, tar
 		if !isPrivilegedFeature(feature) {
 			continue
 		}
-		if s.privileged == nil {
-			return api.NewStructuredError(api.ErrorPlatformProviderUnavailable, "Privileged provider is not configured.", "provider", true)
-		}
-		reply, structured := s.privileged.PrepareFeature(ctx, feature)
+		reply, structured := s.preparePlatformFeature(ctx, feature)
 		if structured != nil {
 			return structured
 		}
@@ -822,9 +873,40 @@ func (s *Service) prepareRuntimeStartTargetCapabilities(ctx context.Context, tar
 	return nil
 }
 
+func (s *Service) preparePlatformFeature(ctx context.Context, feature string) (api.PrepareFeatureReply, *api.StructuredError) {
+	if !isPrivilegedFeature(feature) {
+		return api.PrepareFeatureReply{}, api.NewStructuredError(api.ErrorPlatformFeatureUnsupported, "Feature is not supported by the platform capability boundary.", "qkboxd", true)
+	}
+	if runtimeGOOS == "darwin" && isNetworkExtensionFeature(feature) {
+		status := api.NetworkExtensionStatus{Reason: "NetworkExtension runtime is not configured."}
+		if s.extension != nil {
+			status = s.extension.Status(ctx)
+		}
+		for _, cap := range status.Capabilities {
+			if cap.Name == feature {
+				return api.PrepareFeatureReply{Feature: feature, State: cap.State, Reason: cap.Reason}, nil
+			}
+		}
+		return api.PrepareFeatureReply{Feature: feature, State: api.CapabilityUnavailable, Reason: networkExtensionStatusReason(status)}, nil
+	}
+	if s.privileged == nil {
+		return api.PrepareFeatureReply{}, api.NewStructuredError(api.ErrorPlatformProviderUnavailable, "Privileged provider is not configured.", "provider", true)
+	}
+	return s.privileged.PrepareFeature(ctx, feature)
+}
+
 func isPrivilegedFeature(feature string) bool {
 	switch feature {
 	case api.CapabilityTunMode, api.CapabilityDNSHijack, api.CapabilityBackgroundService:
+		return true
+	default:
+		return false
+	}
+}
+
+func isNetworkExtensionFeature(feature string) bool {
+	switch feature {
+	case api.CapabilityTunMode, api.CapabilityDNSHijack:
 		return true
 	default:
 		return false
@@ -847,13 +929,7 @@ func (s *Service) PlatformGetPrivilegedProviderStatus(ctx context.Context, _ api
 }
 
 func (s *Service) PlatformPrepareFeature(ctx context.Context, req api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError) {
-	if !isPrivilegedFeature(req.Feature) {
-		return api.PrepareFeatureReply{}, api.NewStructuredError(api.ErrorPlatformFeatureUnsupported, "Feature is not supported by the privileged provider.", "qkboxd", true)
-	}
-	if s.privileged == nil {
-		return api.PrepareFeatureReply{}, api.NewStructuredError(api.ErrorPlatformProviderUnavailable, "Privileged provider is not configured.", "provider", true)
-	}
-	return s.privileged.PrepareFeature(ctx, req.Feature)
+	return s.preparePlatformFeature(ctx, req.Feature)
 }
 
 func (s *Service) PlatformRunRepairAction(ctx context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {

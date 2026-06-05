@@ -58,6 +58,11 @@ const (
 	ErrorProviderRuntimeStartFailed       = "PROVIDER_RUNTIME_START_FAILED"
 	ErrorProviderRuntimeStopFailed        = "PROVIDER_RUNTIME_STOP_FAILED"
 	ErrorProviderRuntimeEventStreamFailed = "PROVIDER_RUNTIME_EVENT_STREAM_FAILED"
+
+	ErrorNetworkExtensionUnavailable       = "NETWORK_EXTENSION_UNAVAILABLE"
+	ErrorNetworkExtensionStartFailed       = "NETWORK_EXTENSION_START_FAILED"
+	ErrorNetworkExtensionStopFailed        = "NETWORK_EXTENSION_STOP_FAILED"
+	ErrorNetworkExtensionEventStreamFailed = "NETWORK_EXTENSION_EVENT_STREAM_FAILED"
 )
 
 type StructuredError struct {

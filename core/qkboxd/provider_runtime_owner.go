@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	goruntime "runtime"
 	"sync"
 	"time"
 
@@ -338,5 +337,5 @@ func newRuntimeSessionID() string {
 }
 
 func supportsProviderHostedMachineRuntime() bool {
-	return goruntime.GOOS == "windows"
+	return runtimeGOOS == "windows"
 }

@@ -11,6 +11,7 @@ import (
 	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
 	"github.com/zclkkk/qkbox/internal/persistence"
 	"github.com/zclkkk/qkbox/internal/provideripc"
+	"github.com/zclkkk/qkbox/internal/runtimeapi"
 	"github.com/zclkkk/qkbox/platform/capability"
 	"github.com/zclkkk/qkbox/shared/api"
 )
@@ -27,6 +28,11 @@ func newTestServiceWithProxy(t *testing.T, proxy capability.SystemProxyProvider)
 
 func newTestServiceWithPlatform(t *testing.T, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider) *Service {
 	t.Helper()
+	return newTestServiceWithPlatformAndExtension(t, proxy, privileged, nil)
+}
+
+func newTestServiceWithPlatformAndExtension(t *testing.T, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider, extension capability.NetworkExtensionRuntime) *Service {
+	t.Helper()
 	dir := t.TempDir()
 	db, err := persistence.Open(dir)
 	if err != nil {
@@ -37,7 +43,7 @@ func newTestServiceWithPlatform(t *testing.T, proxy capability.SystemProxyProvid
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := NewService(context.Background(), db, key, proxy, privileged)
+	svc := NewServiceWithNetworkExtension(context.Background(), db, key, proxy, privileged, extension)
 	t.Cleanup(func() { _ = svc.Close() })
 	return svc
 }
@@ -241,6 +247,75 @@ func (f *fakePrivilegedProvider) RuntimeSubscribeEvents(ctx context.Context, _ p
 	return ch, nil
 }
 
+type fakeNetworkExtensionRuntime struct {
+	status api.NetworkExtensionStatus
+	starts []capability.NetworkExtensionStartRequest
+	stops  []capability.NetworkExtensionStopRequest
+}
+
+func (f *fakeNetworkExtensionRuntime) Status(context.Context) api.NetworkExtensionStatus {
+	return f.status
+}
+
+func (f *fakeNetworkExtensionRuntime) Start(_ context.Context, req capability.NetworkExtensionStartRequest) (capability.NetworkExtensionStartReply, *api.StructuredError) {
+	f.starts = append(f.starts, req)
+	return capability.NetworkExtensionStartReply{}, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) Stop(_ context.Context, req capability.NetworkExtensionStopRequest) (capability.NetworkExtensionStopReply, *api.StructuredError) {
+	f.stops = append(f.stops, req)
+	return capability.NetworkExtensionStopReply{}, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) Heartbeat(context.Context, capability.NetworkExtensionHeartbeatRequest) (capability.NetworkExtensionHeartbeatReply, *api.StructuredError) {
+	return capability.NetworkExtensionHeartbeatReply{}, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) RuntimeCapabilities(context.Context, capability.NetworkExtensionRuntimeRequest) ([]api.Capability, *api.StructuredError) {
+	return api.RuntimeCapabilityShell(), nil
+}
+
+func (f *fakeNetworkExtensionRuntime) TrafficSnapshot(context.Context, capability.NetworkExtensionRuntimeRequest) (api.TrafficSnapshot, *api.StructuredError) {
+	return api.TrafficSnapshot{}, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) ConnectionSnapshot(context.Context, capability.NetworkExtensionRuntimeRequest) (api.ConnectionSnapshot, *api.StructuredError) {
+	return api.ConnectionSnapshot{}, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) ListGroups(context.Context, capability.NetworkExtensionRuntimeRequest) ([]api.OutboundGroup, *api.StructuredError) {
+	return nil, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) SelectOutbound(context.Context, capability.NetworkExtensionSelectOutboundRequest) (api.OutboundGroup, *api.StructuredError) {
+	return api.OutboundGroup{}, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) URLTest(context.Context, capability.NetworkExtensionURLTestRequest) ([]api.URLTestResult, *api.StructuredError) {
+	return nil, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) CloseConnection(context.Context, capability.NetworkExtensionCloseConnectionRequest) *api.StructuredError {
+	return nil
+}
+
+func (f *fakeNetworkExtensionRuntime) CloseAllConnections(context.Context, capability.NetworkExtensionRuntimeRequest) *api.StructuredError {
+	return nil
+}
+
+func (f *fakeNetworkExtensionRuntime) ListenerInfo(context.Context, capability.NetworkExtensionRuntimeRequest) ([]runtimeapi.ListenerInfo, *api.StructuredError) {
+	return nil, nil
+}
+
+func (f *fakeNetworkExtensionRuntime) SubscribeEvents(ctx context.Context, _ capability.NetworkExtensionRuntimeRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+	ch := make(chan api.RuntimeEvent)
+	go func() {
+		<-ctx.Done()
+		close(ch)
+	}()
+	return ch, nil
+}
+
 func TestHelloReturnsCapabilityShells(t *testing.T) {
 	svc := newTestService(t)
 	reply, err := svc.Hello(context.Background(), api.DefaultHelloRequest())
@@ -293,6 +368,36 @@ func TestHelloBoundsPrivilegedCapabilityProbe(t *testing.T) {
 	}
 	if caps[api.CapabilityBackgroundService].State != api.CapabilityUnavailable {
 		t.Fatalf("background service = %+v", caps[api.CapabilityBackgroundService])
+	}
+}
+
+func TestDarwinPrepareUsesNetworkExtension(t *testing.T) {
+	oldGOOS := runtimeGOOS
+	runtimeGOOS = "darwin"
+	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+
+	privileged := readyFakePrivilegedProvider()
+	extension := &fakeNetworkExtensionRuntime{
+		status: api.NetworkExtensionStatus{
+			Installed:  true,
+			Reachable:  true,
+			Authorized: true,
+			Capabilities: []api.Capability{
+				{Name: api.CapabilityTunMode, State: api.CapabilityAvailable},
+			},
+		},
+	}
+	svc := newTestServiceWithPlatformAndExtension(t, nil, privileged, extension)
+
+	reply, structured := svc.PlatformPrepareFeature(context.Background(), api.PrepareFeatureRequest{Feature: api.CapabilityTunMode})
+	if structured != nil {
+		t.Fatal(structured)
+	}
+	if reply.State != api.CapabilityAvailable {
+		t.Fatalf("state = %s, want available", reply.State)
+	}
+	if len(privileged.prepared) != 0 {
+		t.Fatalf("privileged prepare called on Darwin: %+v", privileged.prepared)
 	}
 }
 
@@ -819,6 +924,40 @@ func TestPlatformCapabilitiesReflectPrivilegedProvider(t *testing.T) {
 	}
 }
 
+func TestDarwinPlatformCapabilitiesReflectNetworkExtension(t *testing.T) {
+	oldGOOS := runtimeGOOS
+	runtimeGOOS = "darwin"
+	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+
+	extension := &fakeNetworkExtensionRuntime{
+		status: api.NetworkExtensionStatus{
+			Installed:  true,
+			Reachable:  true,
+			Authorized: true,
+			Capabilities: []api.Capability{
+				{Name: api.CapabilityTunMode, State: api.CapabilityAvailable},
+				{Name: api.CapabilityDNSHijack, State: api.CapabilityAvailable},
+			},
+		},
+	}
+	svc := newTestServiceWithPlatformAndExtension(t, nil, readyFakePrivilegedProvider(), extension)
+
+	reply, structured := svc.PlatformGetCapabilities(context.Background(), api.GetPlatformCapabilitiesRequest{})
+	if structured != nil {
+		t.Fatalf("capabilities: %v", structured)
+	}
+	states := map[string]api.Capability{}
+	for _, cap := range reply.Capabilities {
+		states[cap.Name] = cap
+	}
+	if states[api.CapabilityTunMode].State != api.CapabilityAvailable {
+		t.Fatalf("tun mode = %+v", states[api.CapabilityTunMode])
+	}
+	if states[api.CapabilityBackgroundService].State != api.CapabilityUnsupported {
+		t.Fatalf("background service = %+v", states[api.CapabilityBackgroundService])
+	}
+}
+
 func TestCreateSnapshotStoresRequiredCapabilities(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
@@ -892,6 +1031,51 @@ func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
 	}
 	if len(privileged.runtimeStops) != 1 {
 		t.Fatalf("runtime stops = %d, want provider-hosted stop", len(privileged.runtimeStops))
+	}
+}
+
+func TestEngineStartUsesNetworkExtensionOwnerOnDarwin(t *testing.T) {
+	oldGOOS := runtimeGOOS
+	runtimeGOOS = "darwin"
+	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+
+	privileged := readyFakePrivilegedProvider()
+	extension := &fakeNetworkExtensionRuntime{
+		status: api.NetworkExtensionStatus{
+			Installed:  true,
+			Reachable:  true,
+			Authorized: true,
+			Capabilities: []api.Capability{
+				{Name: api.CapabilityTunMode, State: api.CapabilityAvailable},
+			},
+		},
+	}
+	svc := newTestServiceWithPlatformAndExtension(t, nil, privileged, extension)
+	ctx := context.Background()
+	snapshotID := createSnapshotWithContent(t, svc, ctx, "darwin-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotID}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+
+	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if len(extension.starts) != 1 {
+		t.Fatalf("network extension starts = %d, want one", len(extension.starts))
+	}
+	start := extension.starts[0]
+	if start.Mode != api.RuntimeModeAppleNetworkExtension || start.SnapshotID != snapshotID {
+		t.Fatalf("network extension start = %+v", start)
+	}
+	if len(privileged.runtimeStarts) != 0 || len(privileged.prepared) != 0 {
+		t.Fatalf("privileged path used on Darwin: starts=%+v prepared=%+v", privileged.runtimeStarts, privileged.prepared)
+	}
+
+	if _, err := svc.EngineStop(ctx, api.EngineStopRequest{}); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if len(extension.stops) != 1 {
+		t.Fatalf("network extension stops = %d, want one", len(extension.stops))
 	}
 }
 

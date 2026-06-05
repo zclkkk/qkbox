@@ -36,36 +36,12 @@ privileged provider auth/status/prepare/repair shell
 Windows provider-hosted machine network runtime
 provider runtime owner lock and stale owner repair
 provider runtime status/log/traffic/connection/group/URLTest bridge
+Apple NetworkExtension runtime owner and capability boundary
 reload with validation, prepare, rollback, and degradation reporting
 ```
 
-The next work is to complete the native macOS and Linux machine-network runtime
-containers, then move into data assets and release diagnostics.
-
-## Milestone: Apple NetworkExtension Runtime Container
-
-### Goal
-
-Implement macOS VPN/TUN mode through the native Apple runtime container shape.
-
-### Work
-
-```text
-introduce NetworkExtension RuntimeOwner
-bridge qkboxd product commands to the extension container
-run embedded sing-box through Apple-compatible sing-box/sing-tun paths
-map extension status and failure reasons into qkbox diagnostics
-keep system proxy as qkbox native snapshot/restore behavior
-```
-
-### Acceptance
-
-```text
-macOS TUN/VPN mode does not use root route hacks
-extension runtime is selected only for snapshots requiring that mode
-GUI remains unaware of process/container details
-cleanup and degraded states are product-visible
-```
+The next work is to complete Linux machine-network runtime support, then move
+into data assets and release diagnostics.
 
 ## Milestone: Linux Provider-Hosted Machine Network Mode
 
