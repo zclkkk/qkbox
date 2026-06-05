@@ -328,6 +328,57 @@ h2 {
   margin-top: 14px;
 }
 
+.mode-grid,
+.platform-capability-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.mode-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mode-card,
+.platform-capability {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e2e7ee;
+  border-radius: 6px;
+}
+
+.mode-card {
+  display: grid;
+  gap: 8px;
+}
+
+.mode-card span,
+.platform-capability span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #657386;
+  font-size: 12px;
+}
+
+.platform-capability {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.platform-capability > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.capability-actions {
+  display: flex;
+  align-items: start;
+  justify-content: end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;
@@ -771,6 +822,7 @@ h2 {
   background: #ffe3d4;
 }
 
+.state[data-state="partial"],
 .state[data-state="failed"] {
   color: #9f1d21;
   background: #fff4f4;
@@ -825,7 +877,8 @@ h2 {
   .summary,
   .columns,
   .metrics,
-  .owner-state {
+  .owner-state,
+  .mode-grid {
     grid-template-columns: 1fr;
   }
 
@@ -834,6 +887,7 @@ h2 {
   .check-row,
   .connection-row,
   .log-row,
+  .platform-capability,
   .compact-form,
   .subscription-form,
   .asset-form {

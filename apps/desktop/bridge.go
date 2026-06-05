@@ -387,6 +387,14 @@ func (b *BridgeService) PlatformGetPrivilegedProviderStatus(ctx context.Context)
 	return api.GetPrivilegedProviderStatusResult{Reply: &reply}
 }
 
+func (b *BridgeService) PlatformGetNetworkExtensionStatus(ctx context.Context) api.GetNetworkExtensionStatusResult {
+	reply, structured := b.client.PlatformGetNetworkExtensionStatus(ctx, api.GetNetworkExtensionStatusRequest{})
+	if structured != nil {
+		return api.GetNetworkExtensionStatusResult{Error: structured}
+	}
+	return api.GetNetworkExtensionStatusResult{Reply: &reply}
+}
+
 func (b *BridgeService) PlatformPrepareFeature(ctx context.Context, req api.PrepareFeatureRequest) api.PrepareFeatureResult {
 	reply, structured := b.client.PlatformPrepareFeature(ctx, req)
 	if structured != nil {

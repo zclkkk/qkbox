@@ -45,6 +45,17 @@ type NetworkExtensionStatus struct {
 	Reason       string              `json:"reason,omitempty"`
 }
 
+type GetNetworkExtensionStatusRequest struct{}
+
+type GetNetworkExtensionStatusReply struct {
+	Status NetworkExtensionStatus `json:"status"`
+}
+
+type GetNetworkExtensionStatusResult struct {
+	Reply *GetNetworkExtensionStatusReply `json:"reply,omitempty"`
+	Error *StructuredError                `json:"error,omitempty"`
+}
+
 type ProviderOwnerState struct {
 	Owned           bool     `json:"owned"`
 	Stale           bool     `json:"stale,omitempty"`

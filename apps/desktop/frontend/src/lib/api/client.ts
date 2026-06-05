@@ -6,9 +6,12 @@ import type {
   EngineStatus,
   GetSystemProxyStatusReply,
   HelloReply,
+  NetworkExtensionStatus,
   OutboundGroup,
+  PrepareFeatureReply,
   PrivilegedProviderStatus,
   ProductDiagnosticsReport,
+  RunRepairActionReply,
   StructuredError,
   URLTestResult,
 } from "../../../bindings/github.com/zclkkk/qkbox/shared/api/models";
@@ -19,9 +22,12 @@ export type {
   EngineStatus,
   GetSystemProxyStatusReply,
   HelloReply,
+  NetworkExtensionStatus,
   OutboundGroup,
+  PrepareFeatureReply,
   PrivilegedProviderStatus,
   ProductDiagnosticsReport,
+  RunRepairActionReply,
   StructuredError,
   URLTestResult
 };
@@ -143,6 +149,8 @@ export const api = {
     getCapabilities: () => unwrap(BridgeService.PlatformGetCapabilities(), { capabilities: [] as Capability[] }),
     getPrivilegedProviderStatus: () =>
       unwrap(BridgeService.PlatformGetPrivilegedProviderStatus()),
+    getNetworkExtensionStatus: () => unwrap(BridgeService.PlatformGetNetworkExtensionStatus()),
+    prepareFeature: (feature: string) => unwrap(BridgeService.PlatformPrepareFeature({ feature })),
     runRepairAction: (action: string) => unwrap(BridgeService.PlatformRunRepairAction({ action })),
     getSystemProxyStatus: () => unwrap(BridgeService.PlatformGetSystemProxyStatus()),
     setSystemProxyEnabled: (enabled: boolean) => unwrap(BridgeService.PlatformSetSystemProxyEnabled({ enabled }), {})

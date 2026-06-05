@@ -53,6 +53,7 @@ const (
 	// Platform capabilities
 	MethodPlatformGetCapabilities             = "platform.getCapabilities"
 	MethodPlatformGetPrivilegedProviderStatus = "platform.getPrivilegedProviderStatus"
+	MethodPlatformGetNetworkExtensionStatus   = "platform.getNetworkExtensionStatus"
 	MethodPlatformPrepareFeature              = "platform.prepareFeature"
 	MethodPlatformRunRepairAction             = "platform.runRepairAction"
 	MethodPlatformGetSystemProxyStatus        = "platform.getSystemProxyStatus"
@@ -102,6 +103,7 @@ var MethodRegistry = map[string]struct{}{
 
 	MethodPlatformGetCapabilities:             {},
 	MethodPlatformGetPrivilegedProviderStatus: {},
+	MethodPlatformGetNetworkExtensionStatus:   {},
 	MethodPlatformPrepareFeature:              {},
 	MethodPlatformRunRepairAction:             {},
 	MethodPlatformGetSystemProxyStatus:        {},

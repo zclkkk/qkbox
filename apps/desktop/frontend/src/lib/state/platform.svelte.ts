@@ -1,17 +1,42 @@
 import { api, formatStructuredError, QKBoxApiError } from "../api/client";
-import type { Capability, GetSystemProxyStatusReply, PrivilegedProviderStatus } from "../api/client";
+import type {
+  Capability,
+  GetSystemProxyStatusReply,
+  NetworkExtensionStatus,
+  PrepareFeatureReply,
+  PrivilegedProviderStatus,
+  RunRepairActionReply
+} from "../api/client";
 
 class PlatformState {
   capabilities = $state<Capability[]>([]);
   privilegedProviderStatus = $state<PrivilegedProviderStatus | null>(null);
+  networkExtensionStatus = $state<NetworkExtensionStatus | null>(null);
   proxyStatus = $state<GetSystemProxyStatusReply | null>(null);
+  prepareResults = $state<Record<string, PrepareFeatureReply>>({});
+  repairResults = $state<Record<string, RunRepairActionReply>>({});
   loading = $state(false);
   proxyLoading = $state(false);
+  preparingFeature = $state<string | null>(null);
+  repairingAction = $state<string | null>(null);
   error = $state<string | null>(null);
   proxyError = $state<string | null>(null);
+  platformOS = $state("");
 
-  async refresh() {
-    await Promise.all([this.refreshCapabilities(), this.refreshProviderStatus(), this.refreshProxyStatus()]);
+  async refresh(platformOS = this.platformOS) {
+    this.platformOS = platformOS;
+    this.loading = true;
+    this.error = null;
+    try {
+      await Promise.all([
+        this.refreshCapabilities(),
+        this.refreshProviderStatus(),
+        this.refreshProxyStatus(),
+        this.refreshNetworkExtensionStatus()
+      ]);
+    } finally {
+      this.loading = false;
+    }
   }
 
   async refreshCapabilities() {
@@ -43,14 +68,48 @@ class PlatformState {
     }
   }
 
+  async refreshNetworkExtensionStatus() {
+    if (this.platformOS !== "darwin") {
+      this.networkExtensionStatus = null;
+      return;
+    }
+    try {
+      const reply = await api.platform.getNetworkExtensionStatus();
+      this.networkExtensionStatus = reply.status ?? null;
+    } catch (error) {
+      this.networkExtensionStatus = null;
+      this.capture(error);
+    }
+  }
+
+  async prepareFeature(feature: string) {
+    this.error = null;
+    this.preparingFeature = feature;
+    try {
+      const reply = await api.platform.prepareFeature(feature);
+      this.prepareResults = { ...this.prepareResults, [feature]: reply };
+      await this.refreshCapabilities();
+      await this.refreshProviderStatus();
+      await this.refreshNetworkExtensionStatus();
+    } catch (error) {
+      this.capture(error);
+    } finally {
+      this.preparingFeature = null;
+    }
+  }
+
   async runProviderRepair(action: string) {
     this.error = null;
+    this.repairingAction = action;
     try {
-      await api.platform.runRepairAction(action);
+      const reply = await api.platform.runRepairAction(action);
+      this.repairResults = { ...this.repairResults, [action]: reply };
       await this.refreshProviderStatus();
       await this.refreshCapabilities();
     } catch (error) {
       this.capture(error);
+    } finally {
+      this.repairingAction = null;
     }
   }
 

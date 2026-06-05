@@ -234,6 +234,7 @@ func TestPlatformMethodRegistry(t *testing.T) {
 	newMethods := []string{
 		MethodPlatformGetCapabilities,
 		MethodPlatformGetPrivilegedProviderStatus,
+		MethodPlatformGetNetworkExtensionStatus,
 		MethodPlatformPrepareFeature,
 		MethodPlatformRunRepairAction,
 		MethodPlatformGetSystemProxyStatus,
@@ -309,20 +310,22 @@ func TestPrivilegedProviderStatusJSONShape(t *testing.T) {
 }
 
 func TestNetworkExtensionStatusJSONShape(t *testing.T) {
-	status := NetworkExtensionStatus{
-		Installed:    true,
-		Reachable:    true,
-		Authorized:   true,
-		BundleID:     "dev.qkbox.network-extension",
-		Version:      "0.1.0",
-		OwnerState:   &ProviderOwnerState{Owned: true, SessionID: "session", RuntimeID: "runtime", SnapshotID: "snapshot", Mode: RuntimeModeAppleNetworkExtension},
-		Capabilities: []Capability{{Name: CapabilityTunMode, State: CapabilityAvailable}},
+	reply := GetNetworkExtensionStatusReply{
+		Status: NetworkExtensionStatus{
+			Installed:    true,
+			Reachable:    true,
+			Authorized:   true,
+			BundleID:     "dev.qkbox.network-extension",
+			Version:      "0.1.0",
+			OwnerState:   &ProviderOwnerState{Owned: true, SessionID: "session", RuntimeID: "runtime", SnapshotID: "snapshot", Mode: RuntimeModeAppleNetworkExtension},
+			Capabilities: []Capability{{Name: CapabilityTunMode, State: CapabilityAvailable}},
+		},
 	}
-	got, err := json.Marshal(status)
+	got, err := json.Marshal(reply)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, needle := range []string{`"installed"`, `"reachable"`, `"authorized"`, `"bundle_id"`, `"owner_state"`, `"capabilities"`, `"apple_network_extension"`} {
+	for _, needle := range []string{`"status"`, `"installed"`, `"reachable"`, `"authorized"`, `"bundle_id"`, `"owner_state"`, `"capabilities"`, `"apple_network_extension"`} {
 		if !contains(string(got), needle) {
 			t.Fatalf("expected %s in %s", needle, got)
 		}

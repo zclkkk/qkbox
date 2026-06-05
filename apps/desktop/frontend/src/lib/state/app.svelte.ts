@@ -28,9 +28,10 @@ class AppState {
     }
 
     if (ready) {
+      const platformOS = this.hello?.platform.os ?? "";
       await Promise.all([
         engineState.refresh(),
-        platformState.refresh(),
+        platformState.refresh(platformOS),
         profileState.refresh(),
         assetState.refresh(),
         diagnosticsState.refresh()

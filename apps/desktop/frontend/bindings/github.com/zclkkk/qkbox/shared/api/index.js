@@ -66,6 +66,8 @@ export {
     GetActiveSnapshotResult,
     GetDiagnosticsReportReply,
     GetDiagnosticsReportResult,
+    GetNetworkExtensionStatusReply,
+    GetNetworkExtensionStatusResult,
     GetPlatformCapabilitiesReply,
     GetPlatformCapabilitiesResult,
     GetPrivilegedProviderStatusReply,

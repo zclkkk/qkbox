@@ -3,11 +3,12 @@ package qkboxd
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/zclkkk/qkbox/internal/persistence"
 	"github.com/zclkkk/qkbox/platform/capability"
 	"github.com/zclkkk/qkbox/shared/api"
-	"sync"
-	"time"
 )
 
 type PlatformService struct {
@@ -221,6 +222,14 @@ func (s *PlatformService) PlatformGetPrivilegedProviderStatus(ctx context.Contex
 		}, nil
 	}
 	return api.GetPrivilegedProviderStatusReply{Status: s.privileged.Status(ctx)}, nil
+}
+
+func (s *PlatformService) PlatformGetNetworkExtensionStatus(ctx context.Context, _ api.GetNetworkExtensionStatusRequest) (api.GetNetworkExtensionStatusReply, *api.StructuredError) {
+	status := api.NetworkExtensionStatus{Reason: "NetworkExtension runtime is not configured."}
+	if s.extension != nil {
+		status = s.extension.Status(ctx)
+	}
+	return api.GetNetworkExtensionStatusReply{Status: status}, nil
 }
 
 func (s *PlatformService) PlatformPrepareFeature(ctx context.Context, req api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError) {

@@ -195,6 +195,10 @@ func (c *Client) PlatformGetPrivilegedProviderStatus(ctx context.Context, req ap
 	return do[api.GetPrivilegedProviderStatusRequest, api.GetPrivilegedProviderStatusReply](c, ctx, api.MethodPlatformGetPrivilegedProviderStatus, req)
 }
 
+func (c *Client) PlatformGetNetworkExtensionStatus(ctx context.Context, req api.GetNetworkExtensionStatusRequest) (api.GetNetworkExtensionStatusReply, *api.StructuredError) {
+	return do[api.GetNetworkExtensionStatusRequest, api.GetNetworkExtensionStatusReply](c, ctx, api.MethodPlatformGetNetworkExtensionStatus, req)
+}
+
 func (c *Client) PlatformPrepareFeature(ctx context.Context, req api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError) {
 	return do[api.PrepareFeatureRequest, api.PrepareFeatureReply](c, ctx, api.MethodPlatformPrepareFeature, req)
 }

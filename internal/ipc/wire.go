@@ -54,6 +54,7 @@ func newRegistry(handler Handler) *ipcframework.Registry {
 
 	ipcframework.RegisterMethod(registry, api.MethodPlatformGetCapabilities, handler.PlatformGetCapabilities)
 	ipcframework.RegisterMethod(registry, api.MethodPlatformGetPrivilegedProviderStatus, handler.PlatformGetPrivilegedProviderStatus)
+	ipcframework.RegisterMethod(registry, api.MethodPlatformGetNetworkExtensionStatus, handler.PlatformGetNetworkExtensionStatus)
 	ipcframework.RegisterMethod(registry, api.MethodPlatformPrepareFeature, handler.PlatformPrepareFeature)
 	ipcframework.RegisterMethod(registry, api.MethodPlatformRunRepairAction, handler.PlatformRunRepairAction)
 	ipcframework.RegisterMethod(registry, api.MethodPlatformGetSystemProxyStatus, handler.PlatformGetSystemProxyStatus)

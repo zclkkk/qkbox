@@ -64,6 +64,7 @@ type Handler interface {
 	// Platform capabilities
 	PlatformGetCapabilities(context.Context, api.GetPlatformCapabilitiesRequest) (api.GetPlatformCapabilitiesReply, *api.StructuredError)
 	PlatformGetPrivilegedProviderStatus(context.Context, api.GetPrivilegedProviderStatusRequest) (api.GetPrivilegedProviderStatusReply, *api.StructuredError)
+	PlatformGetNetworkExtensionStatus(context.Context, api.GetNetworkExtensionStatusRequest) (api.GetNetworkExtensionStatusReply, *api.StructuredError)
 	PlatformPrepareFeature(context.Context, api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError)
 	PlatformRunRepairAction(context.Context, api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError)
 	PlatformGetSystemProxyStatus(context.Context, api.GetSystemProxyStatusRequest) (api.GetSystemProxyStatusReply, *api.StructuredError)

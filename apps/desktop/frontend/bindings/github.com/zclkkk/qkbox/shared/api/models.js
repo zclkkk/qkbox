@@ -2455,6 +2455,81 @@ export class GetDiagnosticsReportResult {
     }
 }
 
+export class GetNetworkExtensionStatusReply {
+    /**
+     * Creates a new GetNetworkExtensionStatusReply instance.
+     * @param {Partial<GetNetworkExtensionStatusReply>} [$$source = {}] - The source object to create the GetNetworkExtensionStatusReply.
+     */
+    constructor($$source = {}) {
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {NetworkExtensionStatus}
+             */
+            this["status"] = (new NetworkExtensionStatus());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetNetworkExtensionStatusReply instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {GetNetworkExtensionStatusReply}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType62;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField0_0($$parsedSource["status"]);
+        }
+        return new GetNetworkExtensionStatusReply(/** @type {Partial<GetNetworkExtensionStatusReply>} */($$parsedSource));
+    }
+}
+
+export class GetNetworkExtensionStatusResult {
+    /**
+     * Creates a new GetNetworkExtensionStatusResult instance.
+     * @param {Partial<GetNetworkExtensionStatusResult>} [$$source = {}] - The source object to create the GetNetworkExtensionStatusResult.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {GetNetworkExtensionStatusReply | null | undefined}
+             */
+            this["reply"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {StructuredError | null | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetNetworkExtensionStatusResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {GetNetworkExtensionStatusResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType64;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reply" in $$parsedSource) {
+            $$parsedSource["reply"] = $$createField0_0($$parsedSource["reply"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        return new GetNetworkExtensionStatusResult(/** @type {Partial<GetNetworkExtensionStatusResult>} */($$parsedSource));
+    }
+}
+
 export class GetPlatformCapabilitiesReply {
     /**
      * Creates a new GetPlatformCapabilitiesReply instance.
@@ -2517,7 +2592,7 @@ export class GetPlatformCapabilitiesResult {
      * @returns {GetPlatformCapabilitiesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType63;
+        const $$createField0_0 = $$createType66;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2553,7 +2628,7 @@ export class GetPrivilegedProviderStatusReply {
      * @returns {GetPrivilegedProviderStatusReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType64;
+        const $$createField0_0 = $$createType67;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField0_0($$parsedSource["status"]);
@@ -2592,7 +2667,7 @@ export class GetPrivilegedProviderStatusResult {
      * @returns {GetPrivilegedProviderStatusResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType66;
+        const $$createField0_0 = $$createType69;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2702,7 +2777,7 @@ export class GetProfileResult {
      * @returns {GetProfileResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType68;
+        const $$createField0_0 = $$createType71;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2815,7 +2890,7 @@ export class GetSystemProxyStatusResult {
      * @returns {GetSystemProxyStatusResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType70;
+        const $$createField0_0 = $$createType73;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2900,7 +2975,7 @@ export class HelloReply {
      * @returns {HelloReply}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType71;
+        const $$createField5_0 = $$createType74;
         const $$createField6_0 = $$createType32;
         const $$createField7_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -2947,7 +3022,7 @@ export class HelloResult {
      * @returns {HelloResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType73;
+        const $$createField0_0 = $$createType76;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -2983,7 +3058,7 @@ export class ListDataAssetsReply {
      * @returns {ListDataAssetsReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType74;
+        const $$createField0_0 = $$createType77;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("assets" in $$parsedSource) {
             $$parsedSource["assets"] = $$createField0_0($$parsedSource["assets"]);
@@ -3050,7 +3125,7 @@ export class ListDataAssetsResult {
      * @returns {ListDataAssetsResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType76;
+        const $$createField0_0 = $$createType79;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -3086,7 +3161,7 @@ export class ListProfileSubscriptionsReply {
      * @returns {ListProfileSubscriptionsReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType77;
+        const $$createField0_0 = $$createType80;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subscriptions" in $$parsedSource) {
             $$parsedSource["subscriptions"] = $$createField0_0($$parsedSource["subscriptions"]);
@@ -3153,7 +3228,7 @@ export class ListProfileSubscriptionsResult {
      * @returns {ListProfileSubscriptionsResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType79;
+        const $$createField0_0 = $$createType82;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -3189,7 +3264,7 @@ export class ListProfilesReply {
      * @returns {ListProfilesReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType81;
+        const $$createField0_0 = $$createType84;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField0_0($$parsedSource["profiles"]);
@@ -3228,7 +3303,7 @@ export class ListProfilesResult {
      * @returns {ListProfilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType83;
+        const $$createField0_0 = $$createType86;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -3264,7 +3339,7 @@ export class ListSnapshotsReply {
      * @returns {ListSnapshotsReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType85;
+        const $$createField0_0 = $$createType88;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("snapshots" in $$parsedSource) {
             $$parsedSource["snapshots"] = $$createField0_0($$parsedSource["snapshots"]);
@@ -3331,7 +3406,7 @@ export class ListSnapshotsResult {
      * @returns {ListSnapshotsResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType87;
+        const $$createField0_0 = $$createType90;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -3416,7 +3491,7 @@ export class NetworkExtensionStatus {
      * @returns {NetworkExtensionStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType89;
+        const $$createField5_0 = $$createType92;
         const $$createField6_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("owner_state" in $$parsedSource) {
@@ -3473,7 +3548,7 @@ export class OutboundGroup {
      * @returns {OutboundGroup}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType91;
+        const $$createField3_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("outbounds" in $$parsedSource) {
             $$parsedSource["outbounds"] = $$createField3_0($$parsedSource["outbounds"]);
@@ -3624,7 +3699,7 @@ export class PrepareFeatureResult {
      * @returns {PrepareFeatureResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType93;
+        const $$createField0_0 = $$createType96;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -3716,7 +3791,7 @@ export class PrivilegedProviderStatus {
      * @returns {PrivilegedProviderStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType89;
+        const $$createField6_0 = $$createType92;
         const $$createField7_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("owner_state" in $$parsedSource) {
@@ -3885,17 +3960,17 @@ export class ProductDiagnosticsReport {
      * @returns {ProductDiagnosticsReport}
      */
     static createFrom($$source = {}) {
-        const $$createField7_0 = $$createType71;
+        const $$createField7_0 = $$createType74;
         const $$createField8_0 = $$createType35;
         const $$createField9_0 = $$createType32;
         const $$createField10_0 = $$createType32;
-        const $$createField11_0 = $$createType64;
-        const $$createField12_0 = $$createType95;
-        const $$createField13_0 = $$createType70;
+        const $$createField11_0 = $$createType67;
+        const $$createField12_0 = $$createType97;
+        const $$createField13_0 = $$createType73;
         const $$createField14_0 = $$createType3;
-        const $$createField17_0 = $$createType97;
-        const $$createField18_0 = $$createType99;
-        const $$createField19_0 = $$createType101;
+        const $$createField17_0 = $$createType99;
+        const $$createField18_0 = $$createType101;
+        const $$createField19_0 = $$createType103;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("platform" in $$parsedSource) {
             $$parsedSource["platform"] = $$createField7_0($$parsedSource["platform"]);
@@ -4126,7 +4201,7 @@ export class RefreshDataAssetResult {
      * @returns {RefreshDataAssetResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType103;
+        const $$createField0_0 = $$createType105;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4170,7 +4245,7 @@ export class RefreshProfileSubscriptionReply {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType17;
-        const $$createField1_0 = $$createType104;
+        const $$createField1_0 = $$createType106;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subscription" in $$parsedSource) {
             $$parsedSource["subscription"] = $$createField0_0($$parsedSource["subscription"]);
@@ -4240,7 +4315,7 @@ export class RefreshProfileSubscriptionResult {
      * @returns {RefreshProfileSubscriptionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType106;
+        const $$createField0_0 = $$createType108;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4353,7 +4428,7 @@ export class RollbackToSnapshotResult {
      * @returns {RollbackToSnapshotResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType108;
+        const $$createField0_0 = $$createType110;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4466,7 +4541,7 @@ export class RunRepairActionResult {
      * @returns {RunRepairActionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType110;
+        const $$createField0_0 = $$createType112;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4530,7 +4605,7 @@ export class RuntimeEventBridgeStartResult {
      * @returns {RuntimeEventBridgeStartResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType112;
+        const $$createField0_0 = $$createType114;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4594,7 +4669,7 @@ export class RuntimeEventBridgeStopResult {
      * @returns {RuntimeEventBridgeStopResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType114;
+        const $$createField0_0 = $$createType116;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4686,7 +4761,7 @@ export class SetSystemProxyEnabledResult {
      * @returns {SetSystemProxyEnabledResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType116;
+        const $$createField0_0 = $$createType118;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4915,7 +4990,7 @@ export class UpdateProfileDraftResult {
      * @returns {UpdateProfileDraftResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType118;
+        const $$createField0_0 = $$createType120;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -4951,7 +5026,7 @@ export class ValidateProfileDraftReply {
      * @returns {ValidateProfileDraftReply}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType104;
+        const $$createField0_0 = $$createType106;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("diagnostics" in $$parsedSource) {
             $$parsedSource["diagnostics"] = $$createField0_0($$parsedSource["diagnostics"]);
@@ -5018,7 +5093,7 @@ export class ValidateProfileDraftResult {
      * @returns {ValidateProfileDraftResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType120;
+        const $$createField0_0 = $$createType122;
         const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply" in $$parsedSource) {
@@ -5094,62 +5169,64 @@ const $$createType58 = GetActiveSnapshotReply.createFrom;
 const $$createType59 = $Create.Nullable($$createType58);
 const $$createType60 = GetDiagnosticsReportReply.createFrom;
 const $$createType61 = $Create.Nullable($$createType60);
-const $$createType62 = GetPlatformCapabilitiesReply.createFrom;
-const $$createType63 = $Create.Nullable($$createType62);
-const $$createType64 = PrivilegedProviderStatus.createFrom;
-const $$createType65 = GetPrivilegedProviderStatusReply.createFrom;
+const $$createType62 = NetworkExtensionStatus.createFrom;
+const $$createType63 = GetNetworkExtensionStatusReply.createFrom;
+const $$createType64 = $Create.Nullable($$createType63);
+const $$createType65 = GetPlatformCapabilitiesReply.createFrom;
 const $$createType66 = $Create.Nullable($$createType65);
-const $$createType67 = GetProfileReply.createFrom;
-const $$createType68 = $Create.Nullable($$createType67);
-const $$createType69 = GetSystemProxyStatusReply.createFrom;
-const $$createType70 = $Create.Nullable($$createType69);
-const $$createType71 = model$0.Platform.createFrom;
-const $$createType72 = HelloReply.createFrom;
+const $$createType67 = PrivilegedProviderStatus.createFrom;
+const $$createType68 = GetPrivilegedProviderStatusReply.createFrom;
+const $$createType69 = $Create.Nullable($$createType68);
+const $$createType70 = GetProfileReply.createFrom;
+const $$createType71 = $Create.Nullable($$createType70);
+const $$createType72 = GetSystemProxyStatusReply.createFrom;
 const $$createType73 = $Create.Nullable($$createType72);
-const $$createType74 = $Create.Array($$createType4);
-const $$createType75 = ListDataAssetsReply.createFrom;
+const $$createType74 = model$0.Platform.createFrom;
+const $$createType75 = HelloReply.createFrom;
 const $$createType76 = $Create.Nullable($$createType75);
-const $$createType77 = $Create.Array($$createType17);
-const $$createType78 = ListProfileSubscriptionsReply.createFrom;
+const $$createType77 = $Create.Array($$createType4);
+const $$createType78 = ListDataAssetsReply.createFrom;
 const $$createType79 = $Create.Nullable($$createType78);
-const $$createType80 = model$0.ProfileSummary.createFrom;
-const $$createType81 = $Create.Array($$createType80);
-const $$createType82 = ListProfilesReply.createFrom;
-const $$createType83 = $Create.Nullable($$createType82);
-const $$createType84 = model$0.SnapshotSummary.createFrom;
-const $$createType85 = $Create.Array($$createType84);
-const $$createType86 = ListSnapshotsReply.createFrom;
-const $$createType87 = $Create.Nullable($$createType86);
-const $$createType88 = ProviderOwnerState.createFrom;
-const $$createType89 = $Create.Nullable($$createType88);
-const $$createType90 = OutboundOption.createFrom;
-const $$createType91 = $Create.Array($$createType90);
-const $$createType92 = PrepareFeatureReply.createFrom;
-const $$createType93 = $Create.Nullable($$createType92);
-const $$createType94 = NetworkExtensionStatus.createFrom;
-const $$createType95 = $Create.Nullable($$createType94);
-const $$createType96 = DiagnosticSubscriptionSummary.createFrom;
-const $$createType97 = $Create.Array($$createType96);
-const $$createType98 = DiagnosticAssetSummary.createFrom;
+const $$createType80 = $Create.Array($$createType17);
+const $$createType81 = ListProfileSubscriptionsReply.createFrom;
+const $$createType82 = $Create.Nullable($$createType81);
+const $$createType83 = model$0.ProfileSummary.createFrom;
+const $$createType84 = $Create.Array($$createType83);
+const $$createType85 = ListProfilesReply.createFrom;
+const $$createType86 = $Create.Nullable($$createType85);
+const $$createType87 = model$0.SnapshotSummary.createFrom;
+const $$createType88 = $Create.Array($$createType87);
+const $$createType89 = ListSnapshotsReply.createFrom;
+const $$createType90 = $Create.Nullable($$createType89);
+const $$createType91 = ProviderOwnerState.createFrom;
+const $$createType92 = $Create.Nullable($$createType91);
+const $$createType93 = OutboundOption.createFrom;
+const $$createType94 = $Create.Array($$createType93);
+const $$createType95 = PrepareFeatureReply.createFrom;
+const $$createType96 = $Create.Nullable($$createType95);
+const $$createType97 = $Create.Nullable($$createType62);
+const $$createType98 = DiagnosticSubscriptionSummary.createFrom;
 const $$createType99 = $Create.Array($$createType98);
-const $$createType100 = DiagnosticCheck.createFrom;
+const $$createType100 = DiagnosticAssetSummary.createFrom;
 const $$createType101 = $Create.Array($$createType100);
-const $$createType102 = RefreshDataAssetReply.createFrom;
-const $$createType103 = $Create.Nullable($$createType102);
-const $$createType104 = model$0.Diagnostics.createFrom;
-const $$createType105 = RefreshProfileSubscriptionReply.createFrom;
-const $$createType106 = $Create.Nullable($$createType105);
-const $$createType107 = RollbackToSnapshotReply.createFrom;
+const $$createType102 = DiagnosticCheck.createFrom;
+const $$createType103 = $Create.Array($$createType102);
+const $$createType104 = RefreshDataAssetReply.createFrom;
+const $$createType105 = $Create.Nullable($$createType104);
+const $$createType106 = model$0.Diagnostics.createFrom;
+const $$createType107 = RefreshProfileSubscriptionReply.createFrom;
 const $$createType108 = $Create.Nullable($$createType107);
-const $$createType109 = RunRepairActionReply.createFrom;
+const $$createType109 = RollbackToSnapshotReply.createFrom;
 const $$createType110 = $Create.Nullable($$createType109);
-const $$createType111 = RuntimeEventBridgeStartReply.createFrom;
+const $$createType111 = RunRepairActionReply.createFrom;
 const $$createType112 = $Create.Nullable($$createType111);
-const $$createType113 = RuntimeEventBridgeStopReply.createFrom;
+const $$createType113 = RuntimeEventBridgeStartReply.createFrom;
 const $$createType114 = $Create.Nullable($$createType113);
-const $$createType115 = SetSystemProxyEnabledReply.createFrom;
+const $$createType115 = RuntimeEventBridgeStopReply.createFrom;
 const $$createType116 = $Create.Nullable($$createType115);
-const $$createType117 = UpdateProfileDraftReply.createFrom;
+const $$createType117 = SetSystemProxyEnabledReply.createFrom;
 const $$createType118 = $Create.Nullable($$createType117);
-const $$createType119 = ValidateProfileDraftReply.createFrom;
+const $$createType119 = UpdateProfileDraftReply.createFrom;
 const $$createType120 = $Create.Nullable($$createType119);
+const $$createType121 = ValidateProfileDraftReply.createFrom;
+const $$createType122 = $Create.Nullable($$createType121);
