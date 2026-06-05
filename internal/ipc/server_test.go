@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zclkkk/qkbox/internal/ipcframework"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
@@ -21,7 +22,8 @@ func TestSubscriptionWritesAckEventAndCancels(t *testing.T) {
 			t.Errorf("read request: %v", err)
 			return
 		}
-		serveSubscription(serverConn, req, func(ctx context.Context, _ api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
+		registry := ipcframework.NewRegistry("qkboxd")
+		ipcframework.RegisterSubscription(registry, api.MethodEngineSubscribeStatus, api.SubscriptionAck{}, func(ctx context.Context, _ api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {
 			events := make(chan api.RuntimeEvent, 1)
 			events <- api.RuntimeEvent{Event: api.EventEngineStatus, Data: api.EngineStatus{State: "STARTED"}}
 			go func() {
@@ -29,7 +31,13 @@ func TestSubscriptionWritesAckEventAndCancels(t *testing.T) {
 				close(cancelled)
 			}()
 			return events, nil
-		}, context.Background())
+		})
+		handler, ok := registry.Subscription(req.Method)
+		if !ok {
+			t.Errorf("missing subscription handler")
+			return
+		}
+		serveSubscription(serverConn, req, handler, context.Background())
 	}()
 
 	if err := WriteFrame(clientConn, Request{ID: "sub_1", Method: api.MethodEngineSubscribeStatus, Params: []byte(`{}`)}); err != nil {

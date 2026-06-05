@@ -7,6 +7,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/zclkkk/qkbox/internal/ipcframework"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
@@ -70,11 +71,11 @@ type Handler interface {
 }
 
 type Server struct {
-	handler Handler
+	registry *ipcframework.Registry
 }
 
 func NewServer(handler Handler) *Server {
-	return &Server{handler: handler}
+	return &Server{registry: newRegistry(handler)}
 }
 
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
@@ -109,122 +110,28 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	switch req.Method {
-	case api.MethodHello:
-		dispatch(conn, req, s.handler.Hello, ctx)
-
-	case api.MethodCreateProfile:
-		dispatch(conn, req, s.handler.CreateProfile, ctx)
-	case api.MethodUpdateProfileDraft:
-		dispatch(conn, req, s.handler.UpdateProfileDraft, ctx)
-	case api.MethodDeleteProfile:
-		dispatch(conn, req, s.handler.DeleteProfile, ctx)
-	case api.MethodListProfiles:
-		dispatch(conn, req, s.handler.ListProfiles, ctx)
-	case api.MethodGetProfile:
-		dispatch(conn, req, s.handler.GetProfile, ctx)
-
-	case api.MethodAssetCreateProfileSubscription:
-		dispatch(conn, req, s.handler.CreateProfileSubscription, ctx)
-	case api.MethodAssetListProfileSubscriptions:
-		dispatch(conn, req, s.handler.ListProfileSubscriptions, ctx)
-	case api.MethodAssetRefreshProfileSubscription:
-		dispatch(conn, req, s.handler.RefreshProfileSubscription, ctx)
-	case api.MethodAssetDeleteProfileSubscription:
-		dispatch(conn, req, s.handler.DeleteProfileSubscription, ctx)
-	case api.MethodAssetCreateDataAsset:
-		dispatch(conn, req, s.handler.CreateDataAsset, ctx)
-	case api.MethodAssetListDataAssets:
-		dispatch(conn, req, s.handler.ListDataAssets, ctx)
-	case api.MethodAssetRefreshDataAsset:
-		dispatch(conn, req, s.handler.RefreshDataAsset, ctx)
-	case api.MethodAssetDeleteDataAsset:
-		dispatch(conn, req, s.handler.DeleteDataAsset, ctx)
-	case api.MethodDiagnosticsGetReport:
-		dispatch(conn, req, s.handler.DiagnosticsGetReport, ctx)
-	case api.MethodDiagnosticsCreateDebugBundle:
-		dispatch(conn, req, s.handler.DiagnosticsCreateDebugBundle, ctx)
-
-	case api.MethodValidateProfileDraft:
-		dispatch(conn, req, s.handler.ValidateProfileDraft, ctx)
-	case api.MethodGetProfileDiagnostics:
-		dispatch(conn, req, s.handler.GetProfileDiagnostics, ctx)
-	case api.MethodCreateProfileSnapshot:
-		dispatch(conn, req, s.handler.CreateProfileSnapshot, ctx)
-	case api.MethodActivateProfileSnapshot:
-		dispatch(conn, req, s.handler.ActivateProfileSnapshot, ctx)
-	case api.MethodGetActiveProfile:
-		dispatch(conn, req, s.handler.GetActiveProfile, ctx)
-	case api.MethodGetActiveSnapshot:
-		dispatch(conn, req, s.handler.GetActiveSnapshot, ctx)
-	case api.MethodListSnapshots:
-		dispatch(conn, req, s.handler.ListSnapshots, ctx)
-	case api.MethodRollbackToSnapshot:
-		dispatch(conn, req, s.handler.RollbackToSnapshot, ctx)
-
-	case api.MethodEngineStart:
-		dispatch(conn, req, s.handler.EngineStart, ctx)
-	case api.MethodEngineStop:
-		dispatch(conn, req, s.handler.EngineStop, ctx)
-	case api.MethodEngineReload:
-		dispatch(conn, req, s.handler.EngineReload, ctx)
-	case api.MethodEngineGetStatus:
-		dispatch(conn, req, s.handler.EngineGetStatus, ctx)
-	case api.MethodEngineSubscribeStatus:
-		serveSubscription(conn, req, s.handler.EngineSubscribeStatus, ctx)
-	case api.MethodEngineSubscribeLogs:
-		serveSubscription(conn, req, s.handler.EngineSubscribeLogs, ctx)
-	case api.MethodEngineSubscribeTraffic:
-		serveSubscription(conn, req, s.handler.EngineSubscribeTraffic, ctx)
-	case api.MethodEngineSubscribeConnections:
-		serveSubscription(conn, req, s.handler.EngineSubscribeConnections, ctx)
-	case api.MethodEngineGetRuntimeCapabilities:
-		dispatch(conn, req, s.handler.EngineGetRuntimeCapabilities, ctx)
-	case api.MethodEngineListGroups:
-		dispatch(conn, req, s.handler.EngineListGroups, ctx)
-	case api.MethodEngineSelectOutbound:
-		dispatch(conn, req, s.handler.EngineSelectOutbound, ctx)
-	case api.MethodEngineURLTest:
-		dispatch(conn, req, s.handler.EngineURLTest, ctx)
-	case api.MethodEngineCloseConnection:
-		dispatch(conn, req, s.handler.EngineCloseConnection, ctx)
-	case api.MethodEngineCloseAllConnections:
-		dispatch(conn, req, s.handler.EngineCloseAllConnections, ctx)
-
-	case api.MethodPlatformGetCapabilities:
-		dispatch(conn, req, s.handler.PlatformGetCapabilities, ctx)
-	case api.MethodPlatformGetPrivilegedProviderStatus:
-		dispatch(conn, req, s.handler.PlatformGetPrivilegedProviderStatus, ctx)
-	case api.MethodPlatformPrepareFeature:
-		dispatch(conn, req, s.handler.PlatformPrepareFeature, ctx)
-	case api.MethodPlatformRunRepairAction:
-		dispatch(conn, req, s.handler.PlatformRunRepairAction, ctx)
-	case api.MethodPlatformGetSystemProxyStatus:
-		dispatch(conn, req, s.handler.PlatformGetSystemProxyStatus, ctx)
-	case api.MethodPlatformSetSystemProxyEnabled:
-		dispatch(conn, req, s.handler.PlatformSetSystemProxyEnabled, ctx)
-
-	default:
-		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown IPC method.", "qkboxd", false))
+	if handler, ok := s.registry.Method(req.Method); ok {
+		dispatch(conn, req, handler, ctx)
+		return
 	}
-}
-
-func serveSubscription[Req any](conn net.Conn, req Request, fn func(context.Context, Req) (<-chan api.RuntimeEvent, *api.StructuredError), ctx context.Context) {
-	var params Req
-	if err := json.Unmarshal(req.Params, &params); err != nil {
-		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", true))
+	if handler, ok := s.registry.Subscription(req.Method); ok {
+		serveSubscription(conn, req, handler, ctx)
 		return
 	}
 
+	writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown IPC method.", "qkboxd", false))
+}
+
+func serveSubscription(conn net.Conn, req Request, handler ipcframework.SubscriptionHandler, ctx context.Context) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	events, structured := fn(subCtx, params)
+	events, ack, structured := handler(subCtx, req.Params)
 	if structured != nil {
 		writeError(conn, req.ID, structured)
 		return
 	}
-	writeResult(conn, req.ID, api.SubscriptionAck{})
+	writeResult(conn, req.ID, ack)
 
 	go func() {
 		var discard Request
@@ -247,16 +154,11 @@ func serveSubscription[Req any](conn net.Conn, req Request, fn func(context.Cont
 	}
 }
 
-func dispatch[Req any, Reply any](conn net.Conn, req Request, fn func(context.Context, Req) (Reply, *api.StructuredError), ctx context.Context) {
-	var params Req
-	if err := json.Unmarshal(req.Params, &params); err != nil {
-		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "qkboxd", true))
-		return
-	}
+func dispatch(conn net.Conn, req Request, handler ipcframework.MethodHandler, ctx context.Context) {
 	reqCtx, cancel := requestLifetimeContext(ctx, conn)
 	defer cancel()
 
-	reply, structured := fn(reqCtx, params)
+	reply, structured := handler(reqCtx, req.Params)
 	if structured != nil {
 		writeError(conn, req.ID, structured)
 		return

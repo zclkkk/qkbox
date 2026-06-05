@@ -7,9 +7,9 @@ cross-platform client without changing the core product boundary:
 Wails GUI -> qkboxd product API -> RuntimeOwner -> sing-box runtime boundary
 ```
 
-The plan is intentionally target-shaped. It does not preserve historical phase
-structure, and it does not introduce temporary compatibility layers that later
-milestones are expected to delete.
+The plan is organized around the desired product architecture. It does not
+introduce temporary compatibility layers that later milestones are expected to
+delete.
 
 ## Non-Negotiable Boundaries
 

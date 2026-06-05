@@ -2,13 +2,13 @@ package provideripc
 
 import (
 	"context"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/zclkkk/qkbox/internal/ipcframework"
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
@@ -36,12 +36,12 @@ type Handler interface {
 
 type Server struct {
 	token     string
-	handler   Handler
+	registry  *ipcframework.Registry
 	ioTimeout time.Duration
 }
 
 func NewServer(token string, handler Handler) *Server {
-	return &Server{token: token, handler: handler, ioTimeout: defaultServerIOTimeout}
+	return &Server{token: token, registry: newRegistry(handler), ioTimeout: defaultServerIOTimeout}
 }
 
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
@@ -112,44 +112,16 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	switch req.Method {
-	case MethodGetStatus:
-		dispatch(conn, req, s.handler.GetStatus, ctx)
-	case MethodPrepareFeature:
-		dispatch(conn, req, s.handler.PrepareFeature, ctx)
-	case MethodRunRepairAction:
-		dispatch(conn, req, s.handler.RunRepairAction, ctx)
-	case MethodRuntimeStart:
-		dispatch(conn, req, s.handler.RuntimeStart, ctx)
-	case MethodRuntimeStop:
-		dispatch(conn, req, s.handler.RuntimeStop, ctx)
-	case MethodRuntimeHeartbeat:
-		dispatch(conn, req, s.handler.RuntimeHeartbeat, ctx)
-	case MethodRuntimeGetStatus:
-		dispatch(conn, req, s.handler.RuntimeGetStatus, ctx)
-	case MethodRuntimeGetRuntimeCapabilities:
-		dispatch(conn, req, s.handler.RuntimeGetRuntimeCapabilities, ctx)
-	case MethodRuntimeGetTraffic:
-		dispatch(conn, req, s.handler.RuntimeGetTraffic, ctx)
-	case MethodRuntimeGetConnections:
-		dispatch(conn, req, s.handler.RuntimeGetConnections, ctx)
-	case MethodRuntimeListGroups:
-		dispatch(conn, req, s.handler.RuntimeListGroups, ctx)
-	case MethodRuntimeSelectOutbound:
-		dispatch(conn, req, s.handler.RuntimeSelectOutbound, ctx)
-	case MethodRuntimeURLTest:
-		dispatch(conn, req, s.handler.RuntimeURLTest, ctx)
-	case MethodRuntimeCloseConnection:
-		dispatch(conn, req, s.handler.RuntimeCloseConnection, ctx)
-	case MethodRuntimeCloseAllConnections:
-		dispatch(conn, req, s.handler.RuntimeCloseAllConnections, ctx)
-	case MethodRuntimeListenerInfo:
-		dispatch(conn, req, s.handler.RuntimeListenerInfo, ctx)
-	case MethodRuntimeSubscribeEvents:
-		serveSubscription(conn, req, s.handler.RuntimeSubscribeEvents, ctx)
-	default:
-		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown provider method.", "provider", false))
+	if handler, ok := s.registry.Method(req.Method); ok {
+		dispatch(conn, req, handler, ctx)
+		return
 	}
+	if handler, ok := s.registry.Subscription(req.Method); ok {
+		serveSubscription(conn, req, handler, ctx)
+		return
+	}
+
+	writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCMethodNotFound, "Unknown provider method.", "provider", false))
 }
 
 func (s *Server) authenticate(conn net.Conn) bool {
@@ -168,7 +140,7 @@ func (s *Server) authenticate(conn net.Conn) bool {
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "provider", true))
 		return false
 	}
-	if auth.Token == "" || subtle.ConstantTimeCompare([]byte(auth.Token), []byte(s.token)) != 1 {
+	if !ipcframework.TokenMatches(auth.Token, s.token) {
 		writeError(conn, req.ID, api.NewStructuredError(api.ErrorPlatformProviderAuthFailed, "Privileged provider authentication failed.", "provider", false))
 		return false
 	}
@@ -184,13 +156,8 @@ func (s *Server) setReadDeadline(conn net.Conn) {
 	_ = conn.SetReadDeadline(time.Now().Add(timeout))
 }
 
-func dispatch[Req any, Reply any](conn net.Conn, req Request, fn func(context.Context, Req) (Reply, *api.StructuredError), ctx context.Context) {
-	var params Req
-	if err := json.Unmarshal(req.Params, &params); err != nil {
-		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "provider", true))
-		return
-	}
-	reply, structured := fn(ctx, params)
+func dispatch(conn net.Conn, req Request, handler ipcframework.MethodHandler, ctx context.Context) {
+	reply, structured := handler(ctx, req.Params)
 	if structured != nil {
 		writeError(conn, req.ID, structured)
 		return
@@ -198,22 +165,16 @@ func dispatch[Req any, Reply any](conn net.Conn, req Request, fn func(context.Co
 	writeResult(conn, req.ID, reply)
 }
 
-func serveSubscription[Req any](conn net.Conn, req Request, fn func(context.Context, Req) (<-chan api.RuntimeEvent, *api.StructuredError), ctx context.Context) {
-	var params Req
-	if err := json.Unmarshal(req.Params, &params); err != nil {
-		writeError(conn, req.ID, api.NewStructuredError(api.ErrorIPCInvalidRequest, err.Error(), "provider", true))
-		return
-	}
-
+func serveSubscription(conn net.Conn, req Request, handler ipcframework.SubscriptionHandler, ctx context.Context) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	events, structured := fn(subCtx, params)
+	events, ack, structured := handler(subCtx, req.Params)
 	if structured != nil {
 		writeError(conn, req.ID, structured)
 		return
 	}
-	writeResult(conn, req.ID, RuntimeSubscribeEventsReply{})
+	writeResult(conn, req.ID, ack)
 	_ = conn.SetReadDeadline(time.Time{})
 
 	go func() {

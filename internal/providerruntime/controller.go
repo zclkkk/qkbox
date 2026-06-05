@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zclkkk/qkbox/internal/eventhub"
 	"github.com/zclkkk/qkbox/internal/provideripc"
 	"github.com/zclkkk/qkbox/internal/singboxadapter"
 	"github.com/zclkkk/qkbox/shared/api"
@@ -19,7 +20,7 @@ type Controller struct {
 	stateDir          string
 	available         bool
 	unavailableReason string
-	events            *eventHub
+	events            *eventhub.Hub
 	adapter           *singboxadapter.Adapter
 	owner             *ownerRecord
 	heartbeatCancel   context.CancelFunc
@@ -30,7 +31,7 @@ func NewController(stateDir string, available bool, unavailableReason string) *C
 		stateDir:          stateDir,
 		available:         available,
 		unavailableReason: unavailableReason,
-		events:            newEventHub(),
+		events:            eventhub.New(),
 	}
 	if record, err := loadOwnerRecord(stateDir); err == nil && record != nil {
 		record.Stale = true
@@ -39,7 +40,7 @@ func NewController(stateDir string, available bool, unavailableReason string) *C
 		controller.owner = record
 		_ = saveOwnerRecord(stateDir, record)
 	} else if err != nil {
-		controller.events.publishBridgeError(api.NewStructuredError(api.ErrorProviderRuntimeStale, err.Error(), "provider", true))
+		controller.events.PublishBridgeError(api.NewStructuredError(api.ErrorProviderRuntimeStale, err.Error(), "provider", true))
 	}
 	return controller
 }
@@ -361,7 +362,7 @@ func (c *Controller) RuntimeSubscribeEvents(ctx context.Context, req provideripc
 	if err != nil {
 		return nil, err
 	}
-	return c.events.subscribe(ctx), nil
+	return c.events.SubscribeRuntimeEvents(ctx), nil
 }
 
 func (c *Controller) RunRepairAction(_ context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {
@@ -478,7 +479,7 @@ func (c *Controller) markStale(reason string) {
 	c.owner.Reason = reason
 	c.owner.RepairActions = []string{api.RepairActionClearMachineNetworkOwner}
 	_ = saveOwnerRecord(c.stateDir, c.owner)
-	c.events.publishBridgeError(api.NewStructuredError(api.ErrorProviderRuntimeStale, reason, "provider", true))
+	c.events.PublishBridgeError(api.NewStructuredError(api.ErrorProviderRuntimeStale, reason, "provider", true))
 }
 
 func timeoutFromRequest(timeoutMS int64) time.Duration {
