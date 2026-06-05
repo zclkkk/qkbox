@@ -30,19 +30,91 @@ export type DataAsset = {
 class AssetState {
   subscriptions = $state<ProfileSubscription[]>([]);
   dataAssets = $state<DataAsset[]>([]);
+  subscriptionName = $state("");
+  subscriptionURL = $state("");
+  assetKind = $state("geo_site");
+  assetName = $state("");
+  assetURL = $state("");
+  busy = $state(false);
   error = $state<string | null>(null);
 
-  async refresh() {
+  async refresh(profileID = "") {
     this.error = null;
     try {
       const [subscriptions, dataAssets] = await Promise.all([
-        api.asset.listProfileSubscriptions(""),
+        api.asset.listProfileSubscriptions(profileID),
         api.asset.listDataAssets("")
       ]);
       this.subscriptions = (subscriptions.subscriptions ?? []) as ProfileSubscription[];
       this.dataAssets = (dataAssets.assets ?? []) as DataAsset[];
     } catch (error) {
       this.capture(error);
+    }
+  }
+
+  clearProfileSubscriptions() {
+    this.subscriptions = [];
+  }
+
+  async createProfileSubscription(profileID: string) {
+    if (!profileID) {
+      this.error = "Select a profile before adding a subscription.";
+      return;
+    }
+    await this.withBusy(async () => {
+      await api.asset.createProfileSubscription(profileID, this.subscriptionName.trim(), this.subscriptionURL.trim());
+      this.subscriptionName = "";
+      this.subscriptionURL = "";
+      await this.refresh(profileID);
+    });
+  }
+
+  async refreshProfileSubscription(subscriptionID: string, profileID: string) {
+    await this.withBusy(async () => {
+      await api.asset.refreshProfileSubscription(subscriptionID);
+      await this.refresh(profileID);
+    });
+  }
+
+  async deleteProfileSubscription(subscriptionID: string, profileID: string) {
+    await this.withBusy(async () => {
+      await api.asset.deleteProfileSubscription(subscriptionID);
+      await this.refresh(profileID);
+    });
+  }
+
+  async createDataAsset() {
+    await this.withBusy(async () => {
+      await api.asset.createDataAsset(this.assetKind, this.assetName.trim(), this.assetURL.trim());
+      this.assetName = "";
+      this.assetURL = "";
+      await this.refresh();
+    });
+  }
+
+  async refreshDataAsset(assetID: string) {
+    await this.withBusy(async () => {
+      await api.asset.refreshDataAsset(assetID);
+      await this.refresh();
+    });
+  }
+
+  async deleteDataAsset(assetID: string) {
+    await this.withBusy(async () => {
+      await api.asset.deleteDataAsset(assetID);
+      await this.refresh();
+    });
+  }
+
+  private async withBusy(fn: () => Promise<void>) {
+    this.busy = true;
+    this.error = null;
+    try {
+      await fn();
+    } catch (error) {
+      this.capture(error);
+    } finally {
+      this.busy = false;
     }
   }
 

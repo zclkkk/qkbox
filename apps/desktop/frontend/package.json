@@ -10,9 +10,11 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
+    "@codemirror/lang-json": "^6.0.2",
     "@lucide/svelte": "1.17.0",
     "@wailsio/runtime": "3.0.0-alpha.79",
     "bits-ui": "2.18.1",
+    "codemirror": "^6.0.2",
     "svelte": "5.56.1"
   },
   "devDependencies": {

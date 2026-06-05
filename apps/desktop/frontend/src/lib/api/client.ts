@@ -105,15 +105,34 @@ export const api = {
     closeAllConnections: () => unwrap(BridgeService.EngineCloseAllConnections(), {})
   },
   profile: {
+    create: (name: string, content: string) => unwrap(BridgeService.CreateProfile({ name, content })),
+    updateDraft: (profileID: string, content: string) =>
+      unwrap(BridgeService.UpdateProfileDraft({ profile_id: profileID, content })),
+    delete: (profileID: string) => unwrap(BridgeService.DeleteProfile({ profile_id: profileID })),
     list: () => unwrap(BridgeService.ListProfiles(), { profiles: [] }),
+    get: (profileID: string) => unwrap(BridgeService.GetProfile({ profile_id: profileID })),
+    validateDraft: (profileID: string) => unwrap(BridgeService.ValidateProfileDraft({ profile_id: profileID })),
+    createSnapshot: (profileID: string) => unwrap(BridgeService.CreateProfileSnapshot({ profile_id: profileID })),
+    activateSnapshot: (snapshotID: string) => unwrap(BridgeService.ActivateProfileSnapshot({ snapshot_id: snapshotID })),
     getActiveProfile: () => unwrap(BridgeService.GetActiveProfile(), { profile: null }),
     getActiveSnapshot: () => unwrap(BridgeService.GetActiveSnapshot(), { snapshot: null }),
-    listSnapshots: (profileID = "") => unwrap(BridgeService.ListSnapshots({ profile_id: profileID }), { snapshots: [] })
+    listSnapshots: (profileID = "") => unwrap(BridgeService.ListSnapshots({ profile_id: profileID }), { snapshots: [] }),
+    rollbackToSnapshot: (snapshotID: string) => unwrap(BridgeService.RollbackToSnapshot({ snapshot_id: snapshotID }))
   },
   asset: {
+    createProfileSubscription: (profileID: string, name: string, url: string) =>
+      unwrap(BridgeService.AssetCreateProfileSubscription({ profile_id: profileID, name, url, update_policy: "manual" })),
     listProfileSubscriptions: (profileID = "") =>
       unwrap(BridgeService.AssetListProfileSubscriptions({ profile_id: profileID }), { subscriptions: [] }),
-    listDataAssets: (kind = "") => unwrap(BridgeService.AssetListDataAssets({ kind }), { assets: [] })
+    refreshProfileSubscription: (subscriptionID: string) =>
+      unwrap(BridgeService.AssetRefreshProfileSubscription({ subscription_id: subscriptionID })),
+    deleteProfileSubscription: (subscriptionID: string) =>
+      unwrap(BridgeService.AssetDeleteProfileSubscription({ subscription_id: subscriptionID })),
+    createDataAsset: (kind: string, name: string, sourceURL: string) =>
+      unwrap(BridgeService.AssetCreateDataAsset({ kind, name, source_url: sourceURL })),
+    listDataAssets: (kind = "") => unwrap(BridgeService.AssetListDataAssets({ kind }), { assets: [] }),
+    refreshDataAsset: (assetID: string) => unwrap(BridgeService.AssetRefreshDataAsset({ asset_id: assetID })),
+    deleteDataAsset: (assetID: string) => unwrap(BridgeService.AssetDeleteDataAsset({ asset_id: assetID }))
   },
   platform: {
     getCapabilities: () => unwrap(BridgeService.PlatformGetCapabilities(), { capabilities: [] as Capability[] }),

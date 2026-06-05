@@ -189,12 +189,68 @@ func (b *BridgeService) EngineCloseAllConnections(ctx context.Context) api.Engin
 
 // Profiles and snapshots
 
+func (b *BridgeService) CreateProfile(ctx context.Context, req api.CreateProfileRequest) api.CreateProfileResult {
+	reply, structured := b.client.CreateProfile(ctx, req)
+	if structured != nil {
+		return api.CreateProfileResult{Error: structured}
+	}
+	return api.CreateProfileResult{Reply: &reply}
+}
+
+func (b *BridgeService) UpdateProfileDraft(ctx context.Context, req api.UpdateProfileDraftRequest) api.UpdateProfileDraftResult {
+	reply, structured := b.client.UpdateProfileDraft(ctx, req)
+	if structured != nil {
+		return api.UpdateProfileDraftResult{Error: structured}
+	}
+	return api.UpdateProfileDraftResult{Reply: &reply}
+}
+
+func (b *BridgeService) DeleteProfile(ctx context.Context, req api.DeleteProfileRequest) api.DeleteProfileResult {
+	reply, structured := b.client.DeleteProfile(ctx, req)
+	if structured != nil {
+		return api.DeleteProfileResult{Error: structured}
+	}
+	return api.DeleteProfileResult{Reply: &reply}
+}
+
 func (b *BridgeService) ListProfiles(ctx context.Context) api.ListProfilesResult {
 	reply, structured := b.client.ListProfiles(ctx, api.ListProfilesRequest{})
 	if structured != nil {
 		return api.ListProfilesResult{Error: structured}
 	}
 	return api.ListProfilesResult{Reply: &reply}
+}
+
+func (b *BridgeService) GetProfile(ctx context.Context, req api.GetProfileRequest) api.GetProfileResult {
+	reply, structured := b.client.GetProfile(ctx, req)
+	if structured != nil {
+		return api.GetProfileResult{Error: structured}
+	}
+	return api.GetProfileResult{Reply: &reply}
+}
+
+func (b *BridgeService) ValidateProfileDraft(ctx context.Context, req api.ValidateProfileDraftRequest) api.ValidateProfileDraftResult {
+	reply, structured := b.client.ValidateProfileDraft(ctx, req)
+	if structured != nil {
+		return api.ValidateProfileDraftResult{Error: structured}
+	}
+	return api.ValidateProfileDraftResult{Reply: &reply}
+}
+
+func (b *BridgeService) CreateProfileSnapshot(ctx context.Context, req api.CreateProfileSnapshotRequest) api.CreateProfileSnapshotResult {
+	reply, structured := b.client.CreateProfileSnapshot(ctx, req)
+	if structured != nil {
+		return api.CreateProfileSnapshotResult{Error: structured}
+	}
+	return api.CreateProfileSnapshotResult{Reply: &reply}
+}
+
+func (b *BridgeService) ActivateProfileSnapshot(ctx context.Context, req api.ActivateProfileSnapshotRequest) api.ActivateProfileSnapshotResult {
+	reply, structured := b.client.ActivateProfileSnapshot(ctx, req)
+	if structured != nil {
+		return api.ActivateProfileSnapshotResult{Error: structured}
+	}
+	return api.ActivateProfileSnapshotResult{Reply: &reply}
 }
 
 func (b *BridgeService) GetActiveProfile(ctx context.Context) api.GetActiveProfileResult {
@@ -219,6 +275,14 @@ func (b *BridgeService) ListSnapshots(ctx context.Context, req api.ListSnapshots
 		return api.ListSnapshotsResult{Error: structured}
 	}
 	return api.ListSnapshotsResult{Reply: &reply}
+}
+
+func (b *BridgeService) RollbackToSnapshot(ctx context.Context, req api.RollbackToSnapshotRequest) api.RollbackToSnapshotResult {
+	reply, structured := b.client.RollbackToSnapshot(ctx, req)
+	if structured != nil {
+		return api.RollbackToSnapshotResult{Error: structured}
+	}
+	return api.RollbackToSnapshotResult{Reply: &reply}
 }
 
 // Data assets and subscriptions
