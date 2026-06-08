@@ -2,7 +2,7 @@ version: '3'
 
 info:
   companyName: "qkbox"
-  productName: "qkbox"
+  productName: "qkbox-window"
   productIdentifier: "dev.qkbox.app"
   description: "qkbox desktop client"
   copyright: "(c) 2026, qkbox contributors"
@@ -33,7 +33,7 @@ dev_mode:
       type: blocking
     - cmd: wails3 task frontend:dev
       type: background
-    - cmd: ../../bin/qkbox
+    - cmd: ../../bin/qkbox-window
       type: primary
 
 fileAssociations:

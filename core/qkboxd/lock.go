@@ -16,14 +16,14 @@ func AcquireUserLock() (*UserLock, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(dir, "qkboxd.lock")
+	path := filepath.Join(dir, "qkbox.lock")
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return nil, err
 	}
 	if err := lockFile(file); err != nil {
 		_ = file.Close()
-		return nil, fmt.Errorf("qkboxd already appears to be running for this user: %w", err)
+		return nil, fmt.Errorf("qkbox already appears to be running for this user: %w", err)
 	}
 	if err := file.Truncate(0); err != nil {
 		_ = unlockFile(file)

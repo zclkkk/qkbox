@@ -3,13 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 	"sync"
-	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/zclkkk/qkbox/internal/ipc"
@@ -26,30 +20,10 @@ func NewBridgeService() *BridgeService {
 	return &BridgeService{client: ipc.NewClient()}
 }
 
+// Hello performs the initial handshake. Returns error if qkbox is unreachable.
+// qkbox-window does NOT try to launch qkbox — it must already be running.
 func (b *BridgeService) Hello(ctx context.Context) api.HelloResult {
 	reply, structured := b.client.Hello(ctx, api.DefaultHelloRequest())
-	if structured == nil {
-		return api.HelloResult{Reply: &reply}
-	}
-	if structured.Code != api.ErrorIPCTransport {
-		return api.HelloResult{Error: structured}
-	}
-
-	if launchErr := launchQKBoxD(); launchErr != nil {
-		return api.HelloResult{
-			Error: api.NewStructuredError(api.ErrorDaemonLaunchFailed, launchErr.Error(), "desktop", true),
-		}
-	}
-
-	readyCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	if err := ipc.WaitForReady(readyCtx); err != nil {
-		return api.HelloResult{
-			Error: api.NewStructuredError(api.ErrorDaemonUnavailable, err.Error(), "desktop", true),
-		}
-	}
-
-	reply, structured = b.client.Hello(ctx, api.DefaultHelloRequest())
 	if structured != nil {
 		return api.HelloResult{Error: structured}
 	}
@@ -104,6 +78,7 @@ func (b *BridgeService) StartRuntimeEventBridge(ctx context.Context) api.Runtime
 	b.eventCancel = cancel
 	b.eventMu.Unlock()
 
+	// Engine event subscriptions.
 	subscriptions := []func(context.Context) (<-chan ipc.EventFrame, *api.StructuredError){
 		func(ctx context.Context) (<-chan ipc.EventFrame, *api.StructuredError) {
 			return b.client.EngineSubscribeStatus(ctx, api.EngineSubscribeStatusRequest{})
@@ -126,6 +101,15 @@ func (b *BridgeService) StartRuntimeEventBridge(ctx context.Context) api.Runtime
 		}
 		go forwardRuntimeEvents(bridgeCtx, events)
 	}
+
+	// Window attach subscription — listens for ShowWindow events from the tray.
+	events, structured := b.client.WindowAttach(bridgeCtx, api.WindowAttachRequest{})
+	if structured != nil {
+		cancel()
+		return api.RuntimeEventBridgeStartResult{Error: structured}
+	}
+	go forwardWindowEvents(bridgeCtx, events)
+
 	return api.RuntimeEventBridgeStartResult{Reply: &api.RuntimeEventBridgeStartReply{}}
 }
 
@@ -427,6 +411,8 @@ func (b *BridgeService) PlatformSetSystemProxyEnabled(ctx context.Context, req a
 	return api.SetSystemProxyEnabledResult{Reply: &reply}
 }
 
+// Event forwarding
+
 func forwardRuntimeEvents(ctx context.Context, events <-chan ipc.EventFrame) {
 	for {
 		select {
@@ -436,6 +422,34 @@ func forwardRuntimeEvents(ctx context.Context, events <-chan ipc.EventFrame) {
 			if !ok {
 				return
 			}
+			emitRuntimeEvent(event)
+		}
+	}
+}
+
+// forwardWindowEvents handles the window.attach event stream.
+// EventWindowShow is intercepted and triggers the window to show/focus.
+func forwardWindowEvents(ctx context.Context, events <-chan ipc.EventFrame) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
+			if event.Error != nil {
+				continue
+			}
+			if event.Event == api.EventWindowShow {
+				windows := application.Get().Window.GetAll()
+				if len(windows) > 0 {
+					windows[0].Show()
+					windows[0].Focus()
+				}
+				continue
+			}
+			// Forward other window events to the frontend (future use).
 			emitRuntimeEvent(event)
 		}
 	}
@@ -457,59 +471,4 @@ func emitRuntimeEvent(frame ipc.EventFrame) {
 		}
 	}
 	application.Get().Event.Emit(frame.Event, payload)
-}
-
-func launchQKBoxD() error {
-	path, err := findQKBoxD()
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command(path)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	cmd.Stdin = nil
-	prepareDetachedCmd(cmd)
-	return cmd.Start()
-}
-
-func findQKBoxD() (string, error) {
-	if path := os.Getenv("QKBOX_QKBOXD_PATH"); path != "" {
-		return path, nil
-	}
-	name := "qkboxd"
-	if runtime.GOOS == "windows" {
-		name += ".exe"
-	}
-
-	exe, err := os.Executable()
-	if err == nil {
-		dir := filepath.Dir(exe)
-		for _, candidate := range []string{
-			filepath.Join(dir, name),
-			filepath.Join(dir, "..", name),
-			filepath.Join(dir, "..", "..", "bin", name),
-		} {
-			if exists(candidate) {
-				return candidate, nil
-			}
-		}
-	}
-
-	wd, err := os.Getwd()
-	if err == nil {
-		for _, candidate := range []string{
-			filepath.Join(wd, "bin", name),
-			filepath.Join(wd, "..", "..", "bin", name),
-		} {
-			if exists(candidate) {
-				return candidate, nil
-			}
-		}
-	}
-	return "", errors.New("qkboxd binary not found; run npm run build:qkboxd or set QKBOX_QKBOXD_PATH")
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }

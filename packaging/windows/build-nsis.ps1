@@ -13,7 +13,7 @@ if ($null -eq $makensis) {
     throw "makensis was not found in PATH. Install NSIS 3 and retry."
 }
 
-foreach ($binary in @("qkbox.exe", "qkboxd.exe", "qkbox-provider.exe")) {
+foreach ($binary in @("qkbox.exe", "qkbox-window.exe", "qkbox-provider.exe")) {
     $path = Join-Path $RootDir "bin\$binary"
     if (-not (Test-Path $path)) {
         throw "Missing $binary. Run npm run build before packaging."

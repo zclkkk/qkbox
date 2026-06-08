@@ -61,6 +61,9 @@ type Handler interface {
 	EngineCloseConnection(context.Context, api.EngineCloseConnectionRequest) (api.EngineCloseConnectionReply, *api.StructuredError)
 	EngineCloseAllConnections(context.Context, api.EngineCloseAllConnectionsRequest) (api.EngineCloseAllConnectionsReply, *api.StructuredError)
 
+	// Window session
+	WindowAttach(context.Context, api.WindowAttachRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
+
 	// Platform capabilities
 	PlatformGetCapabilities(context.Context, api.GetPlatformCapabilitiesRequest) (api.GetPlatformCapabilitiesReply, *api.StructuredError)
 	PlatformGetPrivilegedProviderStatus(context.Context, api.GetPrivilegedProviderStatusRequest) (api.GetPrivilegedProviderStatusReply, *api.StructuredError)

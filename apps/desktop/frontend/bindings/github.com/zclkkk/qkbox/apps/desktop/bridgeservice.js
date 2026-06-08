@@ -271,6 +271,8 @@ export function GetProfile(req) {
 }
 
 /**
+ * Hello performs the initial handshake. Returns error if qkbox is unreachable.
+ * qkbox-window does NOT try to launch qkbox — it must already be running.
  * @returns {$CancellablePromise<api$0.HelloResult>}
  */
 export function Hello() {

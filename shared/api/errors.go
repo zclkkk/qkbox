@@ -108,7 +108,7 @@ func NewStructuredError(code, message, source string, recoverable bool) *Structu
 func VersionUnsupported(clientVersion string) *StructuredError {
 	err := NewStructuredError(
 		ErrorIPCVersionUnsupported,
-		"Client API version is not supported by qkboxd.",
+		"Client API version is not supported by qkbox.",
 		"qkboxd",
 		false,
 	)
@@ -117,6 +117,6 @@ func VersionUnsupported(clientVersion string) *StructuredError {
 		"api_version":               APIVersion,
 		"min_supported_api_version": MinSupportedAPIVersion,
 	}
-	err.UserAction = "Update qkbox and qkboxd to compatible versions."
+	err.UserAction = "Update qkbox to a compatible version."
 	return err
 }

@@ -9,7 +9,7 @@ ConditionPathExists=/var/lib/qkbox/provider-server.json
 Type=simple
 StateDirectory=qkbox
 StateDirectoryMode=0700
-ExecStart=/usr/bin/qkbox-provider --serve --state-dir /var/lib/qkbox
+ExecStart=/usr/lib/qkbox/qkbox-provider --serve --state-dir /var/lib/qkbox
 Restart=on-failure
 RestartSec=3s
 

@@ -21,10 +21,11 @@ IMAGE_ROOT="${STAGE_DIR}/image"
 APP_DIR="${IMAGE_ROOT}/qkbox.app"
 CONTENTS_DIR="${APP_DIR}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
+HELPERS_DIR="${CONTENTS_DIR}/Helpers"
 RESOURCES_DIR="${CONTENTS_DIR}/Resources"
 DMG_PATH="${OUT_DIR}/qkbox-${VERSION}-macos.dmg"
 
-for binary in qkbox qkboxd qkbox-provider; do
+for binary in qkbox qkbox-window qkbox-provider; do
   if [[ ! -f "${ROOT_DIR}/bin/${binary}" ]]; then
     echo "Missing ${binary}. Run npm run build on macOS before packaging." >&2
     exit 1
@@ -32,11 +33,15 @@ for binary in qkbox qkboxd qkbox-provider; do
 done
 
 rm -rf "${IMAGE_ROOT}"
-mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}" "${OUT_DIR}"
+mkdir -p "${MACOS_DIR}" "${HELPERS_DIR}" "${RESOURCES_DIR}" "${OUT_DIR}"
 
+# Main executable (user-facing, in Dock via app bundle)
 install -m 0755 "${ROOT_DIR}/bin/qkbox" "${MACOS_DIR}/qkbox"
-install -m 0755 "${ROOT_DIR}/bin/qkboxd" "${MACOS_DIR}/qkboxd"
-install -m 0755 "${ROOT_DIR}/bin/qkbox-provider" "${MACOS_DIR}/qkbox-provider"
+
+# Private helpers (not user-facing)
+install -m 0755 "${ROOT_DIR}/bin/qkbox-window" "${HELPERS_DIR}/qkbox-window"
+install -m 0755 "${ROOT_DIR}/bin/qkbox-provider" "${HELPERS_DIR}/qkbox-provider"
+
 install -m 0644 "${ROOT_DIR}/packaging/macos/NetworkExtension.README.txt" "${RESOURCES_DIR}/NetworkExtension.README.txt"
 
 cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
@@ -62,6 +67,8 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
   <string>${VERSION}</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
+  <key>LSUIElement</key>
+  <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
 </dict>

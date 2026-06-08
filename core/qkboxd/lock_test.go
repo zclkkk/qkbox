@@ -25,7 +25,7 @@ func TestAcquireUserLockRejectsConcurrentOwner(t *testing.T) {
 func TestAcquireUserLockIgnoresStaleFile(t *testing.T) {
 	stateDir := t.TempDir()
 	t.Setenv("QKBOX_STATE_DIR", stateDir)
-	if err := os.WriteFile(filepath.Join(stateDir, "qkboxd.lock"), []byte("stale\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(stateDir, "qkbox.lock"), []byte("stale\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

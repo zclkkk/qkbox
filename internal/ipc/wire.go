@@ -52,6 +52,8 @@ func newRegistry(handler Handler) *ipcframework.Registry {
 	ipcframework.RegisterMethod(registry, api.MethodEngineCloseConnection, handler.EngineCloseConnection)
 	ipcframework.RegisterMethod(registry, api.MethodEngineCloseAllConnections, handler.EngineCloseAllConnections)
 
+	ipcframework.RegisterSubscription(registry, api.MethodWindowAttach, api.SubscriptionAck{}, handler.WindowAttach)
+
 	ipcframework.RegisterMethod(registry, api.MethodPlatformGetCapabilities, handler.PlatformGetCapabilities)
 	ipcframework.RegisterMethod(registry, api.MethodPlatformGetPrivilegedProviderStatus, handler.PlatformGetPrivilegedProviderStatus)
 	ipcframework.RegisterMethod(registry, api.MethodPlatformGetNetworkExtensionStatus, handler.PlatformGetNetworkExtensionStatus)

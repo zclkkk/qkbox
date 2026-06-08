@@ -3,6 +3,7 @@ package qkboxd
 import (
 	"context"
 	"fmt"
+	"net"
 
 	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
 	"github.com/zclkkk/qkbox/internal/ipc"
@@ -10,28 +11,56 @@ import (
 	"github.com/zclkkk/qkbox/platform/capability"
 )
 
-func Run(ctx context.Context) error {
+// StartOpts configures the daemon instance. Phase 0A: empty.
+type StartOpts struct{}
+
+// Instance is a running daemon. Use Wait() to block until shutdown, Close() to request it.
+type Instance struct {
+	Service *Service
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	done   chan struct{}
+	err    error
+
+	// resources to clean up
+	lock     *UserLock
+	db       *persistence.DB
+	listener net.Listener
+}
+
+// Start initialises and runs the daemon in the background.
+// The returned Instance exposes the Service handle and lifecycle controls.
+func Start(parent context.Context, _ StartOpts) (*Instance, error) {
+	ctx, cancel := context.WithCancel(parent)
+
 	lock, err := AcquireUserLock()
 	if err != nil {
-		return err
+		cancel()
+		return nil, err
 	}
-	defer lock.Release()
 
 	stateDir, err := userStateDir()
 	if err != nil {
-		return err
+		lock.Release()
+		cancel()
+		return nil, err
 	}
 
 	db, err := persistence.Open(stateDir)
 	if err != nil {
-		return err
+		lock.Release()
+		cancel()
+		return nil, err
 	}
-	defer db.Close()
 
 	keyStore := qkboxcrypto.NewFileKeyStore(stateDir)
 	key, err := keyStore.GetOrCreateKey()
 	if err != nil {
-		return err
+		db.Close()
+		lock.Release()
+		cancel()
+		return nil, err
 	}
 
 	proxy := capability.NewSystemProxyProvider()
@@ -41,14 +70,62 @@ func Run(ctx context.Context) error {
 
 	listener, err := ipc.Listen()
 	if err != nil {
-		return err
+		db.Close()
+		lock.Release()
+		cancel()
+		return nil, err
 	}
-	defer listener.Close()
 
 	service := NewServiceWithNetworkExtension(ctx, db, key, proxy, privileged, extension)
-	defer service.Close()
 
-	return ipc.NewServer(service).Serve(ctx, listener)
+	inst := &Instance{
+		Service:  service,
+		ctx:      ctx,
+		cancel:   cancel,
+		done:     make(chan struct{}),
+		lock:     lock,
+		db:       db,
+		listener: listener,
+	}
+
+	// Run the IPC server in the background.
+	go func() {
+		defer close(inst.done)
+		inst.err = ipc.NewServer(service).Serve(ctx, listener)
+		// Unified cleanup: all shutdown paths (signal, Close, fatal) run this.
+		service.Close()
+		listener.Close()
+		db.Close()
+		lock.Release()
+	}()
+
+	return inst, nil
+}
+
+// Wait blocks until the daemon exits and returns the first error (if any).
+func (inst *Instance) Wait() error {
+	<-inst.done
+	return inst.err
+}
+
+// Close requests a graceful shutdown. Idempotent.
+func (inst *Instance) Close() {
+	inst.cancel()
+}
+
+// EngineState returns the current engine state string (IDLE, STARTING, STARTED, etc.).
+// Safe to call from any goroutine.
+func (inst *Instance) EngineState() string {
+	return string(inst.Service.engine.GetStatus().State)
+}
+
+// Run is a backward-compatible blocking wrapper around Start + Wait.
+func Run(ctx context.Context) error {
+	inst, err := Start(ctx, StartOpts{})
+	if err != nil {
+		return err
+	}
+	return inst.Wait()
 }
 
 func repairStaleProxy(db *persistence.DB, proxy capability.SystemProxyProvider) {

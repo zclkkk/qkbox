@@ -185,6 +185,12 @@ func (c *Client) EngineCloseAllConnections(ctx context.Context, req api.EngineCl
 	return do[api.EngineCloseAllConnectionsRequest, api.EngineCloseAllConnectionsReply](c, ctx, api.MethodEngineCloseAllConnections, req)
 }
 
+// Window session
+
+func (c *Client) WindowAttach(ctx context.Context, req api.WindowAttachRequest) (<-chan EventFrame, *api.StructuredError) {
+	return openSubscription(c, ctx, api.MethodWindowAttach, req)
+}
+
 // Platform capabilities
 
 func (c *Client) PlatformGetCapabilities(ctx context.Context, req api.GetPlatformCapabilitiesRequest) (api.GetPlatformCapabilitiesReply, *api.StructuredError) {

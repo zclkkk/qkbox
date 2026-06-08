@@ -36,7 +36,7 @@ run(["run", "check"]);
 run(["run", "build"]);
 
 const suffix = host === "win32" ? ".exe" : "";
-for (const binary of ["qkbox", "qkboxd", "qkbox-provider"]) {
+for (const binary of ["qkbox", "qkbox-window", "qkbox-provider"]) {
   requireFile(join(rootDir, "bin", `${binary}${suffix}`));
 }
 

@@ -35,7 +35,7 @@ ShowUninstDetails show
 Section "qkbox"
   SetOutPath "$INSTDIR"
   File "${ROOT_DIR}\bin\qkbox.exe"
-  File "${ROOT_DIR}\bin\qkboxd.exe"
+  File "${ROOT_DIR}\bin\qkbox-window.exe"
   File "${ROOT_DIR}\bin\qkbox-provider.exe"
 
   CreateDirectory "$SMPROGRAMS\qkbox"
@@ -54,7 +54,7 @@ SectionEnd
 
 Section "Uninstall"
   Delete "$INSTDIR\qkbox.exe"
-  Delete "$INSTDIR\qkboxd.exe"
+  Delete "$INSTDIR\qkbox-window.exe"
   Delete "$INSTDIR\qkbox-provider.exe"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"

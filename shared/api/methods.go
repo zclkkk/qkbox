@@ -50,6 +50,9 @@ const (
 	MethodEngineCloseConnection        = "engine.closeConnection"
 	MethodEngineCloseAllConnections    = "engine.closeAllConnections"
 
+	// Window session
+	MethodWindowAttach = "window.attach"
+
 	// Platform capabilities
 	MethodPlatformGetCapabilities             = "platform.getCapabilities"
 	MethodPlatformGetPrivilegedProviderStatus = "platform.getPrivilegedProviderStatus"
@@ -100,6 +103,8 @@ var MethodRegistry = map[string]struct{}{
 	MethodEngineURLTest:                {},
 	MethodEngineCloseConnection:        {},
 	MethodEngineCloseAllConnections:    {},
+
+	MethodWindowAttach:                        {},
 
 	MethodPlatformGetCapabilities:             {},
 	MethodPlatformGetPrivilegedProviderStatus: {},

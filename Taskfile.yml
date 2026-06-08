@@ -12,7 +12,7 @@ tasks:
       - npm run test
 
   build:
-    summary: Builds qkboxd, qkbox-provider, and the Wails desktop app
+    summary: Builds qkbox, qkbox-provider, and qkbox-window
     cmds:
       - npm run build
 
@@ -37,10 +37,10 @@ tasks:
     cmds:
       - bash packaging/macos/build-dmg.sh
 
-  build:qkboxd:
-    summary: Builds the user-scope qkboxd executable
+  build:qkbox:
+    summary: Builds the qkbox resident daemon
     cmds:
-      - go build -tags with_clash_api -trimpath -buildvcs=false -o "bin/qkboxd{{exeExt}}" ./cmd/qkboxd
+      - go build -tags with_clash_api -trimpath -buildvcs=false -o "bin/qkbox{{exeExt}}" ./cmd/qkbox
 
   build:qkbox-provider:
     summary: Builds the privileged provider executable

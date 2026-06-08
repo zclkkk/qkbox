@@ -19,7 +19,7 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
   exit 1
 fi
 
-for binary in qkbox qkboxd qkbox-provider; do
+for binary in qkbox qkbox-window qkbox-provider; do
   if [[ ! -f "${ROOT_DIR}/bin/${binary}" ]]; then
     echo "Missing ${binary}. Run npm run build on Linux before packaging." >&2
     exit 1
@@ -30,13 +30,18 @@ rm -rf "${PKG_ROOT}"
 mkdir -p \
   "${PKG_ROOT}/DEBIAN" \
   "${PKG_ROOT}/usr/bin" \
+  "${PKG_ROOT}/usr/lib/qkbox" \
   "${PKG_ROOT}/usr/share/applications" \
   "${PKG_ROOT}/usr/lib/systemd/system" \
   "${OUT_DIR}"
 
+# User-facing entry
 install -m 0755 "${ROOT_DIR}/bin/qkbox" "${PKG_ROOT}/usr/bin/qkbox"
-install -m 0755 "${ROOT_DIR}/bin/qkboxd" "${PKG_ROOT}/usr/bin/qkboxd"
-install -m 0755 "${ROOT_DIR}/bin/qkbox-provider" "${PKG_ROOT}/usr/bin/qkbox-provider"
+
+# Private components (not in PATH)
+install -m 0755 "${ROOT_DIR}/bin/qkbox-window" "${PKG_ROOT}/usr/lib/qkbox/qkbox-window"
+install -m 0755 "${ROOT_DIR}/bin/qkbox-provider" "${PKG_ROOT}/usr/lib/qkbox/qkbox-provider"
+
 install -m 0644 "${ROOT_DIR}/packaging/linux/qkbox.desktop" "${PKG_ROOT}/usr/share/applications/qkbox.desktop"
 install -m 0644 "${ROOT_DIR}/packaging/linux/qkbox-provider.service" "${PKG_ROOT}/usr/lib/systemd/system/qkbox-provider.service"
 
@@ -48,8 +53,8 @@ Priority: optional
 Architecture: ${ARCH}
 Maintainer: qkbox contributors
 Depends: libc6
-Description: qkbox desktop client
- qkbox is a desktop GUI client with a user-scope daemon and explicit runtime owners.
+Description: qkbox proxy client
+ qkbox is a cross-platform proxy client powered by sing-box.
 CONTROL
 
 dpkg-deb --build "${PKG_ROOT}" "${DEB_PATH}"
