@@ -7,7 +7,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/getlantern/systray"
 	"github.com/zclkkk/qkbox/core/qkboxd"
@@ -38,21 +40,36 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// When daemon exits (fatal error, signal, or user quit), clean up tray and stop.
+	// Unified exit — all shutdown paths converge here.
+	var exitOnce sync.Once
+	requestExit := func(wait bool) {
+		exitOnce.Do(func() {
+			if wait {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				_ = inst.Shutdown(shutdownCtx)
+				cancel()
+			} else {
+				inst.Close()
+			}
+			stop()
+			if !*noTray {
+				systray.Quit()
+			}
+		})
+	}
+
+	// When daemon exits (fatal error, signal, or user quit), clean up.
 	go func() {
 		if err := inst.Wait(); err != nil {
 			log.Printf("daemon: %v", err)
 		}
-		stop()
-		if !*noTray {
-			systray.Quit()
-		}
+		requestExit(false)
 	}()
 
 	if *noTray {
 		<-ctx.Done()
 	} else {
 		// Run tray on main goroutine (required by some platforms).
-		trayRun(ctx, inst)
+		trayRun(ctx, inst, requestExit)
 	}
 }

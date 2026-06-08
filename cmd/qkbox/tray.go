@@ -11,16 +11,19 @@ import (
 	"github.com/zclkkk/qkbox/shared/model"
 )
 
+// requestExitFunc is the unified shutdown callback. wait=true for user quit (blocks for cleanup).
+type requestExitFunc func(wait bool)
+
 // trayRun initialises the system tray and blocks until quit.
 // Must be called from the main goroutine (required by some platforms).
-func trayRun(ctx context.Context, inst *qkboxd.Instance) {
+func trayRun(ctx context.Context, inst *qkboxd.Instance, requestExit requestExitFunc) {
 	systray.Run(
-		func() { onReady(ctx, inst) },
-		func() { onExit(inst) },
+		func() { onReady(ctx, inst, requestExit) },
+		func() { requestExit(false) },
 	)
 }
 
-func onReady(ctx context.Context, inst *qkboxd.Instance) {
+func onReady(ctx context.Context, inst *qkboxd.Instance, requestExit requestExitFunc) {
 	// Status line (disabled, display-only).
 	statusItem := systray.AddMenuItem("⏹ Stopped", "Engine status")
 	statusItem.Disable()
@@ -91,10 +94,7 @@ func onReady(ctx context.Context, inst *qkboxd.Instance) {
 			case <-windowItem.ClickedCh:
 				openWindow(inst)
 			case <-quitItem.ClickedCh:
-				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				_ = inst.Shutdown(shutdownCtx)
-				cancel()
-				systray.Quit()
+				requestExit(true) // blocks until cleanup completes
 				return
 			case <-ctx.Done():
 				return
@@ -103,13 +103,14 @@ func onReady(ctx context.Context, inst *qkboxd.Instance) {
 	}()
 }
 
-func onExit(inst *qkboxd.Instance) {
-	inst.Close()
-}
-
 // openWindow sends a show event to the attached window, or spawns a new one.
 func openWindow(inst *qkboxd.Instance) {
-	if inst.Service.NotifyWindowShow() {
+	sent, hasSession := inst.Service.NotifyWindowShow()
+	if sent {
+		return
+	}
+	if hasSession {
+		log.Printf("open qkbox-window: session exists but window is unresponsive")
 		return
 	}
 	if err := spawnQKBoxWindow(); err != nil {

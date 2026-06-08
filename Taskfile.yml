@@ -39,11 +39,13 @@ tasks:
 
   build:qkbox:
     summary: Builds the qkbox resident daemon
+    platforms: [linux, darwin]
     cmds:
       - go build -tags with_clash_api -trimpath -buildvcs=false -o "bin/qkbox{{exeExt}}" ./cmd/qkbox
 
-  build:qkbox:windows:
-    summary: Builds the qkbox daemon with Windows GUI subsystem (no console)
+  build:qkbox:win:
+    summary: Builds the qkbox resident daemon (Windows GUI subsystem, no console)
+    platforms: [windows]
     cmds:
       - go build -tags with_clash_api -trimpath -buildvcs=false -ldflags "-H windowsgui" -o "bin/qkbox.exe" ./cmd/qkbox
 

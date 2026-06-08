@@ -51,17 +51,17 @@ func (s *Service) HasWindowSession() bool {
 }
 
 // NotifyWindowShow sends a "show window" event to the attached session.
-// Returns true if the event was sent, false if no session exists.
-func (s *Service) NotifyWindowShow() bool {
+// Returns (sent, hasSession): sent=false+hasSession=true means the window exists but is unresponsive.
+func (s *Service) NotifyWindowShow() (sent bool, hasSession bool) {
 	s.windowMu.Lock()
 	defer s.windowMu.Unlock()
 	if s.windowSess == nil {
-		return false
+		return false, false
 	}
 	select {
 	case s.windowSess.Events <- api.RuntimeEvent{Event: api.EventWindowShow, Data: json.RawMessage(`{}`)}:
-		return true
+		return true, true
 	default:
-		return false // channel full — window unresponsive
+		return false, true // channel full — window unresponsive
 	}
 }

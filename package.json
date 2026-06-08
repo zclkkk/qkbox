@@ -12,7 +12,7 @@
     "frontend:install": "npm --prefix apps/desktop/frontend install",
     "frontend:check": "wails3 task -dir apps/desktop generate:bindings && npm --prefix apps/desktop/frontend run check",
     "frontend:build": "wails3 task -dir apps/desktop build:frontend",
-    "build:qkbox": "wails3 task build:qkbox",
+    "build:qkbox": "wails3 task build:qkbox && wails3 task build:qkbox:win",
     "build:qkbox-provider": "wails3 task build:qkbox-provider",
     "build:desktop": "wails3 task -dir apps/desktop build",
     "package:windows": "wails3 task package:windows:nsis",

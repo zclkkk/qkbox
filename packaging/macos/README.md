@@ -10,10 +10,10 @@ npm run build
 npm run package:macos
 ```
 
-The local packaging script creates `qkbox.app` with `qkbox`, `qkboxd`, and
-`qkbox-provider` in `Contents/MacOS`, then produces a DMG in `dist/packages`.
-Helper discovery is deterministic because helpers sit next to the app
-executable.
+The local packaging script creates `qkbox.app` with `qkbox` in
+`Contents/MacOS` and private helpers (`qkbox-window`, `qkbox-provider`)
+in `Contents/Helpers`, then produces a DMG in `dist/packages`.
+The daemon runs as a background process with `LSUIElement=true` (no Dock icon).
 
 Release packaging must follow Apple signing, notarization, and entitlement
 requirements. qkbox does not ship macOS TUN mode through a root route mutation

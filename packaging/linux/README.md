@@ -9,9 +9,9 @@ npm run build
 npm run package:linux
 ```
 
-The DEB package installs `qkbox`, `qkboxd`, and `qkbox-provider` under
-`/usr/bin` plus a desktop entry. User data remains in the qkbox state directory,
-not under `/usr`.
+The DEB package installs `qkbox` under `/usr/bin` plus a desktop entry.
+Private components (`qkbox-window`, `qkbox-provider`) are installed under
+`/usr/lib/qkbox/`. User data remains in the qkbox state directory.
 
 The package also installs `qkbox-provider.service` as a disabled systemd unit.
 It is not enabled or started by maintainer scripts. The provider only becomes

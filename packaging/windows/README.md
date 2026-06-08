@@ -16,7 +16,7 @@ npm run build
 npm run package:windows
 ```
 
-The NSIS installer includes `qkbox.exe`, `qkboxd.exe`, and
+The NSIS installer includes `qkbox.exe`, `qkbox-window.exe`, and
 `qkbox-provider.exe`. The default install location is per-user, and the
 directory page still allows an elevated Program Files install.
 
