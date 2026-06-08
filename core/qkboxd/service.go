@@ -24,6 +24,10 @@ type Service struct {
 
 	db     *persistence.DB
 	engine *EngineController
+
+	// Window session tracking
+	windowMu   sync.Mutex
+	windowSess *WindowSession
 }
 
 const privilegedCapabilityProbeTimeout = 500 * time.Millisecond
@@ -64,9 +68,15 @@ func NewServiceWithNetworkExtension(runtimeCtx context.Context, db *persistence.
 	}
 }
 
+// EngineStateString returns the current engine state as a string.
+func (s *Service) EngineStateString() string {
+	return string(s.engine.GetStatus().State)
+}
+
 func (s *Service) Close() error {
+	err := s.engine.Shutdown()
 	s.PlatformService.bestEffortProxyRestore()
-	return s.engine.Shutdown()
+	return err
 }
 
 func (s *Service) Hello(ctx context.Context, req api.HelloRequest) (api.HelloReply, *api.StructuredError) {

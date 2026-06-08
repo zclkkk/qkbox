@@ -3,7 +3,6 @@ package qkboxd
 import (
 	"context"
 	"encoding/json"
-	"sync"
 
 	"github.com/zclkkk/qkbox/shared/api"
 )
@@ -15,12 +14,6 @@ type WindowSession struct {
 	Cancel context.CancelFunc
 }
 
-// Window session state on Service.
-var (
-	windowMu   sync.Mutex
-	windowSess *WindowSession
-)
-
 // WindowAttach is the IPC handler for the "window.attach" subscription.
 // It registers a long-lived session and returns an event stream.
 // The session is automatically removed when the client disconnects (ctx.Done).
@@ -28,23 +21,23 @@ func (s *Service) WindowAttach(ctx context.Context, _ api.WindowAttachRequest) (
 	ctx, cancel := context.WithCancel(ctx)
 	events := make(chan api.RuntimeEvent, 8)
 
-	windowMu.Lock()
+	s.windowMu.Lock()
 	// Close previous session if any (safety — should not happen with a single window).
-	if windowSess != nil && windowSess.Cancel != nil {
-		windowSess.Cancel()
+	if s.windowSess != nil && s.windowSess.Cancel != nil {
+		s.windowSess.Cancel()
 	}
 	sess := &WindowSession{Events: events, Cancel: cancel}
-	windowSess = sess
-	windowMu.Unlock()
+	s.windowSess = sess
+	s.windowMu.Unlock()
 
 	// Clean up when window disconnects.
 	go func() {
 		<-ctx.Done()
-		windowMu.Lock()
-		if windowSess == sess {
-			windowSess = nil
+		s.windowMu.Lock()
+		if s.windowSess == sess {
+			s.windowSess = nil
 		}
-		windowMu.Unlock()
+		s.windowMu.Unlock()
 	}()
 
 	return events, nil
@@ -52,21 +45,21 @@ func (s *Service) WindowAttach(ctx context.Context, _ api.WindowAttachRequest) (
 
 // HasWindowSession reports whether a qkbox-window is currently attached.
 func (s *Service) HasWindowSession() bool {
-	windowMu.Lock()
-	defer windowMu.Unlock()
-	return windowSess != nil
+	s.windowMu.Lock()
+	defer s.windowMu.Unlock()
+	return s.windowSess != nil
 }
 
 // NotifyWindowShow sends a "show window" event to the attached session.
 // Returns true if the event was sent, false if no session exists.
 func (s *Service) NotifyWindowShow() bool {
-	windowMu.Lock()
-	defer windowMu.Unlock()
-	if windowSess == nil {
+	s.windowMu.Lock()
+	defer s.windowMu.Unlock()
+	if s.windowSess == nil {
 		return false
 	}
 	select {
-	case windowSess.Events <- api.RuntimeEvent{Event: api.EventWindowShow, Data: json.RawMessage(`{}`)}:
+	case s.windowSess.Events <- api.RuntimeEvent{Event: api.EventWindowShow, Data: json.RawMessage(`{}`)}:
 		return true
 	default:
 		return false // channel full — window unresponsive

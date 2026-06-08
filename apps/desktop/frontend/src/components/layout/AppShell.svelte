@@ -60,9 +60,9 @@
     <header class="topbar">
       <div>
         <h1>Control Plane</h1>
-        <p>{loading ? "Refreshing qkboxd handshake..." : `Last checked ${lastChecked}`}</p>
+        <p>{loading ? "Refreshing qkbox handshake..." : `Last checked ${lastChecked}`}</p>
       </div>
-      <IconButton label="Refresh qkboxd handshake" onclick={onrefresh} disabled={loading} spinning={loading}>
+      <IconButton label="Refresh qkbox handshake" onclick={onrefresh} disabled={loading} spinning={loading}>
         <RefreshCw size={18} />
       </IconButton>
     </header>
@@ -80,7 +80,7 @@
           <strong>{hello.schema_revision}</strong>
         </div>
         <div>
-          <span class="label">qkboxd</span>
+          <span class="label">Service</span>
           <strong>{hello.qkboxd_version}</strong>
         </div>
         <div>
@@ -94,7 +94,7 @@
       </section>
     {:else if !error}
       <section class="notice">
-        <span>Connecting to qkboxd...</span>
+        <span>Connecting to qkbox...</span>
       </section>
     {/if}
   </section>

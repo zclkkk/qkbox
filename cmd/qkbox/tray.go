@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -90,7 +91,9 @@ func onReady(ctx context.Context, inst *qkboxd.Instance) {
 			case <-windowItem.ClickedCh:
 				openWindow(inst)
 			case <-quitItem.ClickedCh:
-				inst.Close()
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				_ = inst.Shutdown(shutdownCtx)
+				cancel()
 				systray.Quit()
 				return
 			case <-ctx.Done():
@@ -109,5 +112,7 @@ func openWindow(inst *qkboxd.Instance) {
 	if inst.Service.NotifyWindowShow() {
 		return
 	}
-	_ = spawnQKBoxWindow()
+	if err := spawnQKBoxWindow(); err != nil {
+		log.Printf("open qkbox-window: %v", err)
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/getlantern/systray"
 	"github.com/zclkkk/qkbox/core/qkboxd"
 	"github.com/zclkkk/qkbox/internal/ipc"
 	"github.com/zclkkk/qkbox/shared/api"
@@ -37,15 +38,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Wait for daemon exit in background; ensure tray quits when daemon exits.
+	// When daemon exits (fatal error, signal, or user quit), clean up tray and stop.
 	go func() {
 		if err := inst.Wait(); err != nil {
 			log.Printf("daemon: %v", err)
 		}
+		stop()
+		if !*noTray {
+			systray.Quit()
+		}
 	}()
 
 	if *noTray {
-		// Headless mode: just wait for signal.
 		<-ctx.Done()
 	} else {
 		// Run tray on main goroutine (required by some platforms).

@@ -42,6 +42,11 @@ tasks:
     cmds:
       - go build -tags with_clash_api -trimpath -buildvcs=false -o "bin/qkbox{{exeExt}}" ./cmd/qkbox
 
+  build:qkbox:windows:
+    summary: Builds the qkbox daemon with Windows GUI subsystem (no console)
+    cmds:
+      - go build -tags with_clash_api -trimpath -buildvcs=false -ldflags "-H windowsgui" -o "bin/qkbox.exe" ./cmd/qkbox
+
   build:qkbox-provider:
     summary: Builds the privileged provider executable
     cmds:

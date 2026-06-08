@@ -21,7 +21,7 @@
       <dd>{hello.app_version}</dd>
     </div>
     <div>
-      <dt>qkboxd version</dt>
+      <dt>Service version</dt>
       <dd>{hello.qkboxd_version}</dd>
     </div>
     <div>

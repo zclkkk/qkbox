@@ -108,15 +108,27 @@ func (inst *Instance) Wait() error {
 	return inst.err
 }
 
-// Close requests a graceful shutdown. Idempotent.
+// Close requests a graceful shutdown. Non-blocking, idempotent.
 func (inst *Instance) Close() {
 	inst.cancel()
+}
+
+// Shutdown requests a graceful shutdown and waits for cleanup to complete.
+// Use this for user-initiated quit where all resources must be released before exit.
+func (inst *Instance) Shutdown(ctx context.Context) error {
+	inst.cancel()
+	select {
+	case <-inst.done:
+		return inst.err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // EngineState returns the current engine state string (IDLE, STARTING, STARTED, etc.).
 // Safe to call from any goroutine.
 func (inst *Instance) EngineState() string {
-	return string(inst.Service.engine.GetStatus().State)
+	return inst.Service.EngineStateString()
 }
 
 // Run is a backward-compatible blocking wrapper around Start + Wait.
