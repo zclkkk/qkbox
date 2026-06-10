@@ -137,9 +137,11 @@ func (c *Controller) RuntimeStart(ctx context.Context, req provideripc.RuntimeSt
 		_ = adapter.Stop()
 		_ = deleteOwnerRecord(c.stateDir)
 		c.mu.Lock()
+		if c.owner == record {
+			c.owner = nil
+		}
 		if c.adapter == adapter {
 			c.adapter = nil
-			c.owner = nil
 		}
 		c.mu.Unlock()
 		structured := api.NewStructuredError(api.ErrorProviderRuntimeStartFailed, err.Error(), "provider", false)

@@ -16,6 +16,7 @@ func windowBinaryPath() string {
 		return "qkbox-window"
 	}
 	exeDir := filepath.Dir(exe)
+	sameDir := filepath.Join(exeDir, "qkbox-window")
 
 	switch runtime.GOOS {
 	case "darwin":
@@ -24,7 +25,11 @@ func windowBinaryPath() string {
 		if _, err := os.Stat(helpers); err == nil {
 			return helpers
 		}
-	default:
+	}
+	if _, err := os.Stat(sameDir); err == nil {
+		return sameDir
+	}
+	if runtime.GOOS != "darwin" {
 		// Linux installed: /usr/lib/qkbox/qkbox-window
 		installed := "/usr/lib/qkbox/qkbox-window"
 		if _, err := os.Stat(installed); err == nil {
@@ -33,7 +38,7 @@ func windowBinaryPath() string {
 	}
 
 	// Dev fallback: same directory as the running executable.
-	return filepath.Join(exeDir, "qkbox-window")
+	return sameDir
 }
 
 func prepareDetachedCmd(cmd *exec.Cmd) {

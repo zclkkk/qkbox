@@ -18,7 +18,7 @@ Name "${APP_NAME}"
 OutFile "${OUT_DIR}\qkbox-${APP_VERSION}-setup.exe"
 InstallDir "$LOCALAPPDATA\Programs\qkbox"
 InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\qkbox" "InstallLocation"
-RequestExecutionLevel highest
+RequestExecutionLevel user
 ShowInstDetails show
 ShowUninstDetails show
 

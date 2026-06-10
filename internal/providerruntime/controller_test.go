@@ -124,6 +124,46 @@ func TestControllerRejectsAnotherRuntimeOwner(t *testing.T) {
 	}
 }
 
+func TestControllerStartFailureClearsOwnerState(t *testing.T) {
+	dir := t.TempDir()
+	controller := NewController(dir, true, "")
+	defer controller.Close()
+
+	_, structured := controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
+		SessionID:          "session-1",
+		RuntimeID:          "runtime-1",
+		SnapshotID:         "snapshot-1",
+		Mode:               api.RuntimeModeMachineNetwork,
+		ConfigJSON:         `not json`,
+		HeartbeatTimeoutMS: 10_000,
+	})
+	if structured == nil || structured.Code != api.ErrorProviderRuntimeStartFailed {
+		t.Fatalf("expected start failed, got %v", structured)
+	}
+	if state := controller.OwnerState(); state != nil {
+		t.Fatalf("owner state should be cleared after start failure, got %+v", state)
+	}
+	record, err := loadOwnerRecord(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record != nil {
+		t.Fatalf("owner record should be deleted after start failure, got %+v", record)
+	}
+
+	_, structured = controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
+		SessionID:          "session-2",
+		RuntimeID:          "runtime-2",
+		SnapshotID:         "snapshot-2",
+		Mode:               api.RuntimeModeMachineNetwork,
+		ConfigJSON:         directRuntimeConfig,
+		HeartbeatTimeoutMS: 10_000,
+	})
+	if structured != nil {
+		t.Fatalf("restart after failed start: %v", structured)
+	}
+}
+
 func TestControllerKeepsAndRepairsStaleOwnerRecord(t *testing.T) {
 	dir := t.TempDir()
 	if err := saveOwnerRecord(dir, &ownerRecord{

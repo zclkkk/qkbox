@@ -84,11 +84,18 @@ qkbox-provider   ← 提权进程（用户无感，TUN/DNS 劫持用）
 - qkbox 异常退出：provider 心跳超时(8s) → 自清理 TUN/iptables → 退出
 - 双保险机制，无孤儿进程
 
-### 兜底路径
+### qkbox-window 私有入口约束
 
-如果用户直接双击 `qkbox-window`（而非通过托盘），且 qkbox 未运行：
-- qkbox-window 检测到 qkbox 不可达 → 自动拉起 qkbox → 建立连接
-- 现有 `launchQKBoxD()` 逻辑降级为 fallback，保留兼容性
+`qkbox-window` 是 private executable，不进入 PATH / Start Menu / Dock / `.desktop`，只由 `qkbox` spawn。
+
+如果开发者直接运行 `qkbox-window`，且 `qkbox` 不可达：
+- 这是 unsupported behavior
+- qkbox-window 只做 IPC handshake，失败即报错/退出
+- 不自动拉起 qkbox，不做用户兜底
+
+发布验收关注 packaging 是否仍暴露 `qkbox-window`：
+- 如果 Start Menu / Dock / `.desktop` / PATH 能直接打开 `qkbox-window`，这是 packaging bug
+- 如果 `qkbox-window` 直启没有 fallback，不是 bug
 
 ---
 
@@ -293,9 +300,9 @@ Phase 0A 是架构阻塞项——Phase 1 和 Phase 2 依赖它。Phase 0B 是发
 | `cmd/qkbox/` 新增 `tray.go` | 托盘菜单：引擎控制、模式切换、打开窗口、退出 |
 | `cmd/qkbox/` 新增 `ShowWindow` IPC 方法 | 通知 qkbox-window 弹到前台 |
 | `apps/desktop/` 产出重命名 | `qkbox` → `qkbox-window` |
-| `apps/desktop/bridge.go` | `launchQKBoxD()` 降级为 fallback（仅当 qkbox 未运行时触发） |
+| `apps/desktop/bridge.go` | 移除 `launchQKBoxD()` fallback；只做 IPC handshake，qkbox 不可达即失败 |
 | IPC 协议 | 新增 GUI 连接状态追踪（`WindowSession`）、`ShowWindow` 方法 |
-| `packaging/*` | 所有平台更新二进制名、路径、Start Menu / Dock / .desktop 指向 `qkbox` |
+| `packaging/*` | 所有平台更新二进制名、路径；Start Menu / Dock / .desktop 指向 `qkbox`，不得暴露 `qkbox-window` |
 
 **完成标准：** qkbox 启动 → 托盘出现 → 点击"打开窗口"→ qkbox-window 弹出 → 关闭窗口 → 托盘仍在 → 点击"退出"→ 一切关闭。
 
@@ -644,7 +651,7 @@ core/qkboxd/
 | 模块 | 变更 | Phase |
 |------|------|-------|
 | `cmd/qkboxd/` | 重命名为 `cmd/qkbox/`，新增 tray.go | 0 |
-| `apps/desktop/` | 产出重命名，bridge.go 降级 launchQKBoxD | 0 |
+| `apps/desktop/` | 产出重命名；qkbox-window 作为 private helper，仅由 qkbox spawn | 0 |
 | `core/qkboxd/asset_service.go` | 接入 uriparse + configbuild | 1 |
 | `internal/singboxadapter/` | snapshot 创建流程中承担 error → diagnostic 翻译 | 1 |
 | `core/qkboxd/profile_service.go` | 新增 ImportNodes、ListParsedNodes；Managed→Raw fork 逻辑 | 1, 3 |
@@ -662,7 +669,7 @@ core/qkboxd/
 |------|------|------|------|------|------|
 | `cmd/qkboxd/` | **重命名** + tray | | | | |
 | `apps/desktop/main.go` | **重命名**产出 | | | | |
-| `apps/desktop/bridge.go` | **降级** launchQKBoxD | | | | |
+| `apps/desktop/bridge.go` | **移除** launch fallback；仅 IPC handshake | | | | |
 | `asset_service.go` | | **接入** uriparse | 增强 | | |
 | `singboxadapter/` | | snapshot 创建 error 翻译 | | | |
 | `profile_service.go` | | 新增 ImportNodes + fork | 新增 ListParsedNodes | | |

@@ -3,12 +3,20 @@ package main
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/getlantern/systray"
 	"github.com/zclkkk/qkbox/core/qkboxd"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
+)
+
+const windowLaunchPendingTimeout = 10 * time.Second
+
+var (
+	windowLaunchMu      sync.Mutex
+	windowLaunchPending bool
 )
 
 // requestExitFunc is the unified shutdown callback. wait=true for user quit (blocks for cleanup).
@@ -113,7 +121,49 @@ func openWindow(inst *qkboxd.Instance) {
 		log.Printf("open qkbox-window: session exists but window is unresponsive")
 		return
 	}
+	if !beginWindowLaunch() {
+		log.Printf("open qkbox-window: launch already pending")
+		return
+	}
 	if err := spawnQKBoxWindow(); err != nil {
+		endWindowLaunch()
 		log.Printf("open qkbox-window: %v", err)
+		return
+	}
+	go clearWindowLaunchWhenAttached(inst)
+}
+
+func beginWindowLaunch() bool {
+	windowLaunchMu.Lock()
+	defer windowLaunchMu.Unlock()
+	if windowLaunchPending {
+		return false
+	}
+	windowLaunchPending = true
+	return true
+}
+
+func endWindowLaunch() {
+	windowLaunchMu.Lock()
+	windowLaunchPending = false
+	windowLaunchMu.Unlock()
+}
+
+func clearWindowLaunchWhenAttached(inst *qkboxd.Instance) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	timer := time.NewTimer(windowLaunchPendingTimeout)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if inst.Service.HasWindowSession() {
+				endWindowLaunch()
+				return
+			}
+		case <-timer.C:
+			endWindowLaunch()
+			return
+		}
 	}
 }

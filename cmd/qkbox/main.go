@@ -58,17 +58,30 @@ func main() {
 		})
 	}
 
-	// When daemon exits (fatal error, signal, or user quit), clean up.
+	waitErrCh := make(chan error, 1)
 	go func() {
-		if err := inst.Wait(); err != nil {
+		waitErrCh <- inst.Wait()
+	}()
+	logWaitErr := func(err error) {
+		if err != nil {
 			log.Printf("daemon: %v", err)
 		}
-		requestExit(false)
-	}()
+	}
 
 	if *noTray {
-		<-ctx.Done()
+		select {
+		case <-ctx.Done():
+			requestExit(true)
+		case err := <-waitErrCh:
+			logWaitErr(err)
+			requestExit(false)
+		}
 	} else {
+		// When daemon exits (fatal error, signal, or user quit), clean up.
+		go func() {
+			logWaitErr(<-waitErrCh)
+			requestExit(false)
+		}()
 		// Run tray on main goroutine (required by some platforms).
 		trayRun(ctx, inst, requestExit)
 	}
