@@ -104,7 +104,7 @@ var MethodRegistry = map[string]struct{}{
 	MethodEngineCloseConnection:        {},
 	MethodEngineCloseAllConnections:    {},
 
-	MethodWindowAttach:                        {},
+	MethodWindowAttach: {},
 
 	MethodPlatformGetCapabilities:             {},
 	MethodPlatformGetPrivilegedProviderStatus: {},

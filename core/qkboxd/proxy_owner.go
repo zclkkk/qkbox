@@ -10,11 +10,11 @@ import (
 const proxyOwnerSettingsKey = "proxy_owner"
 
 type proxyOwnerRecord struct {
-	QKBoxOwned bool                          `json:"qkbox_owned"`
+	QKBoxOwned bool                            `json:"qkbox_owned"`
 	Snapshot   *capability.SystemProxySnapshot `json:"snapshot"`
-	ProxyAddr  string                        `json:"proxy_addr"`
-	ProxyPort  int                           `json:"proxy_port"`
-	EnabledAt  int64                         `json:"enabled_at"`
+	ProxyAddr  string                          `json:"proxy_addr"`
+	ProxyPort  int                             `json:"proxy_port"`
+	EnabledAt  int64                           `json:"enabled_at"`
 }
 
 func saveProxyOwner(db *persistence.DB, record *proxyOwnerRecord) error {

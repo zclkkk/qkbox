@@ -15,8 +15,8 @@ type ValidationDiagnostic struct {
 }
 
 type Diagnostics struct {
-	ProfileID        string                 `json:"profile_id"`
-	Status           ValidationStatus       `json:"status"`
-	Entries          []ValidationDiagnostic `json:"entries"`
-	RedactedPreview  string                 `json:"redacted_preview,omitempty"`
+	ProfileID       string                 `json:"profile_id"`
+	Status          ValidationStatus       `json:"status"`
+	Entries         []ValidationDiagnostic `json:"entries"`
+	RedactedPreview string                 `json:"redacted_preview,omitempty"`
 }
