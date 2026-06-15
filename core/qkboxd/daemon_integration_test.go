@@ -226,7 +226,7 @@ func TestDaemonProfileFlow(t *testing.T) {
 	// create profile
 	createReply, structured := client.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "integration-test",
-		Content: `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`,
+		Content: validDirectProfileConfig,
 	})
 	if structured != nil {
 		t.Fatalf("create: %v", structured)
@@ -301,7 +301,7 @@ func TestDaemonValidationReportsInvalidProfileContent(t *testing.T) {
 
 	createReply, structured := client.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "bad",
-		Content: `not json`,
+		Content: validDirectProfileConfig,
 	})
 	if structured != nil {
 		t.Fatalf("create: %v", structured)
@@ -328,7 +328,7 @@ func TestDaemonEngineLifecycle(t *testing.T) {
 	// 1. Create profile with provider-hosted machine-network config
 	createReply, structured := client.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "engine-test",
-		Content: `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`,
+		Content: validTunProfileConfig,
 	})
 	if structured != nil {
 		t.Fatalf("create: %v", structured)

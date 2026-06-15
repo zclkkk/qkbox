@@ -24,6 +24,13 @@ func (s *ProfileService) CreateProfile(_ context.Context, req api.CreateProfileR
 	if req.Content == "" {
 		return api.CreateProfileReply{}, api.NewStructuredError(api.ErrorProfileContentEmpty, "Profile content is required.", "qkboxd", true)
 	}
+	if diag := validateProfileConfig("", req.Content); diag.Status == model.ValidationStatusInvalid {
+		return api.CreateProfileReply{}, profileConfigValidationError(
+			"Profile content failed validation.",
+			diag,
+			"Fix the profile content before creating the profile.",
+		)
+	}
 
 	now := time.Now().UnixMilli()
 	profile := model.Profile{
@@ -89,6 +96,13 @@ func (s *ProfileService) SaveProfileContent(_ context.Context, req api.SaveProfi
 	if profile == nil {
 		return api.SaveProfileContentReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
 	}
+	if diag := validateProfileConfig(req.ProfileID, req.Content); diag.Status == model.ValidationStatusInvalid {
+		return api.SaveProfileContentReply{}, profileConfigValidationError(
+			"Profile content failed validation.",
+			diag,
+			"Fix the profile content before saving it.",
+		)
+	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.UpdateProfileContentTx(tx, req.ProfileID, req.Content)
@@ -117,8 +131,7 @@ func (s *ProfileService) ValidateProfileContent(_ context.Context, req api.Valid
 		}
 	}
 
-	diag := validateContent(req.Content)
-	diag.ProfileID = req.ProfileID
+	diag := validateProfileConfig(req.ProfileID, req.Content)
 	return api.ValidateProfileContentReply{Diagnostics: diag}, nil
 }
 

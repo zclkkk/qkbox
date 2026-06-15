@@ -21,6 +21,10 @@ import (
 	"github.com/zclkkk/qkbox/shared/api"
 )
 
+const validDirectProfileConfig = `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`
+
+const validTunProfileConfig = `{"inbounds":[{"type":"tun","tag":"tun-in","address":["172.18.0.1/30"]}],"outbounds":[{"type":"direct","tag":"direct"}]}`
+
 func newTestService(t *testing.T) *Service {
 	t.Helper()
 	return newTestServiceWithPlatform(t, nil, nil)
@@ -409,7 +413,7 @@ func TestProfileCRUD(t *testing.T) {
 	// create
 	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "test-profile",
-		Content: `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`,
+		Content: validDirectProfileConfig,
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -443,7 +447,7 @@ func TestProfileCRUD(t *testing.T) {
 	// save content
 	_, err = svc.SaveProfileContent(ctx, api.SaveProfileContentRequest{
 		ProfileID: pid,
-		Content:   `{"inbounds":[],"outbounds":[{"type":"block"}]}`,
+		Content:   `{"inbounds":[],"outbounds":[{"type":"block","tag":"block"}]}`,
 	})
 	if err != nil {
 		t.Fatalf("save content: %v", err)
@@ -451,7 +455,7 @@ func TestProfileCRUD(t *testing.T) {
 
 	validateReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{
 		ProfileID: pid,
-		Content:   `{"inbounds":[],"outbounds":[{"type":"block"}]}`,
+		Content:   `{"inbounds":[],"outbounds":[{"type":"block","tag":"block"}]}`,
 	})
 	if err != nil {
 		t.Fatalf("validate: %v", err)
@@ -638,7 +642,7 @@ func TestDiagnosticsReportRedactsRemoteURLs(t *testing.T) {
 
 	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "diag",
-		Content: `{"inbounds":[],"outbounds":[{"type":"direct"}]}`,
+		Content: validDirectProfileConfig,
 	})
 	if err != nil {
 		t.Fatalf("create profile: %v", err)
@@ -680,7 +684,7 @@ func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
 
 	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "bundle",
-		Content: `{"inbounds":[],"outbounds":[{"type":"direct"}],"password":"super-secret"}`,
+		Content: `{"inbounds":[],"outbounds":[{"type":"shadowsocks","tag":"secret","server":"example.com","server_port":8388,"method":"aes-128-gcm","password":"super-secret"}]}`,
 	})
 	if err != nil {
 		t.Fatalf("create profile: %v", err)
@@ -738,7 +742,7 @@ func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
 func TestProfileActivationLifecycle(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	content := `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`
+	content := validDirectProfileConfig
 
 	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "profile-test",
@@ -799,8 +803,8 @@ func TestActiveProfileSwitchesAcrossProfiles(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 
-	first := createProfileWithContent(t, svc, ctx, "first", `{"inbounds":[],"outbounds":[{"type":"direct"}]}`)
-	second := createProfileWithContent(t, svc, ctx, "second", `{"inbounds":[],"outbounds":[{"type":"block"}]}`)
+	first := createProfileWithContent(t, svc, ctx, "first", validDirectProfileConfig)
+	second := createProfileWithContent(t, svc, ctx, "second", `{"inbounds":[],"outbounds":[{"type":"block","tag":"block"}]}`)
 
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: first}); err != nil {
 		t.Fatalf("activate first: %v", err)
@@ -829,7 +833,7 @@ func TestActiveProfileSwitchesAcrossProfiles(t *testing.T) {
 func TestValidateProfileContentReportsInvalidJSON(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	profileID := createProfileWithContent(t, svc, ctx, "bad-profile", `not json`)
+	profileID := createValidProfile(t, svc, ctx, "bad-profile")
 
 	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: profileID, Content: `not json`})
 	if err != nil {
@@ -840,25 +844,11 @@ func TestValidateProfileContentReportsInvalidJSON(t *testing.T) {
 	}
 }
 
-func TestValidateProfileContentReportsEmptyObject(t *testing.T) {
+func TestValidateProfileContentReportsSingboxSemanticError(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	profileID := createProfileWithContent(t, svc, ctx, "empty-obj", `{}`)
-
-	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: profileID, Content: `{}`})
-	if err != nil {
-		t.Fatalf("validate: %v", err)
-	}
-	if validReply.Diagnostics.Status != "invalid" {
-		t.Fatalf("expected invalid for empty object, got %s", validReply.Diagnostics.Status)
-	}
-}
-
-func TestValidateProfileContentReportsNonArrayFields(t *testing.T) {
-	svc := newTestService(t)
-	ctx := context.Background()
-	content := `{"inbounds":"not-an-array","outbounds":123}`
-	profileID := createProfileWithContent(t, svc, ctx, "non-array", content)
+	profileID := createValidProfile(t, svc, ctx, "bad-semantic")
+	content := `{"inbounds":[],"outbounds":[{"type":"missing-protocol","tag":"bad"}]}`
 
 	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: profileID, Content: content})
 	if err != nil {
@@ -866,6 +856,56 @@ func TestValidateProfileContentReportsNonArrayFields(t *testing.T) {
 	}
 	if validReply.Diagnostics.Status != "invalid" {
 		t.Fatalf("expected invalid, got %s", validReply.Diagnostics.Status)
+	}
+}
+
+func TestValidateProfileContentReportsNonArrayFields(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	content := `{"inbounds":"not-an-array","outbounds":123}`
+	profileID := createValidProfile(t, svc, ctx, "non-array")
+
+	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: profileID, Content: content})
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if validReply.Diagnostics.Status != "invalid" {
+		t.Fatalf("expected invalid, got %s", validReply.Diagnostics.Status)
+	}
+}
+
+func TestCreateProfileRejectsInvalidContent(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	_, err := svc.CreateProfile(ctx, api.CreateProfileRequest{Name: "bad", Content: `not json`})
+	if err == nil || err.Code != api.ErrorConfigValidationFailed {
+		t.Fatalf("expected validation failure, got %v", err)
+	}
+	profiles, listErr := svc.ListProfiles(ctx, api.ListProfilesRequest{})
+	if listErr != nil {
+		t.Fatalf("list profiles: %v", listErr)
+	}
+	if len(profiles.Profiles) != 0 {
+		t.Fatalf("profiles = %+v", profiles.Profiles)
+	}
+}
+
+func TestSaveProfileContentRejectsInvalidAndKeepsContent(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	profileID := createValidProfile(t, svc, ctx, "keep-valid")
+
+	_, err := svc.SaveProfileContent(ctx, api.SaveProfileContentRequest{ProfileID: profileID, Content: `not json`})
+	if err == nil || err.Code != api.ErrorConfigValidationFailed {
+		t.Fatalf("expected validation failure, got %v", err)
+	}
+	getReply, getErr := svc.GetProfile(ctx, api.GetProfileRequest{ProfileID: profileID})
+	if getErr != nil {
+		t.Fatalf("get profile: %v", getErr)
+	}
+	if getReply.Content != validDirectProfileConfig {
+		t.Fatalf("content changed: %s", getReply.Content)
 	}
 }
 
@@ -1121,7 +1161,7 @@ func TestDarwinPlatformCapabilitiesReflectNetworkExtension(t *testing.T) {
 func TestLoadRuntimeStartTargetCarriesRequiredCapabilities(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	profileID := createProfileWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`)
+	profileID := createProfileWithContent(t, svc, ctx, "tun-target", validTunProfileConfig)
 
 	target, err := svc.loadRuntimeStartTargetByID(profileID)
 	if err != nil {
@@ -1145,7 +1185,7 @@ func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
 	}
 	svc := newTestServiceWithPlatform(t, nil, privileged)
 	ctx := context.Background()
-	profileID := createProfileWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	profileID := createProfileWithContent(t, svc, ctx, "tun-target", validTunProfileConfig)
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
@@ -1186,7 +1226,7 @@ func TestEngineStartUsesProviderHostedOwnerOnLinux(t *testing.T) {
 	}
 	svc := newTestServiceWithPlatform(t, nil, privileged)
 	ctx := context.Background()
-	profileID := createProfileWithContent(t, svc, ctx, "linux-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	profileID := createProfileWithContent(t, svc, ctx, "linux-tun-target", validTunProfileConfig)
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
@@ -1220,7 +1260,7 @@ func TestEngineStartUsesNetworkExtensionOwnerOnDarwin(t *testing.T) {
 	}
 	svc := newTestServiceWithPlatformAndExtension(t, nil, privileged, extension)
 	ctx := context.Background()
-	profileID := createProfileWithContent(t, svc, ctx, "darwin-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	profileID := createProfileWithContent(t, svc, ctx, "darwin-tun-target", validTunProfileConfig)
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
@@ -1249,7 +1289,7 @@ func TestEngineStartUsesNetworkExtensionOwnerOnDarwin(t *testing.T) {
 
 func createValidProfile(t *testing.T, svc *Service, ctx context.Context, name string) string {
 	t.Helper()
-	return createProfileWithContent(t, svc, ctx, name, `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	return createProfileWithContent(t, svc, ctx, name, validDirectProfileConfig)
 }
 
 func createProfileWithContent(t *testing.T, svc *Service, ctx context.Context, name, content string) string {

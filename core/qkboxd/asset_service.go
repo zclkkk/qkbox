@@ -104,18 +104,14 @@ func (s *AssetService) RefreshProfileSubscription(ctx context.Context, req api.R
 	}
 
 	content := string(fetched.Content)
-	diag := validateContent(content)
-	diag.ProfileID = sub.ProfileID
+	diag := validateProfileConfig(sub.ProfileID, content)
 	diag.RedactedPreview = redact.Content(content)
 	if diag.Status == model.ValidationStatusInvalid {
-		structured := &api.StructuredError{
-			Code:        api.ErrorConfigValidationFailed,
-			Message:     "Subscription content failed profile validation.",
-			Detail:      diag.Entries,
-			Source:      "qkboxd",
-			Recoverable: true,
-			UserAction:  "Fix the remote subscription content before refreshing again.",
-		}
+		structured := profileConfigValidationError(
+			"Subscription content failed profile validation.",
+			diag,
+			"Fix the remote subscription content before refreshing again.",
+		)
 		_ = s.recordProfileSubscriptionFailure(req.SubscriptionID, checkedAt, structured.Code, structured.Message)
 		return api.RefreshProfileSubscriptionReply{}, structured
 	}
