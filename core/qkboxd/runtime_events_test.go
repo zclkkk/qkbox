@@ -48,9 +48,7 @@ func TestEngineControllerPublishesStatusEvents(t *testing.T) {
 	events := hub.SubscribeStatus(ctx)
 
 	expectStatus(t, events, model.EngineStateIdle)
-	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{ProfileID: "profile", ConfigJSON: "{}"}, nil
-	})
+	err := ctrl.Start(RuntimeStartTarget{ProfileID: "profile", ConfigJSON: "{}"})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}

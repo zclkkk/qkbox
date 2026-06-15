@@ -3,6 +3,7 @@ package qkboxd
 import (
 	"archive/zip"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -51,6 +52,18 @@ func newTestServiceWithPlatformAndExtension(t *testing.T, proxy capability.Syste
 	svc := NewServiceWithNetworkExtension(context.Background(), db, proxy, privileged, extension)
 	t.Cleanup(func() { _ = svc.Close() })
 	return svc
+}
+
+func useFakeRuntimeFactory(svc *Service) func() []*fakeRuntimeOwner {
+	owners := []*fakeRuntimeOwner{}
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
+		owner := &fakeRuntimeOwner{}
+		owners = append(owners, owner)
+		return owner
+	}
+	return func() []*fakeRuntimeOwner {
+		return owners
+	}
 }
 
 type fakeSystemProxy struct {
@@ -408,6 +421,7 @@ func TestDarwinPrepareUsesNetworkExtension(t *testing.T) {
 
 func TestProfileCRUD(t *testing.T) {
 	svc := newTestService(t)
+	useFakeRuntimeFactory(svc)
 	ctx := context.Background()
 
 	// create
@@ -488,6 +502,10 @@ func TestProfileCRUD(t *testing.T) {
 		t.Fatalf("count = %d", len(listReply.Profiles))
 	}
 
+	if _, err := svc.EngineStop(ctx, api.EngineStopRequest{}); err != nil {
+		t.Fatalf("stop before delete: %v", err)
+	}
+
 	// delete
 	_, err = svc.DeleteProfile(ctx, api.DeleteProfileRequest{ProfileID: pid})
 	if err != nil {
@@ -506,6 +524,7 @@ func TestProfileCRUD(t *testing.T) {
 
 func TestProfileSubscriptionRefreshUpdatesProfileContent(t *testing.T) {
 	svc := newTestService(t)
+	useFakeRuntimeFactory(svc)
 	ctx := context.Background()
 
 	initial := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"old"}]}`
@@ -741,6 +760,7 @@ func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
 
 func TestProfileActivationLifecycle(t *testing.T) {
 	svc := newTestService(t)
+	owners := useFakeRuntimeFactory(svc)
 	ctx := context.Background()
 	content := validDirectProfileConfig
 
@@ -789,6 +809,9 @@ func TestProfileActivationLifecycle(t *testing.T) {
 	if activeReply.Profile.ID != pid {
 		t.Fatalf("active reply profile id = %s", activeReply.Profile.ID)
 	}
+	if len(owners()) != 1 || !owners()[0].started {
+		t.Fatalf("activate should start runtime, owners = %+v", owners())
+	}
 
 	getActiveReply, err := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
 	if err != nil {
@@ -801,6 +824,7 @@ func TestProfileActivationLifecycle(t *testing.T) {
 
 func TestActiveProfileSwitchesAcrossProfiles(t *testing.T) {
 	svc := newTestService(t)
+	owners := useFakeRuntimeFactory(svc)
 	ctx := context.Background()
 
 	first := createProfileWithContent(t, svc, ctx, "first", validDirectProfileConfig)
@@ -811,6 +835,15 @@ func TestActiveProfileSwitchesAcrossProfiles(t *testing.T) {
 	}
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: second}); err != nil {
 		t.Fatalf("activate second: %v", err)
+	}
+	if len(owners()) != 2 {
+		t.Fatalf("runtime owners = %d, want 2", len(owners()))
+	}
+	if owners()[0].started {
+		t.Fatal("first runtime owner should be stopped during profile switch")
+	}
+	if !owners()[1].started {
+		t.Fatal("second runtime owner should be started")
 	}
 
 	activeProfile, err := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
@@ -921,8 +954,8 @@ func TestEngineStartWithoutActiveProfile(t *testing.T) {
 	if statusErr != nil {
 		t.Fatalf("status: %v", statusErr)
 	}
-	if status.Status.LastErrorCode != api.ErrorEngineNoActiveProfile {
-		t.Fatalf("last error = %s", status.Status.LastErrorCode)
+	if status.Status.State != "IDLE" || status.Status.ActiveProfileID != "" {
+		t.Fatalf("status = %+v", status.Status)
 	}
 }
 
@@ -940,9 +973,7 @@ func TestEngineStartUsesActiveProfileContent(t *testing.T) {
 	if _, err := svc.SaveProfileContent(ctx, api.SaveProfileContentRequest{ProfileID: profileID, Content: activeContent}); err != nil {
 		t.Fatalf("save content: %v", err)
 	}
-	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
+	setActiveProfileForTest(t, svc, profileID)
 
 	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
 		t.Fatalf("engine start: %v", err)
@@ -955,21 +986,25 @@ func TestEngineStartUsesActiveProfileContent(t *testing.T) {
 	}
 }
 
-func TestEngineStartBlocksActiveProfileMutationWhileStarting(t *testing.T) {
+func TestActivateProfileSerializesActivationWhileEngineStartIsStarting(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 	started := make(chan struct{})
 	release := make(chan struct{})
-	fake := &fakeRuntimeOwner{startedCh: started, releaseStart: release}
-	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
-		return fake
+	var owners []*fakeRuntimeOwner
+	svc.engine.runtimeOwnerFactory = func(target RuntimeStartTarget) RuntimeOwner {
+		owner := &fakeRuntimeOwner{}
+		if len(owners) == 0 {
+			owner.startedCh = started
+			owner.releaseStart = release
+		}
+		owners = append(owners, owner)
+		return owner
 	}
 
 	first := createValidProfile(t, svc, ctx, "first")
 	second := createValidProfile(t, svc, ctx, "second")
-	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: first}); err != nil {
-		t.Fatalf("activate first: %v", err)
-	}
+	setActiveProfileForTest(t, svc, first)
 
 	done := make(chan *api.StructuredError, 1)
 	go func() {
@@ -996,8 +1031,251 @@ func TestEngineStartBlocksActiveProfileMutationWhileStarting(t *testing.T) {
 		t.Fatalf("engine start: %v", err)
 	}
 	err := <-activateDone
-	if err == nil || err.Code != api.ErrorEngineRunning {
-		t.Fatalf("expected ENGINE_RUNNING, got %v", err)
+	if err != nil {
+		t.Fatalf("activate after serialized start: %v", err)
+	}
+	if len(owners) != 2 {
+		t.Fatalf("runtime owners = %d, want 2", len(owners))
+	}
+	if owners[0].started {
+		t.Fatal("first runtime owner should be stopped before second activation")
+	}
+	if !owners[1].started {
+		t.Fatal("second runtime owner should be started")
+	}
+}
+
+func TestActivateProfileStartFailureDoesNotPersistNewActiveProfile(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
+		return &fakeRuntimeOwner{startErr: errors.New("new runtime failed")}
+	}
+
+	profileID := createValidProfile(t, svc, ctx, "will-fail")
+	_, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID})
+	if err == nil || err.Code != api.ErrorSingboxAdapterStartFailed {
+		t.Fatalf("expected start failure, got %v", err)
+	}
+	active, activeErr := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
+	if activeErr != nil {
+		t.Fatalf("get active: %v", activeErr)
+	}
+	if active.Profile != nil {
+		t.Fatalf("active profile = %+v, want nil", active.Profile)
+	}
+	status, statusErr := svc.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
+	if statusErr != nil {
+		t.Fatalf("status: %v", statusErr)
+	}
+	if status.Status.ActiveProfileID != "" || status.Status.State != "IDLE" {
+		t.Fatalf("status = %+v", status.Status)
+	}
+}
+
+func TestActivateProfileStartFailureRestartsOldRuntime(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	var owners []*fakeRuntimeOwner
+	var oldProfileID string
+	var newProfileID string
+	svc.engine.runtimeOwnerFactory = func(target RuntimeStartTarget) RuntimeOwner {
+		owner := &fakeRuntimeOwner{}
+		if target.ProfileID == newProfileID {
+			owner.startErr = errors.New("new runtime failed")
+		}
+		owners = append(owners, owner)
+		return owner
+	}
+
+	oldProfileID = createValidProfile(t, svc, ctx, "old")
+	newProfileID = createValidProfile(t, svc, ctx, "new")
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: oldProfileID}); err != nil {
+		t.Fatalf("activate old: %v", err)
+	}
+
+	_, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: newProfileID})
+	if err == nil || err.Code != api.ErrorSingboxAdapterStartFailed {
+		t.Fatalf("expected start failure, got %v", err)
+	}
+	if len(owners) != 3 {
+		t.Fatalf("owners = %d, want old start, new failure, old rollback", len(owners))
+	}
+	if owners[0].started {
+		t.Fatal("old runtime owner should be stopped before new start")
+	}
+	if owners[1].started {
+		t.Fatal("failed new runtime owner must not remain started")
+	}
+	if !owners[2].started || owners[2].target.ProfileID != oldProfileID {
+		t.Fatalf("rollback owner = %+v", owners[2].target)
+	}
+	active, activeErr := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
+	if activeErr != nil {
+		t.Fatalf("get active: %v", activeErr)
+	}
+	if active.Profile == nil || active.Profile.ID != oldProfileID {
+		t.Fatalf("active profile = %+v", active.Profile)
+	}
+	status, statusErr := svc.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
+	if statusErr != nil {
+		t.Fatalf("status: %v", statusErr)
+	}
+	if status.Status.ActiveProfileID != oldProfileID || status.Status.State != "STARTED" {
+		t.Fatalf("status = %+v", status.Status)
+	}
+}
+
+func TestActivateProfileRebindsOwnedSystemProxyToNewRuntimeListener(t *testing.T) {
+	proxy := &fakeSystemProxy{}
+	svc := newTestServiceWithProxy(t, proxy)
+	ctx := context.Background()
+	var owners []*fakeRuntimeOwner
+	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
+		port := 7890
+		if len(owners) == 1 {
+			port = 7891
+		}
+		owner := &fakeRuntimeOwner{
+			listeners: []runtimeapi.ListenerInfo{{Tag: "mixed", Type: "mixed", Address: "127.0.0.1", Port: port}},
+		}
+		owners = append(owners, owner)
+		return owner
+	}
+
+	oldProfileID := createValidProfile(t, svc, ctx, "old-proxy")
+	newProfileID := createValidProfile(t, svc, ctx, "new-proxy")
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: oldProfileID}); err != nil {
+		t.Fatalf("activate old: %v", err)
+	}
+
+	snapshot := &capability.SystemProxySnapshot{Raw: json.RawMessage(`{"baseline":"user"}`)}
+	proxy.state = capability.SystemProxyCurrentState{Enabled: true, Addr: "127.0.0.1", Port: 7890}
+	if err := saveProxyOwner(svc.db, &proxyOwnerRecord{
+		QKBoxOwned: true,
+		Snapshot:   snapshot,
+		ProxyAddr:  "127.0.0.1",
+		ProxyPort:  7890,
+		EnabledAt:  1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: newProfileID}); err != nil {
+		t.Fatalf("activate new: %v", err)
+	}
+	if proxy.restoreCalls != 1 {
+		t.Fatalf("restore calls = %d, want baseline restore before switch", proxy.restoreCalls)
+	}
+	if proxy.applyCalls != 1 || proxy.appliedPort != 7891 {
+		t.Fatalf("apply = %d to %s:%d, want one apply to new listener", proxy.applyCalls, proxy.appliedAddr, proxy.appliedPort)
+	}
+	record, err := loadProxyOwner(svc.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record == nil || record.ProxyPort != 7891 {
+		t.Fatalf("owner record = %+v", record)
+	}
+	if string(record.Snapshot.Raw) != string(snapshot.Raw) {
+		t.Fatalf("snapshot = %s, want preserved baseline %s", record.Snapshot.Raw, snapshot.Raw)
+	}
+}
+
+func TestActivateProfileFailureRestoresOwnedSystemProxyBaseline(t *testing.T) {
+	proxy := &fakeSystemProxy{}
+	svc := newTestServiceWithProxy(t, proxy)
+	ctx := context.Background()
+	var owners []*fakeRuntimeOwner
+	var newProfileID string
+	svc.engine.runtimeOwnerFactory = func(target RuntimeStartTarget) RuntimeOwner {
+		owner := &fakeRuntimeOwner{
+			listeners: []runtimeapi.ListenerInfo{{Tag: "mixed", Type: "mixed", Address: "127.0.0.1", Port: 7890}},
+		}
+		if target.ProfileID == newProfileID {
+			owner.startErr = errors.New("new runtime failed")
+		}
+		owners = append(owners, owner)
+		return owner
+	}
+
+	oldProfileID := createValidProfile(t, svc, ctx, "old-proxy-failure")
+	newProfileID = createValidProfile(t, svc, ctx, "new-proxy-failure")
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: oldProfileID}); err != nil {
+		t.Fatalf("activate old: %v", err)
+	}
+
+	proxy.state = capability.SystemProxyCurrentState{Enabled: true, Addr: "127.0.0.1", Port: 7890}
+	if err := saveProxyOwner(svc.db, &proxyOwnerRecord{
+		QKBoxOwned: true,
+		Snapshot:   &capability.SystemProxySnapshot{Raw: json.RawMessage(`{"baseline":"user"}`)},
+		ProxyAddr:  "127.0.0.1",
+		ProxyPort:  7890,
+		EnabledAt:  1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: newProfileID})
+	if err == nil || err.Code != api.ErrorSingboxAdapterStartFailed {
+		t.Fatalf("expected start failure, got %v", err)
+	}
+	if proxy.restoreCalls != 1 {
+		t.Fatalf("restore calls = %d, want one baseline restore", proxy.restoreCalls)
+	}
+	if proxy.applyCalls != 0 {
+		t.Fatalf("apply calls = %d, failure path must not re-acquire proxy", proxy.applyCalls)
+	}
+	if proxy.state.Enabled {
+		t.Fatalf("proxy state = %+v, want baseline restored", proxy.state)
+	}
+	record, loadErr := loadProxyOwner(svc.db)
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	if record != nil {
+		t.Fatalf("owner record = %+v, want cleared", record)
+	}
+	if len(owners) != 3 || !owners[2].started || owners[2].target.ProfileID != oldProfileID {
+		t.Fatalf("rollback owners = %+v", owners)
+	}
+	active, activeErr := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
+	if activeErr != nil {
+		t.Fatalf("get active: %v", activeErr)
+	}
+	if active.Profile == nil || active.Profile.ID != oldProfileID {
+		t.Fatalf("active profile = %+v", active.Profile)
+	}
+}
+
+func TestActivateProfileDoesNotReclaimLostSystemProxyOwnership(t *testing.T) {
+	proxy := &fakeSystemProxy{state: capability.SystemProxyCurrentState{Enabled: true, Addr: "10.0.0.2", Port: 8080}}
+	svc := newTestServiceWithProxy(t, proxy)
+	useFakeRuntimeFactory(svc)
+	ctx := context.Background()
+	if err := saveProxyOwner(svc.db, &proxyOwnerRecord{
+		QKBoxOwned: true,
+		Snapshot:   &capability.SystemProxySnapshot{Raw: json.RawMessage(`{"baseline":"old"}`)},
+		ProxyAddr:  "127.0.0.1",
+		ProxyPort:  7890,
+		EnabledAt:  1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	profileID := createValidProfile(t, svc, ctx, "lost-proxy")
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+	if proxy.restoreCalls != 0 || proxy.applyCalls != 0 {
+		t.Fatalf("proxy calls restore=%d apply=%d, want no ownership changes", proxy.restoreCalls, proxy.applyCalls)
+	}
+	record, err := loadProxyOwner(svc.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record != nil {
+		t.Fatalf("owner record = %+v, want cleared after lost ownership", record)
 	}
 }
 
@@ -1189,10 +1467,6 @@ func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
-
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
 	if len(privileged.runtimeStarts) != 1 {
 		t.Fatalf("runtime starts = %d, want provider-hosted start", len(privileged.runtimeStarts))
 	}
@@ -1230,10 +1504,6 @@ func TestEngineStartUsesProviderHostedOwnerOnLinux(t *testing.T) {
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
-
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
 	if len(privileged.runtimeStarts) != 1 {
 		t.Fatalf("runtime starts = %d, want provider-hosted start", len(privileged.runtimeStarts))
 	}
@@ -1263,10 +1533,6 @@ func TestEngineStartUsesNetworkExtensionOwnerOnDarwin(t *testing.T) {
 	profileID := createProfileWithContent(t, svc, ctx, "darwin-tun-target", validTunProfileConfig)
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
-	}
-
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
 	}
 	if len(extension.starts) != 1 {
 		t.Fatalf("network extension starts = %d, want one", len(extension.starts))
@@ -1304,6 +1570,15 @@ func createProfileWithContent(t *testing.T, svc *Service, ctx context.Context, n
 	return createReply.Profile.ID
 }
 
+func setActiveProfileForTest(t *testing.T, svc *Service, profileID string) {
+	t.Helper()
+	if err := svc.db.WithTx(func(tx *sql.Tx) error {
+		return svc.db.SetActiveProfileTx(tx, profileID)
+	}); err != nil {
+		t.Fatalf("set active profile: %v", err)
+	}
+}
+
 func startEngineForProxyTest(t *testing.T, svc *Service) {
 	t.Helper()
 	ctx := context.Background()
@@ -1314,8 +1589,5 @@ func startEngineForProxyTest(t *testing.T, svc *Service) {
 	profileID := createValidProfile(t, svc, ctx, "proxy-engine")
 	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("engine start: %v", err)
 	}
 }

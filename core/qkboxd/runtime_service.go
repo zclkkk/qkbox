@@ -22,9 +22,11 @@ func (s *RuntimeService) EngineStart(ctx context.Context, _ api.EngineStartReque
 	s.opMu.Lock()
 	defer s.opMu.Unlock()
 
-	if sErr := s.engine.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return s.loadActiveRuntimeStartTarget(ctx)
-	}); sErr != nil {
+	target, structured := s.loadActiveRuntimeStartTarget(ctx)
+	if structured != nil {
+		return api.EngineStartReply{}, structured
+	}
+	if sErr := s.engine.Start(target); sErr != nil {
 		return api.EngineStartReply{}, sErr
 	}
 	return api.EngineStartReply{}, nil
@@ -67,6 +69,13 @@ func (s *RuntimeService) loadRuntimeStartTargetByID(profileID string) (RuntimeSt
 	}
 	if configJSON == "" {
 		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorProfileContentEmpty, "Profile content is empty.", "qkboxd", true)
+	}
+	if diag := validateProfileConfig(profileID, configJSON); diag.Status == model.ValidationStatusInvalid {
+		return RuntimeStartTarget{}, profileConfigValidationError(
+			"Profile content failed validation.",
+			diag,
+			"Fix the profile content before activating it.",
+		)
 	}
 	return RuntimeStartTarget{
 		ProfileID:            profileID,

@@ -3,7 +3,6 @@ package qkboxd
 import (
 	"context"
 	"database/sql"
-	"sync"
 	"time"
 
 	"github.com/zclkkk/qkbox/internal/persistence"
@@ -12,9 +11,7 @@ import (
 )
 
 type ProfileService struct {
-	db     *persistence.DB
-	engine *EngineController
-	opMu   *sync.Mutex
+	db *persistence.DB
 }
 
 func (s *ProfileService) CreateProfile(_ context.Context, req api.CreateProfileRequest) (api.CreateProfileReply, *api.StructuredError) {
@@ -182,34 +179,6 @@ func (s *ProfileService) GetProfile(_ context.Context, req api.GetProfileRequest
 	}
 	reply.Content = content
 	return reply, nil
-}
-
-func (s *ProfileService) ActivateProfile(_ context.Context, req api.ActivateProfileRequest) (api.ActivateProfileReply, *api.StructuredError) {
-	if req.ProfileID == "" {
-		return api.ActivateProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile ID is required.", "qkboxd", true)
-	}
-
-	s.opMu.Lock()
-	defer s.opMu.Unlock()
-
-	if err := s.engine.CheckProfileSelectionMutation(); err != nil {
-		return api.ActivateProfileReply{}, err
-	}
-
-	profile, err := s.db.GetProfile(req.ProfileID)
-	if err != nil {
-		return api.ActivateProfileReply{}, qkboxdInternalError(err)
-	}
-	if profile == nil {
-		return api.ActivateProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
-	}
-
-	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		return s.db.SetActiveProfileTx(tx, req.ProfileID)
-	}); err != nil {
-		return api.ActivateProfileReply{}, qkboxdInternalError(err)
-	}
-	return api.ActivateProfileReply{Profile: *profile}, nil
 }
 
 func (s *ProfileService) GetActiveProfile(_ context.Context, _ api.GetActiveProfileRequest) (api.GetActiveProfileReply, *api.StructuredError) {

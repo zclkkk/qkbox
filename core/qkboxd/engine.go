@@ -38,7 +38,7 @@ func (e *EngineController) GetStatus() api.EngineStatus {
 	return e.status
 }
 
-func (e *EngineController) Start(loadTarget func() (RuntimeStartTarget, *api.StructuredError)) *api.StructuredError {
+func (e *EngineController) Start(target RuntimeStartTarget) *api.StructuredError {
 	e.mu.Lock()
 	if err := e.beginStartLocked(); err != nil {
 		e.mu.Unlock()
@@ -47,12 +47,6 @@ func (e *EngineController) Start(loadTarget func() (RuntimeStartTarget, *api.Str
 	status := e.status
 	e.mu.Unlock()
 	e.publishStatus(status)
-
-	target, structured := loadTarget()
-	if structured != nil {
-		e.finishStartFailure(structured.Code, structured.Message)
-		return structured
-	}
 
 	e.mu.Lock()
 	e.status.ActiveProfileID = target.ProfileID
@@ -75,6 +69,21 @@ func (e *EngineController) Start(loadTarget func() (RuntimeStartTarget, *api.Str
 	e.publishStatus(status)
 
 	return nil
+}
+
+func (e *EngineController) CheckActivationAllowed() (api.EngineStatus, *api.StructuredError) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	status := e.status
+	switch e.status.State {
+	case model.EngineStateStarting, model.EngineStateStopping:
+		return status, api.NewStructuredError(api.ErrorEngineBusy, "Engine is busy.", "qkboxd", true)
+	case model.EngineStateFatal:
+		if e.runtimeOwner != nil {
+			return status, api.NewStructuredError(api.ErrorEngineBusy, "Engine is in a fatal runtime state. Stop it before activating a profile.", "qkboxd", true)
+		}
+	}
+	return status, nil
 }
 
 func (e *EngineController) Stop() *api.StructuredError {
@@ -143,15 +152,6 @@ func (e *EngineController) finishStopSuccess() {
 	e.publishStatus(status)
 }
 
-func (e *EngineController) CheckProfileSelectionMutation() *api.StructuredError {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.blocksMutationsLocked() {
-		return api.NewStructuredError(api.ErrorEngineRunning, "Cannot change active profile while engine is running.", "qkboxd", true)
-	}
-	return nil
-}
-
 func (e *EngineController) beginStartLocked() *api.StructuredError {
 	switch e.status.State {
 	case model.EngineStateStarted:
@@ -190,19 +190,13 @@ func (e *EngineController) finishStartFailure(code, message string) {
 	e.mu.Lock()
 	e.status.State = model.EngineStateIdle
 	e.runtimeOwner = nil
+	e.status.ActiveProfileID = ""
 	e.status.StartedAt = 0
 	e.status.LastErrorCode = code
 	e.status.LastErrorMessage = message
 	status := e.status
 	e.mu.Unlock()
 	e.publishStatus(status)
-}
-
-func (e *EngineController) blocksMutationsLocked() bool {
-	return e.status.State == model.EngineStateStarting ||
-		e.status.State == model.EngineStateStarted ||
-		e.status.State == model.EngineStateStopping ||
-		(e.status.State == model.EngineStateFatal && e.runtimeOwner != nil)
 }
 
 func (e *EngineController) RuntimeCapabilities() []api.Capability {

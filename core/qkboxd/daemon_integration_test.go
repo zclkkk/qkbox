@@ -273,22 +273,7 @@ func TestDaemonProfileFlow(t *testing.T) {
 		t.Fatalf("save content: %v", structured)
 	}
 
-	// activate
-	_, structured = client.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: pid})
-	if structured != nil {
-		t.Fatalf("activate: %v", structured)
-	}
-
-	// get active profile
-	activeReply, structured := client.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
-	if structured != nil {
-		t.Fatalf("get active: %v", structured)
-	}
-	if activeReply.Profile == nil || activeReply.Profile.ID != pid {
-		t.Fatal("wrong active profile")
-	}
-
-	// delete clears active profile selection
+	// delete
 	_, structured = client.DeleteProfile(ctx, api.DeleteProfileRequest{ProfileID: pid})
 	if structured != nil {
 		t.Fatalf("delete: %v", structured)
@@ -335,19 +320,13 @@ func TestDaemonEngineLifecycle(t *testing.T) {
 	}
 	pid := createReply.Profile.ID
 
-	// 2. Select active profile
+	// 2. Activate profile and start runtime
 	_, structured = client.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: pid})
 	if structured != nil {
 		t.Fatalf("activate: %v", structured)
 	}
 
-	// 3. Start Engine
-	_, structured = client.EngineStart(ctx, api.EngineStartRequest{})
-	if structured != nil {
-		t.Fatalf("engine start: %v", structured)
-	}
-
-	// 4. Get Status
+	// 3. Get Status
 	statusReply, structured := client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
 	if structured != nil {
 		t.Fatalf("engine get status: %v", structured)
@@ -359,13 +338,13 @@ func TestDaemonEngineLifecycle(t *testing.T) {
 		t.Fatalf("active profile id = %s, want %s", statusReply.Status.ActiveProfileID, pid)
 	}
 
-	// 5. Stop Engine
+	// 4. Stop Engine
 	_, structured = client.EngineStop(ctx, api.EngineStopRequest{})
 	if structured != nil {
 		t.Fatalf("engine stop: %v", structured)
 	}
 
-	// 6. Get Status
+	// 5. Get Status
 	statusReply, structured = client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
 	if structured != nil {
 		t.Fatalf("engine get status: %v", structured)

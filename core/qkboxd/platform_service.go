@@ -415,6 +415,75 @@ func (s *PlatformService) restoreProxyIfOwned() *api.StructuredError {
 	return nil
 }
 
+func (s *PlatformService) captureOwnedProxyForActivation() (*proxyOwnerRecord, *api.StructuredError) {
+	if s.proxy == nil {
+		return nil, nil
+	}
+	record, err := loadProxyOwner(s.db)
+	if err != nil {
+		return nil, api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+	}
+	if record == nil || !record.QKBoxOwned {
+		return nil, nil
+	}
+	avail := s.proxy.Availability()
+	if !avail.Available || !avail.Supported {
+		return nil, api.NewStructuredError(api.ErrorPlatformProxyFailed, "System proxy owner record exists but the platform provider is unavailable.", "platform", true)
+	}
+	state, err := s.proxy.CurrentState()
+	if err != nil {
+		return nil, api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	if !proxyOwnerMatches(state, record) {
+		_ = deleteProxyOwner(s.db)
+		return nil, nil
+	}
+	return record, nil
+}
+
+func (s *PlatformService) restoreCapturedProxy(record *proxyOwnerRecord) *api.StructuredError {
+	if s.proxy == nil || record == nil {
+		return nil
+	}
+	if err := s.proxy.Restore(record.Snapshot); err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	_ = deleteProxyOwner(s.db)
+	return nil
+}
+
+func (s *PlatformService) bindCapturedProxyToRuntime(record *proxyOwnerRecord) *api.StructuredError {
+	if s.proxy == nil || record == nil {
+		return nil
+	}
+	avail := s.proxy.Availability()
+	if !avail.Available || !avail.Supported {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, "System proxy owner record exists but the platform provider is unavailable.", "platform", true)
+	}
+	listeners, sErr := s.engine.ListenerInfo()
+	if sErr != nil {
+		return sErr
+	}
+	if len(listeners) == 0 {
+		return api.NewStructuredError(api.ErrorPlatformProxyNoListener, "No HTTP/mixed inbound found in active config.", "qkboxd", true)
+	}
+	target := listeners[0]
+	updated := *record
+	updated.ProxyAddr = target.Address
+	updated.ProxyPort = target.Port
+	updated.EnabledAt = time.Now().UnixMilli()
+	if err := saveProxyOwner(s.db, &updated); err != nil {
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "qkboxd", false)
+	}
+	if err := s.proxy.Apply(updated.ProxyAddr, updated.ProxyPort); err != nil {
+		if restoreErr := s.proxy.Restore(record.Snapshot); restoreErr == nil {
+			_ = deleteProxyOwner(s.db)
+		}
+		return api.NewStructuredError(api.ErrorPlatformProxyFailed, err.Error(), "platform", true)
+	}
+	return nil
+}
+
 func (s *PlatformService) bestEffortProxyRestore() {
 	if s.proxy == nil {
 		return

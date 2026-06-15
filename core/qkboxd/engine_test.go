@@ -17,6 +17,7 @@ type fakeRuntimeOwner struct {
 	started      bool
 	configJSON   string
 	target       RuntimeStartTarget
+	listeners    []runtimeapi.ListenerInfo
 	startedCh    chan struct{}
 	releaseStart <-chan struct{}
 	stoppedCh    chan struct{}
@@ -89,6 +90,9 @@ func (f *fakeRuntimeOwner) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.Struc
 	if !f.started {
 		return nil, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine is not running.", "test", true)
 	}
+	if len(f.listeners) > 0 {
+		return f.listeners, nil
+	}
 	return []runtimeapi.ListenerInfo{{Tag: "http", Type: "mixed", Address: "127.0.0.1", Port: 7890}}, nil
 }
 
@@ -105,9 +109,7 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 	}
 
 	// 2. Start Success
-	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
-	})
+	err := ctrl.Start(RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -122,17 +124,14 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 	}
 
 	// 3. Prevent duplicate Start
-	err = ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{ProfileID: "profile2", ConfigJSON: "{}"}, nil
-	})
+	err = ctrl.Start(RuntimeStartTarget{ProfileID: "profile2", ConfigJSON: "{}"})
 	if err == nil || err.Code != api.ErrorEngineAlreadyStarted {
 		t.Fatalf("expected ENGINE_ALREADY_STARTED")
 	}
 
-	// 4. Block Mutations
-	mutErr := ctrl.CheckProfileSelectionMutation()
-	if mutErr == nil || mutErr.Code != api.ErrorEngineRunning {
-		t.Fatalf("expected ENGINE_RUNNING when mutating")
+	// 4. Activation switch is allowed from STARTED and handled by the service layer.
+	if _, activationErr := ctrl.CheckActivationAllowed(); activationErr != nil {
+		t.Fatalf("activation should be allowed while STARTED, got %v", activationErr)
 	}
 
 	// 5. Stop Success
@@ -164,9 +163,7 @@ func TestEngineController_RuntimeOwnerStartFailure(t *testing.T) {
 		return fake
 	}
 
-	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
-	})
+	err := ctrl.Start(RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"})
 	if err == nil || err.Code != api.ErrorSingboxAdapterStartFailed {
 		t.Fatalf("expected SINGBOX_ADAPTER_START_FAILED")
 	}
@@ -192,9 +189,7 @@ func TestEngineControllerRuntimeOwnerFactoryReceivesStartTarget(t *testing.T) {
 		ConfigJSON:           `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`,
 		RequiredCapabilities: []string{api.CapabilityTunMode},
 	}
-	if err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return target, nil
-	}); err != nil {
+	if err := ctrl.Start(target); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	if factoryTarget.ProfileID != target.ProfileID {
@@ -219,17 +214,15 @@ func TestEngineController_StartIsObservableWhileRuntimeOwnerStarts(t *testing.T)
 
 	done := make(chan *api.StructuredError, 1)
 	go func() {
-		done <- ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-			return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
-		})
+		done <- ctrl.Start(RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"})
 	}()
 
 	waitFor(t, started)
 	if status := ctrl.GetStatus(); status.State != model.EngineStateStarting {
 		t.Fatalf("expected STARTING while runtime owner starts, got %s", status.State)
 	}
-	if err := ctrl.CheckProfileSelectionMutation(); err == nil || err.Code != api.ErrorEngineRunning {
-		t.Fatalf("expected mutation blocking while STARTING")
+	if _, err := ctrl.CheckActivationAllowed(); err == nil || err.Code != api.ErrorEngineBusy {
+		t.Fatalf("expected activation busy while STARTING")
 	}
 	if err := ctrl.Stop(); err == nil || err.Code != api.ErrorEngineBusy {
 		t.Fatalf("expected ENGINE_BUSY while STARTING")
@@ -244,24 +237,6 @@ func TestEngineController_StartIsObservableWhileRuntimeOwnerStarts(t *testing.T)
 	}
 }
 
-func TestEngineController_LoadFailureReturnsToIdle(t *testing.T) {
-	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
-
-	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveProfile, "No active profile.", "qkboxd", true)
-	})
-	if err == nil || err.Code != api.ErrorEngineNoActiveProfile {
-		t.Fatalf("expected ENGINE_NO_ACTIVE_PROFILE")
-	}
-	status := ctrl.GetStatus()
-	if status.State != model.EngineStateIdle {
-		t.Fatalf("expected IDLE, got %s", status.State)
-	}
-	if status.LastErrorCode != api.ErrorEngineNoActiveProfile {
-		t.Fatalf("last error = %s", status.LastErrorCode)
-	}
-}
-
 func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
 	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 	fake := &fakeRuntimeOwner{stopErr: errors.New("stop failed")}
@@ -269,9 +244,7 @@ func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
 		return fake
 	}
 
-	if err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
-	}); err != nil {
+	if err := ctrl.Start(RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	err := ctrl.Stop()
@@ -281,8 +254,8 @@ func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
 	if status := ctrl.GetStatus(); status.State != model.EngineStateFatal {
 		t.Fatalf("expected FATAL, got %s", status.State)
 	}
-	if err := ctrl.CheckProfileSelectionMutation(); err == nil || err.Code != api.ErrorEngineRunning {
-		t.Fatalf("expected mutation blocking after fatal stop failure")
+	if _, err := ctrl.CheckActivationAllowed(); err == nil || err.Code != api.ErrorEngineBusy {
+		t.Fatalf("expected activation busy after fatal stop failure")
 	}
 
 	fake.stopErr = nil

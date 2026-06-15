@@ -48,7 +48,7 @@ func NewServiceWithNetworkExtension(runtimeCtx context.Context, db *persistence.
 	httpClient := &http.Client{Timeout: remoteFetchTimeout}
 
 	platform := &PlatformService{db: db, engine: engine, proxy: proxy, privileged: privileged, extension: extension, opMu: opMu}
-	profile := &ProfileService{db: db, engine: engine, opMu: opMu}
+	profile := &ProfileService{db: db}
 	asset := &AssetService{db: db, httpClient: httpClient, assetStore: assetStore}
 	runtimeService := &RuntimeService{db: db, engine: engine, events: events, platform: platform, opMu: opMu}
 	diagnostics := &DiagnosticsService{db: db, engine: engine, platform: platform, privileged: privileged, extension: extension, assetStore: assetStore}
