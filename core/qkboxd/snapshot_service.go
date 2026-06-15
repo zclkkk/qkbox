@@ -14,7 +14,6 @@ import (
 )
 
 type SnapshotService struct {
-	*ContentCodec
 	db     *persistence.DB
 	engine *EngineController
 	opMu   *sync.Mutex

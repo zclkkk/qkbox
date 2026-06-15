@@ -7,20 +7,20 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/zclkkk/qkbox/internal/assetcache"
-	"github.com/zclkkk/qkbox/internal/persistence"
-	"github.com/zclkkk/qkbox/internal/redact"
-	"github.com/zclkkk/qkbox/shared/api"
-	"github.com/zclkkk/qkbox/shared/model"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/zclkkk/qkbox/internal/assetcache"
+	"github.com/zclkkk/qkbox/internal/persistence"
+	"github.com/zclkkk/qkbox/internal/redact"
+	"github.com/zclkkk/qkbox/shared/api"
+	"github.com/zclkkk/qkbox/shared/model"
 )
 
 type AssetService struct {
-	*ContentCodec
 	db         *persistence.DB
 	httpClient *http.Client
 	assetStore *assetcache.Store
@@ -121,10 +121,6 @@ func (s *AssetService) RefreshProfileSubscription(ctx context.Context, req api.R
 	}
 
 	contentSHA := sha256Hex(fetched.Content)
-	draftContent, err := s.encryptedContent("draft", sub.ProfileID, content, checkedAt)
-	if err != nil {
-		return api.RefreshProfileSubscriptionReply{}, qkboxdInternalError(err)
-	}
 	update := persistence.ProfileSubscriptionUpdate{
 		LastStatus:    model.SubscriptionStatusUpdated,
 		LastCheckedAt: checkedAt,
@@ -132,7 +128,7 @@ func (s *AssetService) RefreshProfileSubscription(ctx context.Context, req api.R
 		ContentSHA256: contentSHA,
 	}
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		if err := s.db.ReplaceDraftContentTx(tx, sub.ProfileID, draftContent); err != nil {
+		if err := s.db.UpdateProfileContentTx(tx, sub.ProfileID, content); err != nil {
 			return err
 		}
 		return s.db.UpdateProfileSubscriptionRefreshTx(tx, req.SubscriptionID, update)

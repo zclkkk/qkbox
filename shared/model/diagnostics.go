@@ -8,6 +8,14 @@ const (
 	SeverityInfo    DiagnosticSeverity = "info"
 )
 
+type ValidationStatus string
+
+const (
+	ValidationStatusValid   ValidationStatus = "valid"
+	ValidationStatusInvalid ValidationStatus = "invalid"
+	ValidationStatusUnknown ValidationStatus = "unknown"
+)
+
 type ValidationDiagnostic struct {
 	Severity DiagnosticSeverity `json:"severity"`
 	Field    string             `json:"field,omitempty"`

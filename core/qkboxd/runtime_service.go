@@ -3,15 +3,15 @@ package qkboxd
 import (
 	"context"
 	"database/sql"
+	"sync"
+	"time"
+
 	"github.com/zclkkk/qkbox/internal/persistence"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
-	"sync"
-	"time"
 )
 
 type RuntimeService struct {
-	*ContentCodec
 	db       *persistence.DB
 	engine   *EngineController
 	events   *RuntimeEventHub

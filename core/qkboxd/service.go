@@ -35,25 +35,24 @@ const remoteProfileFetchLimit = 16 * 1024 * 1024
 const dataAssetFetchLimit = 128 * 1024 * 1024
 const remoteFetchTimeout = 5 * time.Minute
 
-func NewService(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider) *Service {
-	return NewServiceWithNetworkExtension(runtimeCtx, db, key, proxy, privileged, nil)
+func NewService(runtimeCtx context.Context, db *persistence.DB, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider) *Service {
+	return NewServiceWithNetworkExtension(runtimeCtx, db, proxy, privileged, nil)
 }
 
-func NewServiceWithNetworkExtension(runtimeCtx context.Context, db *persistence.DB, key []byte, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider, extension capability.NetworkExtensionRuntime) *Service {
+func NewServiceWithNetworkExtension(runtimeCtx context.Context, db *persistence.DB, proxy capability.SystemProxyProvider, privileged capability.PrivilegedProvider, extension capability.NetworkExtensionRuntime) *Service {
 	events := NewRuntimeEventHub()
 	engine := NewEngineController(runtimeCtx, events)
 	engine.runtimeOwnerFactory = newRuntimeOwnerFactoryWithNetworkExtension(events, privileged, extension, newRuntimeSessionID())
 
-	content := &ContentCodec{db: db, key: key}
 	opMu := &sync.Mutex{}
 	assetStore := assetcache.NewStore(db.StateDir())
 	httpClient := &http.Client{Timeout: remoteFetchTimeout}
 
 	platform := &PlatformService{db: db, engine: engine, proxy: proxy, privileged: privileged, extension: extension, opMu: opMu}
-	profile := &ProfileService{ContentCodec: content, db: db}
-	asset := &AssetService{ContentCodec: content, db: db, httpClient: httpClient, assetStore: assetStore}
-	snapshot := &SnapshotService{ContentCodec: content, db: db, engine: engine, opMu: opMu}
-	runtimeService := &RuntimeService{ContentCodec: content, db: db, engine: engine, events: events, platform: platform, opMu: opMu}
+	profile := &ProfileService{db: db}
+	asset := &AssetService{db: db, httpClient: httpClient, assetStore: assetStore}
+	snapshot := &SnapshotService{db: db, engine: engine, opMu: opMu}
+	runtimeService := &RuntimeService{db: db, engine: engine, events: events, platform: platform, opMu: opMu}
 	diagnostics := &DiagnosticsService{db: db, engine: engine, platform: platform, privileged: privileged, extension: extension, assetStore: assetStore}
 
 	return &Service{

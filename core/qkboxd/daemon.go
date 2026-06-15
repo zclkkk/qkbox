@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 
-	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
 	"github.com/zclkkk/qkbox/internal/ipc"
 	"github.com/zclkkk/qkbox/internal/persistence"
 	"github.com/zclkkk/qkbox/platform/capability"
@@ -54,15 +53,6 @@ func Start(parent context.Context, _ StartOpts) (*Instance, error) {
 		return nil, err
 	}
 
-	keyStore := qkboxcrypto.NewFileKeyStore(stateDir)
-	key, err := keyStore.GetOrCreateKey()
-	if err != nil {
-		db.Close()
-		lock.Release()
-		cancel()
-		return nil, err
-	}
-
 	proxy := capability.NewSystemProxyProvider()
 	repairStaleProxy(db, proxy)
 	privileged := capability.NewPrivilegedProvider(stateDir)
@@ -76,7 +66,7 @@ func Start(parent context.Context, _ StartOpts) (*Instance, error) {
 		return nil, err
 	}
 
-	service := NewServiceWithNetworkExtension(ctx, db, key, proxy, privileged, extension)
+	service := NewServiceWithNetworkExtension(ctx, db, proxy, privileged, extension)
 
 	inst := &Instance{
 		Service:  service,

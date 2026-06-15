@@ -6,13 +6,13 @@ func (db *DB) SetSetting(key string, value []byte) error {
 	_, err := db.conn.Exec(
 		`INSERT INTO settings (key, value) VALUES (?, ?)
 		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-		key, value,
+		key, string(value),
 	)
 	return err
 }
 
 func (db *DB) GetSetting(key string) ([]byte, error) {
-	var value []byte
+	var value string
 	err := db.conn.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -20,7 +20,7 @@ func (db *DB) GetSetting(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return value, nil
+	return []byte(value), nil
 }
 
 func (db *DB) DeleteSetting(key string) error {

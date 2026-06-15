@@ -3,14 +3,14 @@ package qkboxd
 import (
 	"context"
 	"database/sql"
+	"time"
+
 	"github.com/zclkkk/qkbox/internal/persistence"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
-	"time"
 )
 
 type ProfileService struct {
-	*ContentCodec
 	db *persistence.DB
 }
 
@@ -30,13 +30,8 @@ func (s *ProfileService) CreateProfile(_ context.Context, req api.CreateProfileR
 		UpdatedAt: now,
 	}
 
-	draftContent, err := s.encryptedContent("draft", profile.ID, req.Content, now)
-	if err != nil {
-		return api.CreateProfileReply{}, qkboxdInternalError(err)
-	}
-
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		return s.db.CreateProfileWithDraftTx(tx, &profile, draftContent)
+		return s.db.CreateProfileTx(tx, &profile, req.Content)
 	}); err != nil {
 		return api.CreateProfileReply{}, qkboxdInternalError(err)
 	}
@@ -60,13 +55,8 @@ func (s *ProfileService) UpdateProfileDraft(_ context.Context, req api.UpdatePro
 		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
 	}
 
-	draftContent, err := s.encryptedContent("draft", req.ProfileID, req.Content, time.Now().UnixMilli())
-	if err != nil {
-		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
-	}
-
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		return s.db.ReplaceDraftContentTx(tx, req.ProfileID, draftContent)
+		return s.db.UpdateProfileContentTx(tx, req.ProfileID, req.Content)
 	}); err != nil {
 		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
 	}
@@ -89,12 +79,11 @@ func (s *ProfileService) DeleteProfile(_ context.Context, req api.DeleteProfileR
 	if profile == nil {
 		return api.DeleteProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
 	}
-	if profile.ActiveSnapshotID != nil {
-		return api.DeleteProfileReply{}, api.NewStructuredError(api.ErrorProfileHasSnapshot, "Deactivate the active snapshot before deleting.", "qkboxd", true)
-	}
-
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		return s.db.DeleteProfileGraphTx(tx, req.ProfileID)
+		if err := s.db.ClearActiveProfileIfMatchesTx(tx, req.ProfileID); err != nil {
+			return err
+		}
+		return s.db.DeleteProfileTx(tx, req.ProfileID)
 	}); err != nil {
 		return api.DeleteProfileReply{}, qkboxdInternalError(err)
 	}
@@ -123,16 +112,10 @@ func (s *ProfileService) GetProfile(_ context.Context, req api.GetProfileRequest
 	}
 
 	reply := api.GetProfileReply{Profile: *profile}
-	contentID, err := s.db.GetProfileDraftContentID(req.ProfileID)
+	content, err := s.db.GetProfileContent(req.ProfileID)
 	if err != nil {
 		return api.GetProfileReply{}, qkboxdInternalError(err)
 	}
-	if contentID != "" {
-		content, err := s.decryptContent(contentID)
-		if err != nil {
-			return api.GetProfileReply{}, qkboxdInternalErrorMessage("Failed to decrypt draft content: " + err.Error())
-		}
-		reply.Content = content
-	}
+	reply.Content = content
 	return reply, nil
 }
