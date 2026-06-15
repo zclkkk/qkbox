@@ -313,7 +313,7 @@ v1.0 的主窗口使用五个顶层页面：Proxy、Subscribe、Rules、Settings
 - Proxy 承载运行时状态、节点列表、代理组选择、模式切换和快速启停。
 - Subscribe 承载 Profile 列表、订阅、导入和 Profile JSON 编辑。
 - Rules 承载规则和模板相关设置。
-- Settings 承载平台、窗口、语言、主题和应用设置。
+- Settings 承载平台、窗口和应用设置。
 - Diagnostics 承载诊断报告、日志、流量、连接和恢复动作。
 - 页面导航是主窗口信息架构，不是 Profile 模型的一部分。
 

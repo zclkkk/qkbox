@@ -31,6 +31,7 @@ v1.0 的目标是交付一个用户可用、架构干净、可继续演进的客
 | 开机自启 | v1.0 不做 |
 | 自动更新 | 首个 Release 后再评估 |
 | 对外暴露 Clash HTTP API | 不做 |
+| 完整 i18n 与主题自定义 | 不作为 v1.0 release gate；v1.0 使用固定默认语言和默认主题 |
 | macOS TUN / NetworkExtension | v1.x 后续阶段 |
 
 ---
@@ -106,10 +107,10 @@ engine 只管理 runtime owner 生命周期，不读取数据库，不持有 Pro
 | Proxy | runtime status, start/stop, node list, group selection, mode switch |
 | Subscribe | profiles, subscriptions, imports, JSON editor |
 | Rules | rule templates and routing-oriented controls |
-| Settings | platform, app, window, language, theme settings |
+| Settings | platform, app, window settings |
 | Diagnostics | diagnostics report, logs, traffic, connections, recovery actions |
 
-五页面导航是信息架构骨架，可以和后端 profile/config reset 并行推进。它不是旧 Phase 切分的一部分，也不依赖旧 Profile Snapshot 模型。
+五页面导航是信息架构骨架，在线性 Roadmap 中作为独立 Milestone 执行。它不是旧 Phase 切分的一部分，也不依赖旧 Profile Snapshot 模型。
 
 ---
 
@@ -200,6 +201,21 @@ CREATE TABLE settings (
 
 ## 5. Implementation Plan
 
+Milestones 线性执行。Roadmap 的执行顺序按下图推进，避免多个架构边界同时移动。
+
+```text
+A Document Reset
+  -> B Storage and Domain Reset
+  -> C API and IPC Reset
+  -> D Validation and Config Build Boundary
+  -> E Runtime Activation
+  -> F Subscription, Import, and Assets
+  -> G Runtime Controls
+  -> H Navigation Restructure
+  -> I Frontend Feature Reset
+  -> J Release Hardening
+```
+
 ### Milestone A: Document Reset
 
 目标：让文档只有一套架构叙事。
@@ -277,18 +293,21 @@ CREATE TABLE settings (
 
 - `internal/singboxadapter.Validate(configJSON)`。
 - validation diagnostic 结构。
+- `internal/uriparse` 只做纯解析：URI text -> `[]ParsedOutbound`，不生成完整配置。
 - `internal/configbuild` 生成完整 sing-box config：
+  - `[]ParsedOutbound + template` -> complete sing-box JSON。
   - 默认 mixed inbound。
   - outbounds。
   - DNS template。
   - route template。
   - clash mode rule 支持。
-- URI parse -> configbuild -> Validate -> persist。
+- uriparse -> configbuild -> Validate -> persist。
 - template create -> configbuild -> Validate -> persist。
 - JSON save -> Validate -> persist。
 
 验收：
 
+- validation boundary 只验证完整 sing-box config，不验证半成品节点列表。
 - 轻量 JSON 检查不能写入持久化配置。
 - 所有 `profiles.content` 写入都集中穿过 validation boundary。
 - 无效 sing-box config 不进入数据库。
@@ -322,7 +341,8 @@ CREATE TABLE settings (
 交付物：
 
 - URI import 创建 Profile。
-- subscription create 执行 fetch/parse/build/validate，并在同一事务中创建 Profile 和 subscription row。
+- subscription create 必须先 fetch/parse/build/validate；任何一步失败则不创建 Profile 和 subscription row。
+- subscription create 验证成功后，在同一事务中创建 Profile 和 subscription row。
 - subscription refresh 更新同一个 Profile 的 content。
 - refresh 失败不覆盖原 Profile content。
 - data assets 保持独立实体，可使用 `data_assets.source_url`。
@@ -424,6 +444,7 @@ CREATE TABLE settings (
 - 版本号单源。
 - Windows/macOS/Linux 包装只暴露 `qkbox`。
 - helper 以私有资源打包。
+- 托盘图标资源打包并调用 `systray.SetIcon()`。
 - smoke test 覆盖：
   - first launch。
   - open window。
@@ -439,6 +460,7 @@ CREATE TABLE settings (
 
 - 用户能安装并启动一个可用客户端。
 - 私有 helper 不出现在 Start Menu、Dock、desktop entry 或 PATH 入口。
+- Windows/macOS/Linux 托盘图标可见，不是空图标。
 - app 退出后无残留 runtime owner。
 
 ---
@@ -475,7 +497,7 @@ Only delete profile-config snapshot concepts. Do not delete OS proxy snapshot or
 |------|---------|
 | Validation | `internal/singboxadapter.Validate()` |
 | Config build | `internal/configbuild` |
-| Import parse | `internal/uriparse` if not already sufficient |
+| Import parse | `internal/uriparse` |
 | Runtime nodes | content parser + runtime group merge |
 | Clash mode | embedded ClashServer controller capture |
 
