@@ -43,7 +43,6 @@ type ProductDiagnosticsReport struct {
 	SystemProxyStatus        *GetSystemProxyStatusReply      `json:"system_proxy_status,omitempty"`
 	SystemProxyError         *StructuredError                `json:"system_proxy_error,omitempty"`
 	ActiveProfileID          string                          `json:"active_profile_id,omitempty"`
-	ActiveSnapshotID         string                          `json:"active_snapshot_id,omitempty"`
 	Subscriptions            []DiagnosticSubscriptionSummary `json:"subscriptions"`
 	DataAssets               []DiagnosticAssetSummary        `json:"data_assets"`
 	Checks                   []DiagnosticCheck               `json:"checks"`

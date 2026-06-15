@@ -58,17 +58,14 @@ func TestStructuredErrorJSONShape(t *testing.T) {
 
 func TestNewMethodRegistryEntries(t *testing.T) {
 	newMethods := []string{
-		MethodCreateProfile, MethodUpdateProfileDraft, MethodDeleteProfile,
-		MethodListProfiles, MethodGetProfile,
+		MethodCreateProfile, MethodUpdateProfile, MethodDeleteProfile,
+		MethodListProfiles, MethodGetProfile, MethodSaveProfileContent,
+		MethodValidateProfileContent, MethodActivateProfile, MethodGetActiveProfile,
 		MethodAssetCreateProfileSubscription, MethodAssetListProfileSubscriptions,
 		MethodAssetRefreshProfileSubscription, MethodAssetDeleteProfileSubscription,
 		MethodAssetCreateDataAsset, MethodAssetListDataAssets,
 		MethodAssetRefreshDataAsset, MethodAssetDeleteDataAsset,
 		MethodDiagnosticsGetReport, MethodDiagnosticsCreateDebugBundle,
-		MethodValidateProfileDraft, MethodGetProfileDiagnostics,
-		MethodCreateProfileSnapshot, MethodActivateProfileSnapshot,
-		MethodGetActiveProfile, MethodGetActiveSnapshot,
-		MethodListSnapshots, MethodRollbackToSnapshot,
 	}
 	for _, m := range newMethods {
 		if _, ok := MethodRegistry[m]; !ok {
@@ -90,21 +87,21 @@ func TestCreateProfileReplyJSONShape(t *testing.T) {
 	}
 }
 
-func TestSnapshotJSONShape(t *testing.T) {
-	reply := CreateProfileSnapshotReply{}
+func TestSaveProfileContentJSONShape(t *testing.T) {
+	reply := SaveProfileContentReply{}
 	got, err := json.Marshal(reply)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, needle := range []string{`"snapshot"`, `"profile_id"`, `"validation_status"`, `"created_at"`} {
+	for _, needle := range []string{`"profile"`, `"id"`, `"name"`} {
 		if !contains(string(got), needle) {
 			t.Fatalf("expected %s in %s", needle, got)
 		}
 	}
 }
 
-func TestProductDiagnosticsJSONShape(t *testing.T) {
-	reply := ValidateProfileDraftReply{}
+func TestValidateProfileContentJSONShape(t *testing.T) {
+	reply := ValidateProfileContentReply{}
 	got, err := json.Marshal(reply)
 	if err != nil {
 		t.Fatal(err)
@@ -211,7 +208,6 @@ func TestEngineStatusJSONShape(t *testing.T) {
 func TestEngineMethodRegistry(t *testing.T) {
 	newMethods := []string{
 		MethodEngineStart, MethodEngineStop, MethodEngineGetStatus,
-		MethodEngineReload,
 		MethodEngineSubscribeStatus, MethodEngineSubscribeLogs,
 		MethodEngineSubscribeTraffic, MethodEngineSubscribeConnections,
 		MethodEngineGetRuntimeCapabilities, MethodEngineListGroups,
@@ -288,18 +284,13 @@ func TestSystemProxyStatusJSONShape(t *testing.T) {
 	}
 }
 
-func TestEngineReloadJSONShape(t *testing.T) {
-	reply := EngineReloadReply{
-		Outcome:            ReloadOutcomeSuccess,
-		TargetSnapshotID:   "target",
-		PreviousSnapshotID: "previous",
-		ActiveSnapshotID:   "target",
-	}
-	got, err := json.Marshal(reply)
+func TestEngineStatusActiveProfileJSONShape(t *testing.T) {
+	status := EngineStatus{ActiveProfileID: "profile"}
+	got, err := json.Marshal(status)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, needle := range []string{`"outcome"`, `"target_snapshot_id"`, `"previous_snapshot_id"`, `"active_snapshot_id"`} {
+	for _, needle := range []string{`"state"`, `"active_profile_id"`} {
 		if !contains(string(got), needle) {
 			t.Fatalf("expected %s in %s", needle, got)
 		}
@@ -315,7 +306,7 @@ func TestPrivilegedProviderStatusJSONShape(t *testing.T) {
 			Version:         "0.1.0",
 			ExpectedVersion: "0.1.0",
 			Endpoint:        "provider",
-			OwnerState:      &ProviderOwnerState{Owned: true, Stale: true, UID: "1000", SessionID: "session", RuntimeID: "runtime", SnapshotID: "snapshot", Mode: RuntimeModeMachineNetwork, RepairActions: []string{RepairActionClearMachineNetworkOwner}},
+			OwnerState:      &ProviderOwnerState{Owned: true, Stale: true, UID: "1000", SessionID: "session", RuntimeID: "runtime", ProfileID: "profile", Mode: RuntimeModeMachineNetwork, RepairActions: []string{RepairActionClearMachineNetworkOwner}},
 			Capabilities:    []Capability{{Name: CapabilityTunMode, State: CapabilityAvailable}},
 		},
 	}
@@ -323,7 +314,7 @@ func TestPrivilegedProviderStatusJSONShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, needle := range []string{`"status"`, `"installed"`, `"reachable"`, `"authenticated"`, `"expected_version"`, `"owner_state"`, `"capabilities"`, `"stale"`, `"snapshot_id"`, `"repair_actions"`} {
+	for _, needle := range []string{`"status"`, `"installed"`, `"reachable"`, `"authenticated"`, `"expected_version"`, `"owner_state"`, `"capabilities"`, `"stale"`, `"profile_id"`, `"repair_actions"`} {
 		if !contains(string(got), needle) {
 			t.Fatalf("expected %s in %s", needle, got)
 		}
@@ -338,7 +329,7 @@ func TestNetworkExtensionStatusJSONShape(t *testing.T) {
 			Authorized:   true,
 			BundleID:     "dev.qkbox.network-extension",
 			Version:      "0.1.0",
-			OwnerState:   &ProviderOwnerState{Owned: true, SessionID: "session", RuntimeID: "runtime", SnapshotID: "snapshot", Mode: RuntimeModeAppleNetworkExtension},
+			OwnerState:   &ProviderOwnerState{Owned: true, SessionID: "session", RuntimeID: "runtime", ProfileID: "profile", Mode: RuntimeModeAppleNetworkExtension},
 			Capabilities: []Capability{{Name: CapabilityTunMode, State: CapabilityAvailable}},
 		},
 	}

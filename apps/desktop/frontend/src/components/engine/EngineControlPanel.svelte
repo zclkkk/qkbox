@@ -5,10 +5,7 @@
   import StateBadge from "../shared/StateBadge.svelte";
   import { formatDurationSince, formatTimestamp } from "../../lib/format";
   import { engineState } from "../../lib/state/engine.svelte";
-  import { profileState } from "../../lib/state/profile.svelte";
   import { runtimeEvents } from "../../lib/state/runtime-events.svelte";
-
-  let reloadProfileID = "";
 
   const busyStates = new Set(["VALIDATING", "STARTING", "STOPPING"]);
 
@@ -24,25 +21,6 @@
       engineState.status?.state !== "IDLE" &&
       engineState.status?.state !== "UNINITIALIZED"
   );
-  let canReload = $derived(!engineState.loading && engineState.status?.state === "STARTED");
-
-  $effect(() => {
-    const profileID = profileState.activeSnapshot?.profile_id ?? "";
-    if (profileID === reloadProfileID) {
-      return;
-    }
-    reloadProfileID = profileID;
-    void engineState.refreshReloadTargets(profileID);
-  });
-
-  async function reloadRuntime() {
-    const snapshotID = engineState.reloadTargetSnapshotID || undefined;
-    await engineState.reload(snapshotID);
-    await profileState.refreshActive();
-    if (profileState.activeSnapshot?.profile_id) {
-      await engineState.refreshReloadTargets(profileState.activeSnapshot.profile_id);
-    }
-  }
 </script>
 
 <section class="panel">
@@ -61,8 +39,8 @@
 
   <div class="metrics">
     <div>
-      <span class="label">Active snapshot</span>
-      <strong>{engineState.status?.active_snapshot_id || "none"}</strong>
+      <span class="label">Active profile</span>
+      <strong>{engineState.status?.active_profile_id || "none"}</strong>
     </div>
     <div>
       <span class="label">Started</span>
@@ -77,36 +55,6 @@
       <strong>{runtimeEvents.running ? "connected" : "stopped"}</strong>
     </div>
   </div>
-
-  <div class="reload-panel">
-    <div>
-      <span class="label">Reload target</span>
-      <select bind:value={engineState.reloadTargetSnapshotID} disabled={!canReload || engineState.reloadSnapshots.length === 0}>
-        <option value="">Current active snapshot</option>
-        {#each engineState.reloadSnapshots as snapshot}
-          <option value={snapshot.id}>{snapshot.id} · {snapshot.validation_status ?? "unknown"}</option>
-        {/each}
-      </select>
-    </div>
-    <button type="button" onclick={reloadRuntime} disabled={!canReload}>Reload</button>
-  </div>
-
-  {#if engineState.lastReloadResult}
-    <div class="notice compact-notice">
-      <span>
-        Reload {engineState.lastReloadResult.outcome}
-        {#if engineState.lastReloadResult.active_snapshot_id}
-          · active {engineState.lastReloadResult.active_snapshot_id}
-        {/if}
-      </span>
-      {#if engineState.lastReloadResult.failure}
-        <span>{engineState.lastReloadResult.failure.code}: {engineState.lastReloadResult.failure.message}</span>
-      {/if}
-      {#if engineState.lastReloadResult.cleanup_failure}
-        <span>{engineState.lastReloadResult.cleanup_failure.code}: {engineState.lastReloadResult.cleanup_failure.message}</span>
-      {/if}
-    </div>
-  {/if}
 
   <ErrorNotice message={engineState.error} />
   <ErrorNotice message={runtimeEvents.bridgeError} />

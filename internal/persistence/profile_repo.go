@@ -100,6 +100,15 @@ func (db *DB) CreateProfileTx(tx *sql.Tx, p *model.Profile, content string) erro
 	return err
 }
 
+func (db *DB) UpdateProfileTx(tx *sql.Tx, profileID, name string) error {
+	now := time.Now().UnixMilli()
+	_, err := tx.Exec(
+		`UPDATE profiles SET name = ?, updated_at = ? WHERE id = ?`,
+		name, now, profileID,
+	)
+	return err
+}
+
 func (db *DB) UpdateProfileContentTx(tx *sql.Tx, profileID, content string) error {
 	now := time.Now().UnixMilli()
 	_, err := tx.Exec(

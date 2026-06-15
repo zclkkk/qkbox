@@ -16,10 +16,14 @@ type Handler interface {
 
 	// Profile CRUD
 	CreateProfile(context.Context, api.CreateProfileRequest) (api.CreateProfileReply, *api.StructuredError)
-	UpdateProfileDraft(context.Context, api.UpdateProfileDraftRequest) (api.UpdateProfileDraftReply, *api.StructuredError)
+	UpdateProfile(context.Context, api.UpdateProfileRequest) (api.UpdateProfileReply, *api.StructuredError)
 	DeleteProfile(context.Context, api.DeleteProfileRequest) (api.DeleteProfileReply, *api.StructuredError)
 	ListProfiles(context.Context, api.ListProfilesRequest) (api.ListProfilesReply, *api.StructuredError)
 	GetProfile(context.Context, api.GetProfileRequest) (api.GetProfileReply, *api.StructuredError)
+	SaveProfileContent(context.Context, api.SaveProfileContentRequest) (api.SaveProfileContentReply, *api.StructuredError)
+	ValidateProfileContent(context.Context, api.ValidateProfileContentRequest) (api.ValidateProfileContentReply, *api.StructuredError)
+	ActivateProfile(context.Context, api.ActivateProfileRequest) (api.ActivateProfileReply, *api.StructuredError)
+	GetActiveProfile(context.Context, api.GetActiveProfileRequest) (api.GetActiveProfileReply, *api.StructuredError)
 
 	// Data assets and subscriptions
 	CreateProfileSubscription(context.Context, api.CreateProfileSubscriptionRequest) (api.CreateProfileSubscriptionReply, *api.StructuredError)
@@ -35,20 +39,9 @@ type Handler interface {
 	DiagnosticsGetReport(context.Context, api.GetDiagnosticsReportRequest) (api.GetDiagnosticsReportReply, *api.StructuredError)
 	DiagnosticsCreateDebugBundle(context.Context, api.CreateDebugBundleRequest) (api.CreateDebugBundleReply, *api.StructuredError)
 
-	// Snapshot lifecycle
-	ValidateProfileDraft(context.Context, api.ValidateProfileDraftRequest) (api.ValidateProfileDraftReply, *api.StructuredError)
-	GetProfileDiagnostics(context.Context, api.GetProfileDiagnosticsRequest) (api.GetProfileDiagnosticsReply, *api.StructuredError)
-	CreateProfileSnapshot(context.Context, api.CreateProfileSnapshotRequest) (api.CreateProfileSnapshotReply, *api.StructuredError)
-	ActivateProfileSnapshot(context.Context, api.ActivateProfileSnapshotRequest) (api.ActivateProfileSnapshotReply, *api.StructuredError)
-	GetActiveProfile(context.Context, api.GetActiveProfileRequest) (api.GetActiveProfileReply, *api.StructuredError)
-	GetActiveSnapshot(context.Context, api.GetActiveSnapshotRequest) (api.GetActiveSnapshotReply, *api.StructuredError)
-	ListSnapshots(context.Context, api.ListSnapshotsRequest) (api.ListSnapshotsReply, *api.StructuredError)
-	RollbackToSnapshot(context.Context, api.RollbackToSnapshotRequest) (api.RollbackToSnapshotReply, *api.StructuredError)
-
 	// Engine lifecycle
 	EngineStart(context.Context, api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError)
 	EngineStop(context.Context, api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError)
-	EngineReload(context.Context, api.EngineReloadRequest) (api.EngineReloadReply, *api.StructuredError)
 	EngineGetStatus(context.Context, api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError)
 	EngineSubscribeStatus(context.Context, api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError)
 	EngineSubscribeLogs(context.Context, api.EngineSubscribeLogsRequest) (<-chan api.RuntimeEvent, *api.StructuredError)

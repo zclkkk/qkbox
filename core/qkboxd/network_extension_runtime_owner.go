@@ -41,7 +41,7 @@ func (o *networkExtensionRuntimeOwner) Start(ctx context.Context, target Runtime
 	_, structured := o.extension.Start(ctx, capability.NetworkExtensionStartRequest{
 		SessionID:            o.sessionID,
 		RuntimeID:            runtimeID,
-		SnapshotID:           target.SnapshotID,
+		ProfileID:            target.ProfileID,
 		Mode:                 api.RuntimeModeAppleNetworkExtension,
 		ConfigJSON:           target.ConfigJSON,
 		RequiredCapabilities: append([]string(nil), target.RequiredCapabilities...),

@@ -28,7 +28,7 @@ type NetworkExtensionRuntime interface {
 type NetworkExtensionStartRequest struct {
 	SessionID            string
 	RuntimeID            string
-	SnapshotID           string
+	ProfileID            string
 	Mode                 string
 	ConfigJSON           string
 	RequiredCapabilities []string

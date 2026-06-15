@@ -7,6 +7,7 @@ import (
 
 	"github.com/zclkkk/qkbox/internal/eventhub"
 	"github.com/zclkkk/qkbox/internal/provideripc"
+	"github.com/zclkkk/qkbox/internal/runtimeapi"
 	"github.com/zclkkk/qkbox/internal/singboxadapter"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
@@ -21,9 +22,24 @@ type Controller struct {
 	available         bool
 	unavailableReason string
 	events            *eventhub.Hub
-	adapter           *singboxadapter.Adapter
+	adapter           runtimeAdapter
+	adapterFactory    func() runtimeAdapter
 	owner             *ownerRecord
 	heartbeatCancel   context.CancelFunc
+}
+
+type runtimeAdapter interface {
+	Start(context.Context, string) error
+	Stop() error
+	RuntimeCapabilities() []api.Capability
+	TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError)
+	ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError)
+	ListGroups() ([]api.OutboundGroup, *api.StructuredError)
+	SelectOutbound(string, string) (api.OutboundGroup, *api.StructuredError)
+	URLTest(context.Context, string, time.Duration) ([]api.URLTestResult, *api.StructuredError)
+	CloseConnection(string) *api.StructuredError
+	CloseAllConnections() *api.StructuredError
+	ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError)
 }
 
 func NewController(stateDir string, available bool, unavailableReason string) *Controller {
@@ -32,6 +48,9 @@ func NewController(stateDir string, available bool, unavailableReason string) *C
 		available:         available,
 		unavailableReason: unavailableReason,
 		events:            eventhub.New(),
+	}
+	controller.adapterFactory = func() runtimeAdapter {
+		return singboxadapter.NewAdapter(controller.events)
 	}
 	if record, err := loadOwnerRecord(stateDir); err == nil && record != nil {
 		record.Stale = true
@@ -87,8 +106,8 @@ func (c *Controller) RuntimeStart(ctx context.Context, req provideripc.RuntimeSt
 	if !c.available {
 		return provideripc.RuntimeStartReply{}, api.NewStructuredError(api.ErrorPlatformFeatureUnsupported, c.unavailableReason, "provider", true)
 	}
-	if req.SessionID == "" || req.RuntimeID == "" || req.SnapshotID == "" {
-		return provideripc.RuntimeStartReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "session_id, runtime_id, and snapshot_id are required.", "provider", true)
+	if req.SessionID == "" || req.RuntimeID == "" || req.ProfileID == "" {
+		return provideripc.RuntimeStartReply{}, api.NewStructuredError(api.ErrorIPCInvalidRequest, "session_id, runtime_id, and profile_id are required.", "provider", true)
 	}
 	if req.Mode != api.RuntimeModeMachineNetwork {
 		return provideripc.RuntimeStartReply{}, api.NewStructuredError(api.ErrorPlatformFeatureUnsupported, "Runtime mode is not supported by this provider.", "provider", true)
@@ -120,7 +139,7 @@ func (c *Controller) RuntimeStart(ctx context.Context, req provideripc.RuntimeSt
 		Owned:           true,
 		SessionID:       req.SessionID,
 		RuntimeID:       req.RuntimeID,
-		SnapshotID:      req.SnapshotID,
+		ProfileID:       req.ProfileID,
 		Mode:            req.Mode,
 		StartedAt:       now,
 		LastHeartbeatAt: now,
@@ -129,7 +148,7 @@ func (c *Controller) RuntimeStart(ctx context.Context, req provideripc.RuntimeSt
 		c.mu.Unlock()
 		return provideripc.RuntimeStartReply{}, api.NewStructuredError(api.ErrorInternal, err.Error(), "provider", false)
 	}
-	adapter := singboxadapter.NewAdapter(c.events)
+	adapter := c.adapterFactory()
 	c.owner = record
 	c.mu.Unlock()
 
@@ -243,9 +262,9 @@ func (c *Controller) RuntimeGetStatus(_ context.Context, req provideripc.Runtime
 	}
 	state := model.EngineStateIdle
 	startedAt := int64(0)
-	snapshotID := ""
+	profileID := ""
 	if c.owner != nil {
-		snapshotID = c.owner.SnapshotID
+		profileID = c.owner.ProfileID
 		startedAt = c.owner.StartedAt
 		if c.owner.Stale {
 			state = model.EngineStateFatal
@@ -255,9 +274,9 @@ func (c *Controller) RuntimeGetStatus(_ context.Context, req provideripc.Runtime
 	}
 	return provideripc.RuntimeGetStatusReply{
 		Status: api.EngineStatus{
-			State:            state,
-			ActiveSnapshotID: snapshotID,
-			StartedAt:        startedAt,
+			State:           state,
+			ActiveProfileID: profileID,
+			StartedAt:       startedAt,
 		},
 		OwnerState: providerOwnerState(c.owner),
 	}, nil
@@ -389,7 +408,7 @@ func (c *Controller) RunRepairAction(_ context.Context, req api.RunRepairActionR
 	return api.RunRepairActionReply{Action: req.Action, Outcome: "success"}, nil
 }
 
-func (c *Controller) runningAdapterFor(sessionID, runtimeID string) (*singboxadapter.Adapter, *api.StructuredError) {
+func (c *Controller) runningAdapterFor(sessionID, runtimeID string) (runtimeAdapter, *api.StructuredError) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if err := c.validateRunningOwnerLocked(sessionID, runtimeID); err != nil {

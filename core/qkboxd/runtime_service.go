@@ -2,7 +2,6 @@ package qkboxd
 
 import (
 	"context"
-	"database/sql"
 	"sync"
 	"time"
 
@@ -32,19 +31,19 @@ func (s *RuntimeService) EngineStart(ctx context.Context, _ api.EngineStartReque
 }
 
 func (s *RuntimeService) loadActiveRuntimeStartTarget(ctx context.Context) (RuntimeStartTarget, *api.StructuredError) {
-	activeSnapshotID, err := s.db.GetActiveSnapshotID()
+	activeProfileID, err := s.db.GetActiveProfileID()
 	if err != nil {
 		return RuntimeStartTarget{}, qkboxdInternalError(err)
 	}
-	if activeSnapshotID == "" {
-		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot to start.", "qkboxd", true)
+	if activeProfileID == "" {
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveProfile, "No active profile to start.", "qkboxd", true)
 	}
 
-	return s.loadPreparedRuntimeStartTarget(ctx, activeSnapshotID)
+	return s.loadPreparedRuntimeStartTarget(ctx, activeProfileID)
 }
 
-func (s *RuntimeService) loadPreparedRuntimeStartTarget(ctx context.Context, snapshotID string) (RuntimeStartTarget, *api.StructuredError) {
-	target, structured := s.loadRuntimeStartTargetByID(snapshotID)
+func (s *RuntimeService) loadPreparedRuntimeStartTarget(ctx context.Context, profileID string) (RuntimeStartTarget, *api.StructuredError) {
+	target, structured := s.loadRuntimeStartTargetByID(profileID)
 	if structured != nil {
 		return RuntimeStartTarget{}, structured
 	}
@@ -54,37 +53,25 @@ func (s *RuntimeService) loadPreparedRuntimeStartTarget(ctx context.Context, sna
 	return target, nil
 }
 
-func (s *RuntimeService) startPreparedSnapshotTarget(ctx context.Context, snapshotID string) *api.StructuredError {
-	return s.engine.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return s.loadPreparedRuntimeStartTarget(ctx, snapshotID)
-	})
-}
-
-func (s *RuntimeService) loadRuntimeStartTargetByID(snapshotID string) (RuntimeStartTarget, *api.StructuredError) {
-	snapshot, contentID, err := s.db.GetSnapshot(snapshotID)
+func (s *RuntimeService) loadRuntimeStartTargetByID(profileID string) (RuntimeStartTarget, *api.StructuredError) {
+	profile, err := s.db.GetProfile(profileID)
 	if err != nil {
 		return RuntimeStartTarget{}, qkboxdInternalError(err)
 	}
-	if snapshot == nil {
-		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorSnapshotNotFound, "Snapshot not found.", "qkboxd", true)
+	if profile == nil {
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
 	}
-	if contentID == "" {
-		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "Snapshot has no content.", "qkboxd", true)
-	}
-
-	configJSON, err := s.decryptContent(contentID)
+	configJSON, err := s.db.GetProfileContent(profileID)
 	if err != nil {
-		return RuntimeStartTarget{}, qkboxdInternalErrorMessage("Failed to decrypt snapshot content: " + err.Error())
+		return RuntimeStartTarget{}, qkboxdInternalError(err)
 	}
-
-	required := snapshot.RequiredCapabilities
-	if len(required) == 0 {
-		required = extractRequiredCapabilities(configJSON)
+	if configJSON == "" {
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorProfileContentEmpty, "Profile content is empty.", "qkboxd", true)
 	}
 	return RuntimeStartTarget{
-		SnapshotID:           snapshotID,
+		ProfileID:            profileID,
 		ConfigJSON:           configJSON,
-		RequiredCapabilities: append([]string(nil), required...),
+		RequiredCapabilities: extractRequiredCapabilities(configJSON),
 	}, nil
 }
 
@@ -104,128 +91,13 @@ func (s *RuntimeService) EngineStop(_ context.Context, _ api.EngineStopRequest) 
 func (s *RuntimeService) EngineGetStatus(_ context.Context, _ api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError) {
 	status := s.engine.GetStatus()
 	if status.State == model.EngineStateIdle || status.State == model.EngineStateUninitialized {
-		activeSnapshotID, err := s.db.GetActiveSnapshotID()
+		activeProfileID, err := s.db.GetActiveProfileID()
 		if err != nil {
 			return api.EngineGetStatusReply{}, qkboxdInternalError(err)
 		}
-		status.ActiveSnapshotID = activeSnapshotID
+		status.ActiveProfileID = activeProfileID
 	}
 	return api.EngineGetStatusReply{Status: status}, nil
-}
-
-func (s *RuntimeService) EngineReload(ctx context.Context, req api.EngineReloadRequest) (api.EngineReloadReply, *api.StructuredError) {
-	s.opMu.Lock()
-	defer s.opMu.Unlock()
-
-	reply := api.EngineReloadReply{TargetSnapshotID: req.SnapshotID}
-	if req.SnapshotID == "" {
-		return reply, api.NewStructuredError(api.ErrorIPCInvalidRequest, "snapshot_id is required.", "qkboxd", true)
-	}
-
-	status := s.engine.GetStatus()
-	if status.State != model.EngineStateStarted {
-		return reply, api.NewStructuredError(api.ErrorEngineNotStarted, "Engine reload requires a running engine.", "qkboxd", true)
-	}
-	previousSnapshotID := status.ActiveSnapshotID
-	if previousSnapshotID == "" {
-		var err error
-		previousSnapshotID, err = s.db.GetActiveSnapshotID()
-		if err != nil {
-			return reply, qkboxdInternalError(err)
-		}
-	}
-	reply.PreviousSnapshotID = previousSnapshotID
-	reply.ActiveSnapshotID = previousSnapshotID
-
-	target, structured := s.loadRuntimeStartTargetByID(req.SnapshotID)
-	if structured != nil {
-		reply.Outcome = reloadOutcomeForTargetLoadFailure(structured)
-		reply.Failure = structured
-		return reply, nil
-	}
-	diag := validateContent(target.ConfigJSON)
-	if diag.Status == model.ValidationStatusInvalid {
-		reply.Outcome = api.ReloadOutcomeFailedValidation
-		reply.Failure = &api.StructuredError{
-			Code:        api.ErrorConfigValidationFailed,
-			Message:     "Validation failed. Fix errors before reloading.",
-			Detail:      diag.Entries,
-			Source:      "qkboxd",
-			Recoverable: true,
-			UserAction:  "Fix the validation errors in your profile.",
-		}
-		return reply, nil
-	}
-	if structured := s.platform.prepareRuntimeStartTargetCapabilities(ctx, target); structured != nil {
-		reply.Outcome = api.ReloadOutcomeFailedPlatformPrepare
-		reply.Failure = structured
-		return reply, nil
-	}
-
-	if _, structured := s.loadRuntimeStartTargetByID(previousSnapshotID); structured != nil {
-		reply.Outcome = api.ReloadOutcomeDegraded
-		reply.Failure = structured
-		return reply, nil
-	}
-
-	if cleanup := s.platform.restoreProxyIfOwned(); cleanup != nil {
-		reply.Outcome = api.ReloadOutcomeCleanupFailed
-		reply.CleanupFailure = cleanup
-		return reply, nil
-	}
-
-	if stopErr := s.engine.Stop(); stopErr != nil {
-		reply.Outcome = api.ReloadOutcomeCleanupFailed
-		reply.CleanupFailure = stopErr
-		return reply, nil
-	}
-
-	if startErr := s.startPreparedSnapshotTarget(ctx, target.SnapshotID); startErr != nil {
-		reply.Failure = startErr
-		if rollbackErr := s.startPreparedSnapshotTarget(ctx, previousSnapshotID); rollbackErr != nil {
-			reply.Outcome = api.ReloadOutcomeDegraded
-			reply.CleanupFailure = rollbackErr
-			return reply, nil
-		}
-		reply.Outcome = api.ReloadOutcomeRolledBack
-		reply.ActiveSnapshotID = previousSnapshotID
-		return reply, nil
-	}
-
-	if err := s.db.WithTx(func(tx *sql.Tx) error {
-		return s.db.SetActiveSnapshotTx(tx, target.SnapshotID)
-	}); err != nil {
-		reply.Failure = qkboxdInternalError(err)
-		if stopErr := s.engine.Stop(); stopErr != nil {
-			reply.Outcome = api.ReloadOutcomeDegraded
-			reply.CleanupFailure = stopErr
-			return reply, nil
-		}
-		if rollbackErr := s.startPreparedSnapshotTarget(ctx, previousSnapshotID); rollbackErr != nil {
-			reply.Outcome = api.ReloadOutcomeDegraded
-			reply.CleanupFailure = rollbackErr
-			return reply, nil
-		}
-		reply.Outcome = api.ReloadOutcomeRolledBack
-		reply.ActiveSnapshotID = previousSnapshotID
-		return reply, nil
-	}
-
-	reply.Outcome = api.ReloadOutcomeSuccess
-	reply.ActiveSnapshotID = target.SnapshotID
-	return reply, nil
-}
-
-func reloadOutcomeForTargetLoadFailure(err *api.StructuredError) api.ReloadOutcome {
-	if err == nil {
-		return api.ReloadOutcomeFailedTargetLoad
-	}
-	switch err.Code {
-	case api.ErrorSnapshotNotFound, api.ErrorEngineNoActiveSnapshot:
-		return api.ReloadOutcomeFailedValidation
-	default:
-		return api.ReloadOutcomeFailedTargetLoad
-	}
 }
 
 func (s *RuntimeService) EngineSubscribeStatus(ctx context.Context, _ api.EngineSubscribeStatusRequest) (<-chan api.RuntimeEvent, *api.StructuredError) {

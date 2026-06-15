@@ -16,17 +16,31 @@ type CreateProfileResult struct {
 	Error *StructuredError    `json:"error,omitempty"`
 }
 
-type UpdateProfileDraftRequest struct {
+type UpdateProfileRequest struct {
+	ProfileID string `json:"profile_id"`
+	Name      string `json:"name"`
+}
+
+type UpdateProfileReply struct {
+	Profile model.Profile `json:"profile"`
+}
+
+type UpdateProfileResult struct {
+	Reply *UpdateProfileReply `json:"reply,omitempty"`
+	Error *StructuredError    `json:"error,omitempty"`
+}
+
+type SaveProfileContentRequest struct {
 	ProfileID string `json:"profile_id"`
 	Content   string `json:"content"`
 }
 
-type UpdateProfileDraftReply struct {
+type SaveProfileContentReply struct {
 	Profile model.Profile `json:"profile"`
 }
 
-type UpdateProfileDraftResult struct {
-	Reply *UpdateProfileDraftReply `json:"reply,omitempty"`
+type SaveProfileContentResult struct {
+	Reply *SaveProfileContentReply `json:"reply,omitempty"`
 	Error *StructuredError         `json:"error,omitempty"`
 }
 
@@ -64,4 +78,28 @@ type GetProfileReply struct {
 type GetProfileResult struct {
 	Reply *GetProfileReply `json:"reply,omitempty"`
 	Error *StructuredError `json:"error,omitempty"`
+}
+
+type ActivateProfileRequest struct {
+	ProfileID string `json:"profile_id"`
+}
+
+type ActivateProfileReply struct {
+	Profile model.Profile `json:"profile"`
+}
+
+type ActivateProfileResult struct {
+	Reply *ActivateProfileReply `json:"reply,omitempty"`
+	Error *StructuredError      `json:"error,omitempty"`
+}
+
+type GetActiveProfileRequest struct{}
+
+type GetActiveProfileReply struct {
+	Profile *model.Profile `json:"profile,omitempty"`
+}
+
+type GetActiveProfileResult struct {
+	Reply *GetActiveProfileReply `json:"reply,omitempty"`
+	Error *StructuredError       `json:"error,omitempty"`
 }

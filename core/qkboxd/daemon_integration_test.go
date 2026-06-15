@@ -56,10 +56,12 @@ func (integrationProviderHandler) GetStatus(context.Context, struct{}) (provider
 }
 
 func (integrationProviderHandler) PrepareFeature(_ context.Context, req api.PrepareFeatureRequest) (api.PrepareFeatureReply, *api.StructuredError) {
-	if req.Feature == api.CapabilityBackgroundService {
+	switch req.Feature {
+	case api.CapabilityBackgroundService, api.CapabilityTunMode:
 		return api.PrepareFeatureReply{Feature: req.Feature, State: api.CapabilityAvailable}, nil
+	default:
+		return api.PrepareFeatureReply{Feature: req.Feature, State: api.CapabilityUnavailable, Reason: "not implemented"}, nil
 	}
-	return api.PrepareFeatureReply{Feature: req.Feature, State: api.CapabilityUnavailable, Reason: "not implemented"}, nil
 }
 
 func (integrationProviderHandler) RunRepairAction(_ context.Context, req api.RunRepairActionRequest) (api.RunRepairActionReply, *api.StructuredError) {
@@ -67,7 +69,7 @@ func (integrationProviderHandler) RunRepairAction(_ context.Context, req api.Run
 }
 
 func (integrationProviderHandler) RuntimeStart(_ context.Context, req provideripc.RuntimeStartRequest) (provideripc.RuntimeStartReply, *api.StructuredError) {
-	return provideripc.RuntimeStartReply{OwnerState: api.ProviderOwnerState{Owned: true, SessionID: req.SessionID, RuntimeID: req.RuntimeID, SnapshotID: req.SnapshotID, Mode: req.Mode}}, nil
+	return provideripc.RuntimeStartReply{OwnerState: api.ProviderOwnerState{Owned: true, SessionID: req.SessionID, RuntimeID: req.RuntimeID, ProfileID: req.ProfileID, Mode: req.Mode}}, nil
 }
 
 func (integrationProviderHandler) RuntimeStop(context.Context, provideripc.RuntimeStopRequest) (provideripc.RuntimeStopReply, *api.StructuredError) {
@@ -250,7 +252,7 @@ func TestDaemonProfileFlow(t *testing.T) {
 	}
 
 	// validate
-	validReply, structured := client.ValidateProfileDraft(ctx, api.ValidateProfileDraftRequest{ProfileID: pid})
+	validReply, structured := client.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: pid, Content: getReply.Content})
 	if structured != nil {
 		t.Fatalf("validate: %v", structured)
 	}
@@ -258,15 +260,21 @@ func TestDaemonProfileFlow(t *testing.T) {
 		t.Fatalf("status = %s", validReply.Diagnostics.Status)
 	}
 
-	// create snapshot
-	snapReply, structured := client.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
+	// update profile metadata and content
+	updatedReply, structured := client.UpdateProfile(ctx, api.UpdateProfileRequest{ProfileID: pid, Name: "integration-renamed"})
 	if structured != nil {
-		t.Fatalf("snapshot: %v", structured)
+		t.Fatalf("update: %v", structured)
 	}
-	sid := snapReply.Snapshot.ID
+	if updatedReply.Profile.Name != "integration-renamed" {
+		t.Fatalf("profile name = %s", updatedReply.Profile.Name)
+	}
+	savedContent := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"saved"}]}`
+	if _, structured = client.SaveProfileContent(ctx, api.SaveProfileContentRequest{ProfileID: pid, Content: savedContent}); structured != nil {
+		t.Fatalf("save content: %v", structured)
+	}
 
 	// activate
-	_, structured = client.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: sid})
+	_, structured = client.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: pid})
 	if structured != nil {
 		t.Fatalf("activate: %v", structured)
 	}
@@ -280,32 +288,14 @@ func TestDaemonProfileFlow(t *testing.T) {
 		t.Fatal("wrong active profile")
 	}
 
-	// get active snapshot
-	activeSnapReply, structured := client.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
-	if structured != nil {
-		t.Fatalf("get active snap: %v", structured)
-	}
-	if activeSnapReply.Snapshot == nil || activeSnapReply.Snapshot.ID != sid {
-		t.Fatal("wrong active snapshot")
-	}
-
-	// rollback
-	_, structured = client.RollbackToSnapshot(ctx, api.RollbackToSnapshotRequest{SnapshotID: sid})
-	if structured != nil {
-		t.Fatalf("rollback: %v", structured)
-	}
-
-	// delete blocked by active snapshot
+	// delete clears active profile selection
 	_, structured = client.DeleteProfile(ctx, api.DeleteProfileRequest{ProfileID: pid})
-	if structured == nil {
-		t.Fatal("expected error deleting profile with active snapshot")
-	}
-	if structured.Code != api.ErrorProfileHasSnapshot {
-		t.Fatalf("code = %s", structured.Code)
+	if structured != nil {
+		t.Fatalf("delete: %v", structured)
 	}
 }
 
-func TestDaemonValidationBlocksInvalidSnapshot(t *testing.T) {
+func TestDaemonValidationReportsInvalidProfileContent(t *testing.T) {
 	client := startDaemon(t)
 	ctx := context.Background()
 
@@ -317,51 +307,47 @@ func TestDaemonValidationBlocksInvalidSnapshot(t *testing.T) {
 		t.Fatalf("create: %v", structured)
 	}
 
-	_, structured = client.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{
+	reply, structured := client.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{
 		ProfileID: createReply.Profile.ID,
+		Content:   `not json`,
 	})
-	if structured == nil {
-		t.Fatal("expected validation error")
+	if structured != nil {
+		t.Fatalf("validate: %v", structured)
 	}
-	if structured.Code != api.ErrorConfigValidationFailed {
-		t.Fatalf("code = %s", structured.Code)
+	if reply.Diagnostics.Status != "invalid" {
+		t.Fatalf("status = %s", reply.Diagnostics.Status)
 	}
 }
 
 func TestDaemonEngineLifecycle(t *testing.T) {
-	client := startDaemon(t)
+	stateDir := t.TempDir()
+	startProviderForDaemonTest(t, stateDir)
+	client := startDaemonWithStateDir(t, stateDir)
 	ctx := context.Background()
 
-	// 1. Create profile with minimal direct config
+	// 1. Create profile with provider-hosted machine-network config
 	createReply, structured := client.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    "engine-test",
-		Content: `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`,
+		Content: `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`,
 	})
 	if structured != nil {
 		t.Fatalf("create: %v", structured)
 	}
 	pid := createReply.Profile.ID
 
-	// 2. Create snapshot
-	snapReply, structured := client.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
-	if structured != nil {
-		t.Fatalf("snapshot: %v", structured)
-	}
-	sid := snapReply.Snapshot.ID
-
-	// 3. Activate snapshot
-	_, structured = client.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: sid})
+	// 2. Select active profile
+	_, structured = client.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: pid})
 	if structured != nil {
 		t.Fatalf("activate: %v", structured)
 	}
 
-	// 4. Start Engine
+	// 3. Start Engine
 	_, structured = client.EngineStart(ctx, api.EngineStartRequest{})
 	if structured != nil {
 		t.Fatalf("engine start: %v", structured)
 	}
 
-	// 5. Get Status
+	// 4. Get Status
 	statusReply, structured := client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
 	if structured != nil {
 		t.Fatalf("engine get status: %v", structured)
@@ -369,14 +355,17 @@ func TestDaemonEngineLifecycle(t *testing.T) {
 	if statusReply.Status.State != "STARTED" {
 		t.Fatalf("expected STARTED, got %s", statusReply.Status.State)
 	}
+	if statusReply.Status.ActiveProfileID != pid {
+		t.Fatalf("active profile id = %s, want %s", statusReply.Status.ActiveProfileID, pid)
+	}
 
-	// 6. Stop Engine
+	// 5. Stop Engine
 	_, structured = client.EngineStop(ctx, api.EngineStopRequest{})
 	if structured != nil {
 		t.Fatalf("engine stop: %v", structured)
 	}
 
-	// 7. Get Status
+	// 6. Get Status
 	statusReply, structured = client.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
 	if structured != nil {
 		t.Fatalf("engine get status: %v", structured)

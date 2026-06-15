@@ -106,7 +106,7 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 
 	// 2. Start Success
 	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+		return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -117,20 +117,20 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 	if !fake.started {
 		t.Fatalf("fake runtime owner was not started")
 	}
-	if ctrl.GetStatus().ActiveSnapshotID != "snap1" {
-		t.Fatalf("expected snapshot ID snap1")
+	if ctrl.GetStatus().ActiveProfileID != "profile1" {
+		t.Fatalf("expected profile ID profile1")
 	}
 
 	// 3. Prevent duplicate Start
 	err = ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{SnapshotID: "snap2", ConfigJSON: "{}"}, nil
+		return RuntimeStartTarget{ProfileID: "profile2", ConfigJSON: "{}"}, nil
 	})
 	if err == nil || err.Code != api.ErrorEngineAlreadyStarted {
 		t.Fatalf("expected ENGINE_ALREADY_STARTED")
 	}
 
 	// 4. Block Mutations
-	mutErr := ctrl.CheckBlockMutations()
+	mutErr := ctrl.CheckProfileSelectionMutation()
 	if mutErr == nil || mutErr.Code != api.ErrorEngineRunning {
 		t.Fatalf("expected ENGINE_RUNNING when mutating")
 	}
@@ -146,8 +146,8 @@ func TestEngineController_StartStopTransitions(t *testing.T) {
 	if fake.started {
 		t.Fatalf("fake runtime owner was not stopped")
 	}
-	if ctrl.GetStatus().ActiveSnapshotID != "snap1" {
-		t.Fatalf("ActiveSnapshotID should NOT be cleared after Stop")
+	if ctrl.GetStatus().ActiveProfileID != "profile1" {
+		t.Fatalf("ActiveProfileID should NOT be cleared after Stop")
 	}
 
 	// 6. Stop when already stopped
@@ -165,7 +165,7 @@ func TestEngineController_RuntimeOwnerStartFailure(t *testing.T) {
 	}
 
 	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+		return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
 	})
 	if err == nil || err.Code != api.ErrorSingboxAdapterStartFailed {
 		t.Fatalf("expected SINGBOX_ADAPTER_START_FAILED")
@@ -188,7 +188,7 @@ func TestEngineControllerRuntimeOwnerFactoryReceivesStartTarget(t *testing.T) {
 	}
 
 	target := RuntimeStartTarget{
-		SnapshotID:           "snap1",
+		ProfileID:            "profile1",
 		ConfigJSON:           `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`,
 		RequiredCapabilities: []string{api.CapabilityTunMode},
 	}
@@ -197,8 +197,8 @@ func TestEngineControllerRuntimeOwnerFactoryReceivesStartTarget(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	if factoryTarget.SnapshotID != target.SnapshotID {
-		t.Fatalf("factory target snapshot = %s, want %s", factoryTarget.SnapshotID, target.SnapshotID)
+	if factoryTarget.ProfileID != target.ProfileID {
+		t.Fatalf("factory target profile = %s, want %s", factoryTarget.ProfileID, target.ProfileID)
 	}
 	if len(factoryTarget.RequiredCapabilities) != 1 || factoryTarget.RequiredCapabilities[0] != api.CapabilityTunMode {
 		t.Fatalf("factory target capabilities = %#v", factoryTarget.RequiredCapabilities)
@@ -220,7 +220,7 @@ func TestEngineController_StartIsObservableWhileRuntimeOwnerStarts(t *testing.T)
 	done := make(chan *api.StructuredError, 1)
 	go func() {
 		done <- ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-			return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+			return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
 		})
 	}()
 
@@ -228,7 +228,7 @@ func TestEngineController_StartIsObservableWhileRuntimeOwnerStarts(t *testing.T)
 	if status := ctrl.GetStatus(); status.State != model.EngineStateStarting {
 		t.Fatalf("expected STARTING while runtime owner starts, got %s", status.State)
 	}
-	if err := ctrl.CheckBlockMutations(); err == nil || err.Code != api.ErrorEngineRunning {
+	if err := ctrl.CheckProfileSelectionMutation(); err == nil || err.Code != api.ErrorEngineRunning {
 		t.Fatalf("expected mutation blocking while STARTING")
 	}
 	if err := ctrl.Stop(); err == nil || err.Code != api.ErrorEngineBusy {
@@ -248,16 +248,16 @@ func TestEngineController_LoadFailureReturnsToIdle(t *testing.T) {
 	ctrl := NewEngineController(context.Background(), NewRuntimeEventHub())
 
 	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveSnapshot, "No active snapshot.", "qkboxd", true)
+		return RuntimeStartTarget{}, api.NewStructuredError(api.ErrorEngineNoActiveProfile, "No active profile.", "qkboxd", true)
 	})
-	if err == nil || err.Code != api.ErrorEngineNoActiveSnapshot {
-		t.Fatalf("expected ENGINE_NO_ACTIVE_SNAPSHOT")
+	if err == nil || err.Code != api.ErrorEngineNoActiveProfile {
+		t.Fatalf("expected ENGINE_NO_ACTIVE_PROFILE")
 	}
 	status := ctrl.GetStatus()
 	if status.State != model.EngineStateIdle {
 		t.Fatalf("expected IDLE, got %s", status.State)
 	}
-	if status.LastErrorCode != api.ErrorEngineNoActiveSnapshot {
+	if status.LastErrorCode != api.ErrorEngineNoActiveProfile {
 		t.Fatalf("last error = %s", status.LastErrorCode)
 	}
 }
@@ -270,7 +270,7 @@ func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
 	}
 
 	if err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{SnapshotID: "snap1", ConfigJSON: "{}"}, nil
+		return RuntimeStartTarget{ProfileID: "profile1", ConfigJSON: "{}"}, nil
 	}); err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestEngineController_StopFailureBlocksMutationsUntilStopped(t *testing.T) {
 	if status := ctrl.GetStatus(); status.State != model.EngineStateFatal {
 		t.Fatalf("expected FATAL, got %s", status.State)
 	}
-	if err := ctrl.CheckBlockMutations(); err == nil || err.Code != api.ErrorEngineRunning {
+	if err := ctrl.CheckProfileSelectionMutation(); err == nil || err.Code != api.ErrorEngineRunning {
 		t.Fatalf("expected mutation blocking after fatal stop failure")
 	}
 

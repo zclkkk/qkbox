@@ -55,7 +55,7 @@ func (e *EngineController) Start(loadTarget func() (RuntimeStartTarget, *api.Str
 	}
 
 	e.mu.Lock()
-	e.status.ActiveSnapshotID = target.SnapshotID
+	e.status.ActiveProfileID = target.ProfileID
 	owner := e.runtimeOwnerFactory(target)
 	status = e.status
 	e.mu.Unlock()
@@ -143,12 +143,11 @@ func (e *EngineController) finishStopSuccess() {
 	e.publishStatus(status)
 }
 
-// CheckBlockMutations returns an error if the engine is in a state that should block snapshot mutations.
-func (e *EngineController) CheckBlockMutations() *api.StructuredError {
+func (e *EngineController) CheckProfileSelectionMutation() *api.StructuredError {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.blocksMutationsLocked() {
-		return api.NewStructuredError(api.ErrorEngineRunning, "Cannot mutate active snapshot while engine is running.", "qkboxd", true)
+		return api.NewStructuredError(api.ErrorEngineRunning, "Cannot change active profile while engine is running.", "qkboxd", true)
 	}
 	return nil
 }

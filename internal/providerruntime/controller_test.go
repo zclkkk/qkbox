@@ -2,24 +2,89 @@ package providerruntime
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/zclkkk/qkbox/internal/provideripc"
+	"github.com/zclkkk/qkbox/internal/runtimeapi"
 	"github.com/zclkkk/qkbox/shared/api"
 	"github.com/zclkkk/qkbox/shared/model"
 )
 
 const directRuntimeConfig = `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`
 
+type fakeRuntimeAdapter struct {
+	started bool
+}
+
+func newTestController(dir string, available bool, unavailableReason string) *Controller {
+	controller := NewController(dir, available, unavailableReason)
+	controller.adapterFactory = func() runtimeAdapter {
+		return &fakeRuntimeAdapter{}
+	}
+	return controller
+}
+
+func (a *fakeRuntimeAdapter) Start(_ context.Context, configJSON string) error {
+	if !json.Valid([]byte(configJSON)) {
+		return errors.New("invalid runtime config")
+	}
+	a.started = true
+	return nil
+}
+
+func (a *fakeRuntimeAdapter) Stop() error {
+	a.started = false
+	return nil
+}
+
+func (a *fakeRuntimeAdapter) RuntimeCapabilities() []api.Capability {
+	return api.RuntimeCapabilityShell()
+}
+
+func (a *fakeRuntimeAdapter) TrafficSnapshot() (api.TrafficSnapshot, *api.StructuredError) {
+	return api.TrafficSnapshot{}, nil
+}
+
+func (a *fakeRuntimeAdapter) ConnectionSnapshot() (api.ConnectionSnapshot, *api.StructuredError) {
+	return api.ConnectionSnapshot{}, nil
+}
+
+func (a *fakeRuntimeAdapter) ListGroups() ([]api.OutboundGroup, *api.StructuredError) {
+	return nil, nil
+}
+
+func (a *fakeRuntimeAdapter) SelectOutbound(string, string) (api.OutboundGroup, *api.StructuredError) {
+	return api.OutboundGroup{}, nil
+}
+
+func (a *fakeRuntimeAdapter) URLTest(context.Context, string, time.Duration) ([]api.URLTestResult, *api.StructuredError) {
+	return nil, nil
+}
+
+func (a *fakeRuntimeAdapter) CloseConnection(string) *api.StructuredError {
+	return nil
+}
+
+func (a *fakeRuntimeAdapter) CloseAllConnections() *api.StructuredError {
+	return nil
+}
+
+func (a *fakeRuntimeAdapter) ListenerInfo() ([]runtimeapi.ListenerInfo, *api.StructuredError) {
+	return nil, nil
+}
+
 func TestControllerStartStopOwnsRuntimeLock(t *testing.T) {
 	dir := t.TempDir()
-	controller := NewController(dir, true, "")
+	controller := newTestController(dir, true, "")
 	defer controller.Close()
 
 	start, structured := controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
 		SessionID:          "session-1",
 		RuntimeID:          "runtime-1",
-		SnapshotID:         "snapshot-1",
+		ProfileID:          "profile-1",
 		Mode:               api.RuntimeModeMachineNetwork,
 		ConfigJSON:         directRuntimeConfig,
 		HeartbeatTimeoutMS: 10_000,
@@ -45,7 +110,7 @@ func TestControllerStartStopOwnsRuntimeLock(t *testing.T) {
 	if structured != nil {
 		t.Fatalf("status: %v", structured)
 	}
-	if status.Status.State != model.EngineStateStarted || status.Status.ActiveSnapshotID != "snapshot-1" {
+	if status.Status.State != model.EngineStateStarted || status.Status.ActiveProfileID != "profile-1" {
 		t.Fatalf("status = %+v", status.Status)
 	}
 
@@ -62,13 +127,13 @@ func TestControllerStartStopOwnsRuntimeLock(t *testing.T) {
 }
 
 func TestControllerRejectsRuntimeObservationWithoutOwnerIDs(t *testing.T) {
-	controller := NewController(t.TempDir(), true, "")
+	controller := newTestController(t.TempDir(), true, "")
 	defer controller.Close()
 
 	_, structured := controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
 		SessionID:          "session-1",
 		RuntimeID:          "runtime-1",
-		SnapshotID:         "snapshot-1",
+		ProfileID:          "profile-1",
 		Mode:               api.RuntimeModeMachineNetwork,
 		ConfigJSON:         directRuntimeConfig,
 		HeartbeatTimeoutMS: 10_000,
@@ -97,13 +162,13 @@ func TestControllerRejectsRuntimeObservationWithoutOwnerIDs(t *testing.T) {
 }
 
 func TestControllerRejectsAnotherRuntimeOwner(t *testing.T) {
-	controller := NewController(t.TempDir(), true, "")
+	controller := newTestController(t.TempDir(), true, "")
 	defer controller.Close()
 
 	_, structured := controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
 		SessionID:          "session-1",
 		RuntimeID:          "runtime-1",
-		SnapshotID:         "snapshot-1",
+		ProfileID:          "profile-1",
 		Mode:               api.RuntimeModeMachineNetwork,
 		ConfigJSON:         directRuntimeConfig,
 		HeartbeatTimeoutMS: 10_000,
@@ -115,7 +180,7 @@ func TestControllerRejectsAnotherRuntimeOwner(t *testing.T) {
 	_, structured = controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
 		SessionID:  "session-2",
 		RuntimeID:  "runtime-2",
-		SnapshotID: "snapshot-2",
+		ProfileID:  "profile-2",
 		Mode:       api.RuntimeModeMachineNetwork,
 		ConfigJSON: directRuntimeConfig,
 	})
@@ -126,13 +191,13 @@ func TestControllerRejectsAnotherRuntimeOwner(t *testing.T) {
 
 func TestControllerStartFailureClearsOwnerState(t *testing.T) {
 	dir := t.TempDir()
-	controller := NewController(dir, true, "")
+	controller := newTestController(dir, true, "")
 	defer controller.Close()
 
 	_, structured := controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
 		SessionID:          "session-1",
 		RuntimeID:          "runtime-1",
-		SnapshotID:         "snapshot-1",
+		ProfileID:          "profile-1",
 		Mode:               api.RuntimeModeMachineNetwork,
 		ConfigJSON:         `not json`,
 		HeartbeatTimeoutMS: 10_000,
@@ -154,7 +219,7 @@ func TestControllerStartFailureClearsOwnerState(t *testing.T) {
 	_, structured = controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
 		SessionID:          "session-2",
 		RuntimeID:          "runtime-2",
-		SnapshotID:         "snapshot-2",
+		ProfileID:          "profile-2",
 		Mode:               api.RuntimeModeMachineNetwork,
 		ConfigJSON:         directRuntimeConfig,
 		HeartbeatTimeoutMS: 10_000,
@@ -167,16 +232,16 @@ func TestControllerStartFailureClearsOwnerState(t *testing.T) {
 func TestControllerKeepsAndRepairsStaleOwnerRecord(t *testing.T) {
 	dir := t.TempDir()
 	if err := saveOwnerRecord(dir, &ownerRecord{
-		Owned:      true,
-		SessionID:  "old-session",
-		RuntimeID:  "old-runtime",
-		SnapshotID: "old-snapshot",
-		Mode:       api.RuntimeModeMachineNetwork,
+		Owned:     true,
+		SessionID: "old-session",
+		RuntimeID: "old-runtime",
+		ProfileID: "old-snapshot",
+		Mode:      api.RuntimeModeMachineNetwork,
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	controller := NewController(dir, true, "")
+	controller := newTestController(dir, true, "")
 	state := controller.OwnerState()
 	if state == nil || !state.Stale {
 		t.Fatalf("state = %+v, want stale owner", state)
@@ -185,7 +250,7 @@ func TestControllerKeepsAndRepairsStaleOwnerRecord(t *testing.T) {
 	_, structured := controller.RuntimeStart(context.Background(), provideripc.RuntimeStartRequest{
 		SessionID:  "session-1",
 		RuntimeID:  "runtime-1",
-		SnapshotID: "snapshot-1",
+		ProfileID:  "profile-1",
 		Mode:       api.RuntimeModeMachineNetwork,
 		ConfigJSON: directRuntimeConfig,
 	})

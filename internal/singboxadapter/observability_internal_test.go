@@ -2,6 +2,7 @@ package singboxadapter
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +36,7 @@ func TestAdapterListsAndSelectsGroups(t *testing.T) {
 	}`
 	adapter := NewAdapter()
 	if err := adapter.Start(context.Background(), config); err != nil {
+		skipIfClashAPINotIncluded(t, err)
 		t.Fatalf("start: %v", err)
 	}
 	defer adapter.Stop()
@@ -63,5 +65,12 @@ func TestAdapterListsAndSelectsGroups(t *testing.T) {
 	_, structured = adapter.URLTest(context.Background(), "select", time.Second)
 	if structured == nil || structured.Code != api.ErrorObservabilityUnsupported {
 		t.Fatalf("expected URLTest unsupported, got %v", structured)
+	}
+}
+
+func skipIfClashAPINotIncluded(t *testing.T, err error) {
+	t.Helper()
+	if strings.Contains(err.Error(), "clash api is not included") {
+		t.Skip("sing-box clash api is not included in this build")
 	}
 }

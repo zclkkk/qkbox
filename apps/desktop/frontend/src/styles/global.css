@@ -386,7 +386,6 @@ h2 {
 }
 
 .engine-toolbar,
-.reload-panel,
 .connection-controls,
 .log-controls {
   display: flex;
@@ -400,7 +399,6 @@ h2 {
   align-items: center;
 }
 
-.reload-panel > div,
 .connection-controls label,
 .log-controls label {
   display: grid;
@@ -408,7 +406,6 @@ h2 {
   min-width: 160px;
 }
 
-.reload-panel select,
 .connection-controls input,
 .connection-controls select,
 .log-controls input,
@@ -898,7 +895,6 @@ h2 {
     justify-items: start;
   }
 
-  .reload-panel > div,
   .connection-controls label,
   .log-controls label {
     width: 100%;

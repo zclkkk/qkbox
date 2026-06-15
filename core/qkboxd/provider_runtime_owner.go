@@ -49,7 +49,7 @@ func (o *providerRuntimeOwner) Start(ctx context.Context, target RuntimeStartTar
 	_, structured := o.provider.RuntimeStart(ctx, provideripc.RuntimeStartRequest{
 		SessionID:            o.sessionID,
 		RuntimeID:            runtimeID,
-		SnapshotID:           target.SnapshotID,
+		ProfileID:            target.ProfileID,
 		Mode:                 api.RuntimeModeMachineNetwork,
 		ConfigJSON:           target.ConfigJSON,
 		RequiredCapabilities: append([]string(nil), target.RequiredCapabilities...),

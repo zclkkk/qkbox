@@ -9,22 +9,11 @@ export type ValidationDiagnostic = {
 export type ProfileSummary = {
   id: string;
   name: string;
-  has_draft?: boolean;
-  has_active_snapshot?: boolean;
-  active_snapshot_id?: string;
   created_at?: number;
   updated_at?: number;
 };
 
-export type ProfileSnapshot = {
-  id: string;
-  profile_id: string;
-  validation_status?: string;
-  diagnostics?: ValidationDiagnostic[];
-  required_capabilities?: string[];
-  created_at: number;
-  content_sha256?: string;
-};
+export type Profile = ProfileSummary;
 
 const defaultProfileContent = `{
   "inbounds": [
@@ -46,21 +35,19 @@ const defaultProfileContent = `{
 
 class ProfileState {
   profiles = $state<ProfileSummary[]>([]);
-  activeProfile = $state<unknown | null>(null);
-  activeSnapshot = $state<ProfileSnapshot | null>(null);
+  activeProfile = $state<Profile | null>(null);
   selectedProfileID = $state<string>("");
   selectedProfileName = $state<string>("");
-  draftContent = $state(defaultProfileContent);
-  savedDraftContent = $state(defaultProfileContent);
-  snapshots = $state<ProfileSnapshot[]>([]);
+  content = $state(defaultProfileContent);
+  savedContent = $state(defaultProfileContent);
   diagnostics = $state<ValidationDiagnostic[]>([]);
   validationStatus = $state<string>("unknown");
   creatingName = $state("New Profile");
   busy = $state(false);
   error = $state<string | null>(null);
 
-  get draftDirty() {
-    return this.draftContent !== this.savedDraftContent;
+  get contentDirty() {
+    return this.content !== this.savedContent;
   }
 
   async refresh() {
@@ -110,7 +97,6 @@ class ProfileState {
           return;
         }
         this.selectedProfileName = selected.name;
-        await this.refreshSnapshots();
       }
     } catch (error) {
       this.capture(error);
@@ -119,9 +105,8 @@ class ProfileState {
 
   async refreshActive() {
     try {
-      const [profile, snapshot] = await Promise.all([api.profile.getActiveProfile(), api.profile.getActiveSnapshot()]);
-      this.activeProfile = profile.profile ?? null;
-      this.activeSnapshot = (snapshot.snapshot as ProfileSnapshot | null) ?? null;
+      const reply = await api.profile.getActiveProfile();
+      this.activeProfile = (reply.profile as Profile | null) ?? null;
     } catch (error) {
       this.capture(error);
     }
@@ -133,83 +118,42 @@ class ProfileState {
     try {
       const reply = await api.profile.get(profileID);
       this.selectedProfileName = reply.profile.name;
-      this.draftContent = reply.content || "";
-      this.savedDraftContent = this.draftContent;
+      this.content = reply.content || "";
+      this.savedContent = this.content;
       this.diagnostics = [];
       this.validationStatus = "unknown";
-      await this.refreshSnapshots();
     } catch (error) {
       this.capture(error);
     }
   }
 
-  async saveDraft() {
+  async saveContent() {
     if (!this.selectedProfileID) {
       return;
     }
     await this.withBusy(async () => {
-      await api.profile.updateDraft(this.selectedProfileID, this.draftContent);
-      this.savedDraftContent = this.draftContent;
+      await api.profile.saveContent(this.selectedProfileID, this.content);
+      this.savedContent = this.content;
       await this.refreshProfiles();
     });
   }
 
-  async validateDraft() {
+  async validateContent() {
     if (!this.selectedProfileID) {
       return;
     }
     await this.withBusy(async () => {
-      if (this.draftDirty) {
-        await api.profile.updateDraft(this.selectedProfileID, this.draftContent);
-        this.savedDraftContent = this.draftContent;
-      }
-      const reply = await api.profile.validateDraft(this.selectedProfileID);
+      const reply = await api.profile.validateContent(this.selectedProfileID, this.content);
       this.validationStatus = reply.diagnostics.status;
       this.diagnostics = reply.diagnostics.entries ?? [];
     });
   }
 
-  async createSnapshot() {
-    if (!this.selectedProfileID) {
-      return;
-    }
+  async activateProfile(profileID: string) {
     await this.withBusy(async () => {
-      if (this.draftDirty) {
-        await api.profile.updateDraft(this.selectedProfileID, this.draftContent);
-        this.savedDraftContent = this.draftContent;
-      }
-      const reply = await api.profile.createSnapshot(this.selectedProfileID);
-      this.validationStatus = reply.snapshot.validation_status ?? "unknown";
-      this.diagnostics = reply.snapshot.diagnostics ?? [];
-      await this.refreshSnapshots();
-    });
-  }
-
-  async activateSnapshot(snapshotID: string) {
-    await this.withBusy(async () => {
-      await api.profile.activateSnapshot(snapshotID);
+      await api.profile.activate(profileID);
       await this.refresh();
     });
-  }
-
-  async rollbackToSnapshot(snapshotID: string) {
-    await this.withBusy(async () => {
-      await api.profile.rollbackToSnapshot(snapshotID);
-      await this.refresh();
-    });
-  }
-
-  async refreshSnapshots() {
-    if (!this.selectedProfileID) {
-      this.snapshots = [];
-      return;
-    }
-    try {
-      const reply = await api.profile.listSnapshots(this.selectedProfileID);
-      this.snapshots = (reply.snapshots ?? []) as ProfileSnapshot[];
-    } catch (error) {
-      this.capture(error);
-    }
   }
 
   private async withBusy(fn: () => Promise<void>) {
@@ -235,9 +179,8 @@ class ProfileState {
   private clearSelection() {
     this.selectedProfileID = "";
     this.selectedProfileName = "";
-    this.draftContent = defaultProfileContent;
-    this.savedDraftContent = defaultProfileContent;
-    this.snapshots = [];
+    this.content = defaultProfileContent;
+    this.savedContent = defaultProfileContent;
     this.diagnostics = [];
     this.validationStatus = "unknown";
   }

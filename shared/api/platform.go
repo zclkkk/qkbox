@@ -62,7 +62,7 @@ type ProviderOwnerState struct {
 	UID             string   `json:"uid,omitempty"`
 	SessionID       string   `json:"session_id,omitempty"`
 	RuntimeID       string   `json:"runtime_id,omitempty"`
-	SnapshotID      string   `json:"snapshot_id,omitempty"`
+	ProfileID       string   `json:"profile_id,omitempty"`
 	Mode            string   `json:"mode,omitempty"`
 	StartedAt       int64    `json:"started_at,omitempty"`
 	LastHeartbeatAt int64    `json:"last_heartbeat_at,omitempty"`

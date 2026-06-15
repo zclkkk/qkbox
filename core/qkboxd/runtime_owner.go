@@ -26,7 +26,7 @@ type RuntimeOwner interface {
 }
 
 type RuntimeStartTarget struct {
-	SnapshotID           string
+	ProfileID            string
 	ConfigJSON           string
 	RequiredCapabilities []string
 }

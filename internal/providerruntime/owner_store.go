@@ -16,7 +16,7 @@ type ownerRecord struct {
 	Stale           bool     `json:"stale,omitempty"`
 	SessionID       string   `json:"session_id,omitempty"`
 	RuntimeID       string   `json:"runtime_id,omitempty"`
-	SnapshotID      string   `json:"snapshot_id,omitempty"`
+	ProfileID       string   `json:"profile_id,omitempty"`
 	Mode            string   `json:"mode,omitempty"`
 	StartedAt       int64    `json:"started_at,omitempty"`
 	LastHeartbeatAt int64    `json:"last_heartbeat_at,omitempty"`
@@ -74,7 +74,7 @@ func providerOwnerState(record *ownerRecord) *api.ProviderOwnerState {
 		Stale:           record.Stale,
 		SessionID:       record.SessionID,
 		RuntimeID:       record.RuntimeID,
-		SnapshotID:      record.SnapshotID,
+		ProfileID:       record.ProfileID,
 		Mode:            record.Mode,
 		StartedAt:       record.StartedAt,
 		LastHeartbeatAt: record.LastHeartbeatAt,

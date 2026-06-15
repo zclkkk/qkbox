@@ -57,11 +57,11 @@ func (testHandler) RunRepairAction(_ context.Context, req api.RunRepairActionReq
 
 func (testHandler) RuntimeStart(_ context.Context, req RuntimeStartRequest) (RuntimeStartReply, *api.StructuredError) {
 	return RuntimeStartReply{OwnerState: api.ProviderOwnerState{
-		Owned:      true,
-		SessionID:  req.SessionID,
-		RuntimeID:  req.RuntimeID,
-		SnapshotID: req.SnapshotID,
-		Mode:       req.Mode,
+		Owned:     true,
+		SessionID: req.SessionID,
+		RuntimeID: req.RuntimeID,
+		ProfileID: req.ProfileID,
+		Mode:      req.Mode,
 	}}, nil
 }
 

@@ -33,8 +33,8 @@ func (c *Client) CreateProfile(ctx context.Context, req api.CreateProfileRequest
 	return do[api.CreateProfileRequest, api.CreateProfileReply](c, ctx, api.MethodCreateProfile, req)
 }
 
-func (c *Client) UpdateProfileDraft(ctx context.Context, req api.UpdateProfileDraftRequest) (api.UpdateProfileDraftReply, *api.StructuredError) {
-	return do[api.UpdateProfileDraftRequest, api.UpdateProfileDraftReply](c, ctx, api.MethodUpdateProfileDraft, req)
+func (c *Client) UpdateProfile(ctx context.Context, req api.UpdateProfileRequest) (api.UpdateProfileReply, *api.StructuredError) {
+	return do[api.UpdateProfileRequest, api.UpdateProfileReply](c, ctx, api.MethodUpdateProfile, req)
 }
 
 func (c *Client) DeleteProfile(ctx context.Context, req api.DeleteProfileRequest) (api.DeleteProfileReply, *api.StructuredError) {
@@ -47,6 +47,22 @@ func (c *Client) ListProfiles(ctx context.Context, req api.ListProfilesRequest) 
 
 func (c *Client) GetProfile(ctx context.Context, req api.GetProfileRequest) (api.GetProfileReply, *api.StructuredError) {
 	return do[api.GetProfileRequest, api.GetProfileReply](c, ctx, api.MethodGetProfile, req)
+}
+
+func (c *Client) SaveProfileContent(ctx context.Context, req api.SaveProfileContentRequest) (api.SaveProfileContentReply, *api.StructuredError) {
+	return do[api.SaveProfileContentRequest, api.SaveProfileContentReply](c, ctx, api.MethodSaveProfileContent, req)
+}
+
+func (c *Client) ValidateProfileContent(ctx context.Context, req api.ValidateProfileContentRequest) (api.ValidateProfileContentReply, *api.StructuredError) {
+	return do[api.ValidateProfileContentRequest, api.ValidateProfileContentReply](c, ctx, api.MethodValidateProfileContent, req)
+}
+
+func (c *Client) ActivateProfile(ctx context.Context, req api.ActivateProfileRequest) (api.ActivateProfileReply, *api.StructuredError) {
+	return do[api.ActivateProfileRequest, api.ActivateProfileReply](c, ctx, api.MethodActivateProfile, req)
+}
+
+func (c *Client) GetActiveProfile(ctx context.Context, req api.GetActiveProfileRequest) (api.GetActiveProfileReply, *api.StructuredError) {
+	return do[api.GetActiveProfileRequest, api.GetActiveProfileReply](c, ctx, api.MethodGetActiveProfile, req)
 }
 
 // Data assets and subscriptions
@@ -93,40 +109,6 @@ func (c *Client) DiagnosticsCreateDebugBundle(ctx context.Context, req api.Creat
 	return do[api.CreateDebugBundleRequest, api.CreateDebugBundleReply](c, ctx, api.MethodDiagnosticsCreateDebugBundle, req)
 }
 
-// Snapshot lifecycle
-
-func (c *Client) ValidateProfileDraft(ctx context.Context, req api.ValidateProfileDraftRequest) (api.ValidateProfileDraftReply, *api.StructuredError) {
-	return do[api.ValidateProfileDraftRequest, api.ValidateProfileDraftReply](c, ctx, api.MethodValidateProfileDraft, req)
-}
-
-func (c *Client) GetProfileDiagnostics(ctx context.Context, req api.GetProfileDiagnosticsRequest) (api.GetProfileDiagnosticsReply, *api.StructuredError) {
-	return do[api.GetProfileDiagnosticsRequest, api.GetProfileDiagnosticsReply](c, ctx, api.MethodGetProfileDiagnostics, req)
-}
-
-func (c *Client) CreateProfileSnapshot(ctx context.Context, req api.CreateProfileSnapshotRequest) (api.CreateProfileSnapshotReply, *api.StructuredError) {
-	return do[api.CreateProfileSnapshotRequest, api.CreateProfileSnapshotReply](c, ctx, api.MethodCreateProfileSnapshot, req)
-}
-
-func (c *Client) ActivateProfileSnapshot(ctx context.Context, req api.ActivateProfileSnapshotRequest) (api.ActivateProfileSnapshotReply, *api.StructuredError) {
-	return do[api.ActivateProfileSnapshotRequest, api.ActivateProfileSnapshotReply](c, ctx, api.MethodActivateProfileSnapshot, req)
-}
-
-func (c *Client) GetActiveProfile(ctx context.Context, req api.GetActiveProfileRequest) (api.GetActiveProfileReply, *api.StructuredError) {
-	return do[api.GetActiveProfileRequest, api.GetActiveProfileReply](c, ctx, api.MethodGetActiveProfile, req)
-}
-
-func (c *Client) GetActiveSnapshot(ctx context.Context, req api.GetActiveSnapshotRequest) (api.GetActiveSnapshotReply, *api.StructuredError) {
-	return do[api.GetActiveSnapshotRequest, api.GetActiveSnapshotReply](c, ctx, api.MethodGetActiveSnapshot, req)
-}
-
-func (c *Client) ListSnapshots(ctx context.Context, req api.ListSnapshotsRequest) (api.ListSnapshotsReply, *api.StructuredError) {
-	return do[api.ListSnapshotsRequest, api.ListSnapshotsReply](c, ctx, api.MethodListSnapshots, req)
-}
-
-func (c *Client) RollbackToSnapshot(ctx context.Context, req api.RollbackToSnapshotRequest) (api.RollbackToSnapshotReply, *api.StructuredError) {
-	return do[api.RollbackToSnapshotRequest, api.RollbackToSnapshotReply](c, ctx, api.MethodRollbackToSnapshot, req)
-}
-
 // Engine lifecycle
 
 func (c *Client) EngineStart(ctx context.Context, req api.EngineStartRequest) (api.EngineStartReply, *api.StructuredError) {
@@ -135,10 +117,6 @@ func (c *Client) EngineStart(ctx context.Context, req api.EngineStartRequest) (a
 
 func (c *Client) EngineStop(ctx context.Context, req api.EngineStopRequest) (api.EngineStopReply, *api.StructuredError) {
 	return do[api.EngineStopRequest, api.EngineStopReply](c, ctx, api.MethodEngineStop, req)
-}
-
-func (c *Client) EngineReload(ctx context.Context, req api.EngineReloadRequest) (api.EngineReloadReply, *api.StructuredError) {
-	return do[api.EngineReloadRequest, api.EngineReloadReply](c, ctx, api.MethodEngineReload, req)
 }
 
 func (c *Client) EngineGetStatus(ctx context.Context, req api.EngineGetStatusRequest) (api.EngineGetStatusReply, *api.StructuredError) {

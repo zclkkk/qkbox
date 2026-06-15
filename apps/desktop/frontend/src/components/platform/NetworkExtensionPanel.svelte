@@ -43,8 +43,8 @@
       <div class="owner-state">
         <MetricCard label="Owner mode" value={platformState.networkExtensionStatus.owner_state.mode || "network_extension"} />
         <MetricCard label="Runtime" value={platformState.networkExtensionStatus.owner_state.runtime_id || "unknown"} />
-        {#if platformState.networkExtensionStatus.owner_state.snapshot_id}
-          <MetricCard label="Snapshot" value={platformState.networkExtensionStatus.owner_state.snapshot_id} />
+        {#if platformState.networkExtensionStatus.owner_state.profile_id}
+          <MetricCard label="Profile" value={platformState.networkExtensionStatus.owner_state.profile_id} />
         {/if}
         {#if platformState.networkExtensionStatus.owner_state.started_at}
           <MetricCard label="Started" value={formatTimestamp(platformState.networkExtensionStatus.owner_state.started_at)} />

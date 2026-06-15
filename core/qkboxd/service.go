@@ -17,7 +17,6 @@ import (
 type Service struct {
 	*ProfileService
 	*AssetService
-	*SnapshotService
 	*RuntimeService
 	*PlatformService
 	*DiagnosticsService
@@ -49,16 +48,14 @@ func NewServiceWithNetworkExtension(runtimeCtx context.Context, db *persistence.
 	httpClient := &http.Client{Timeout: remoteFetchTimeout}
 
 	platform := &PlatformService{db: db, engine: engine, proxy: proxy, privileged: privileged, extension: extension, opMu: opMu}
-	profile := &ProfileService{db: db}
+	profile := &ProfileService{db: db, engine: engine, opMu: opMu}
 	asset := &AssetService{db: db, httpClient: httpClient, assetStore: assetStore}
-	snapshot := &SnapshotService{db: db, engine: engine, opMu: opMu}
 	runtimeService := &RuntimeService{db: db, engine: engine, events: events, platform: platform, opMu: opMu}
 	diagnostics := &DiagnosticsService{db: db, engine: engine, platform: platform, privileged: privileged, extension: extension, assetStore: assetStore}
 
 	return &Service{
 		ProfileService:     profile,
 		AssetService:       asset,
-		SnapshotService:    snapshot,
 		RuntimeService:     runtimeService,
 		PlatformService:    platform,
 		DiagnosticsService: diagnostics,

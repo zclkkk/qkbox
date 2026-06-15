@@ -2,7 +2,6 @@ import { Events } from "@wailsio/runtime";
 import { BridgeService } from "../../../bindings/github.com/zclkkk/qkbox/apps/desktop";
 import type {
   Capability,
-  EngineReloadReply,
   EngineStatus,
   GetSystemProxyStatusReply,
   HelloReply,
@@ -18,7 +17,6 @@ import type {
 
 export type {
   Capability,
-  EngineReloadReply,
   EngineStatus,
   GetSystemProxyStatusReply,
   HelloReply,
@@ -104,7 +102,6 @@ export const api = {
   engine: {
     start: () => unwrap(BridgeService.EngineStart(), {}),
     stop: () => unwrap(BridgeService.EngineStop(), {}),
-    reload: (snapshotID?: string) => unwrap(BridgeService.EngineReload({ snapshot_id: snapshotID ?? "" })),
     getStatus: () => unwrap(BridgeService.EngineGetStatus()),
     getRuntimeCapabilities: () => unwrap(BridgeService.EngineGetRuntimeCapabilities(), { capabilities: [] as Capability[] }),
     listGroups: () => unwrap(BridgeService.EngineListGroups(), { groups: [] as OutboundGroup[] }),
@@ -117,18 +114,16 @@ export const api = {
   },
   profile: {
     create: (name: string, content: string) => unwrap(BridgeService.CreateProfile({ name, content })),
-    updateDraft: (profileID: string, content: string) =>
-      unwrap(BridgeService.UpdateProfileDraft({ profile_id: profileID, content })),
+    update: (profileID: string, name: string) => unwrap(BridgeService.UpdateProfile({ profile_id: profileID, name })),
+    saveContent: (profileID: string, content: string) =>
+      unwrap(BridgeService.SaveProfileContent({ profile_id: profileID, content })),
     delete: (profileID: string) => unwrap(BridgeService.DeleteProfile({ profile_id: profileID })),
     list: () => unwrap(BridgeService.ListProfiles(), { profiles: [] }),
     get: (profileID: string) => unwrap(BridgeService.GetProfile({ profile_id: profileID })),
-    validateDraft: (profileID: string) => unwrap(BridgeService.ValidateProfileDraft({ profile_id: profileID })),
-    createSnapshot: (profileID: string) => unwrap(BridgeService.CreateProfileSnapshot({ profile_id: profileID })),
-    activateSnapshot: (snapshotID: string) => unwrap(BridgeService.ActivateProfileSnapshot({ snapshot_id: snapshotID })),
+    validateContent: (profileID: string | undefined, content: string) =>
+      unwrap(BridgeService.ValidateProfileContent({ profile_id: profileID ?? "", content })),
+    activate: (profileID: string) => unwrap(BridgeService.ActivateProfile({ profile_id: profileID })),
     getActiveProfile: () => unwrap(BridgeService.GetActiveProfile(), { profile: null }),
-    getActiveSnapshot: () => unwrap(BridgeService.GetActiveSnapshot(), { snapshot: null }),
-    listSnapshots: (profileID = "") => unwrap(BridgeService.ListSnapshots({ profile_id: profileID }), { snapshots: [] }),
-    rollbackToSnapshot: (snapshotID: string) => unwrap(BridgeService.RollbackToSnapshot({ snapshot_id: snapshotID }))
   },
   asset: {
     createProfileSubscription: (profileID: string, name: string, url: string) =>

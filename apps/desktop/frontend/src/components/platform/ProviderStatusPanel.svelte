@@ -49,8 +49,8 @@
       <div class="owner-state">
         <MetricCard label="Owner mode" value={platformState.privilegedProviderStatus.owner_state.mode || "runtime"} />
         <MetricCard label="Runtime" value={platformState.privilegedProviderStatus.owner_state.runtime_id || "unknown"} />
-        {#if platformState.privilegedProviderStatus.owner_state.snapshot_id}
-          <MetricCard label="Snapshot" value={platformState.privilegedProviderStatus.owner_state.snapshot_id} />
+        {#if platformState.privilegedProviderStatus.owner_state.profile_id}
+          <MetricCard label="Profile" value={platformState.privilegedProviderStatus.owner_state.profile_id} />
         {/if}
         {#if platformState.privilegedProviderStatus.owner_state.started_at}
           <MetricCard label="Started" value={formatTimestamp(platformState.privilegedProviderStatus.owner_state.started_at)} />

@@ -14,16 +14,11 @@ const (
 	ErrorProfileNotFound     = "PROFILE_NOT_FOUND"
 	ErrorProfileNameEmpty    = "PROFILE_NAME_EMPTY"
 	ErrorProfileContentEmpty = "PROFILE_CONTENT_EMPTY"
-	ErrorProfileHasSnapshot  = "PROFILE_HAS_ACTIVE_SNAPSHOT"
 
 	ErrorSubscriptionNotFound    = "SUBSCRIPTION_NOT_FOUND"
 	ErrorSubscriptionURLEmpty    = "SUBSCRIPTION_URL_EMPTY"
 	ErrorSubscriptionURLInvalid  = "SUBSCRIPTION_URL_INVALID"
 	ErrorSubscriptionFetchFailed = "SUBSCRIPTION_FETCH_FAILED"
-
-	ErrorSnapshotNotFound      = "SNAPSHOT_NOT_FOUND"
-	ErrorSnapshotCreateFailed  = "SNAPSHOT_CREATE_FAILED"
-	ErrorSnapshotAlreadyActive = "SNAPSHOT_ALREADY_ACTIVE"
 
 	ErrorConfigValidationFailed = "CONFIG_VALIDATION_FAILED"
 	ErrorConfigInvalidJSON      = "CONFIG_INVALID_JSON"
@@ -37,11 +32,11 @@ const (
 
 	ErrorDiagnosticsBundleFailed = "DIAGNOSTICS_BUNDLE_FAILED"
 
-	ErrorEngineNoActiveSnapshot = "ENGINE_NO_ACTIVE_SNAPSHOT"
-	ErrorEngineAlreadyStarted   = "ENGINE_ALREADY_STARTED"
-	ErrorEngineNotStarted       = "ENGINE_NOT_STARTED"
-	ErrorEngineBusy             = "ENGINE_BUSY"
-	ErrorEngineRunning          = "ENGINE_RUNNING"
+	ErrorEngineNoActiveProfile = "ENGINE_NO_ACTIVE_PROFILE"
+	ErrorEngineAlreadyStarted  = "ENGINE_ALREADY_STARTED"
+	ErrorEngineNotStarted      = "ENGINE_NOT_STARTED"
+	ErrorEngineBusy            = "ENGINE_BUSY"
+	ErrorEngineRunning         = "ENGINE_RUNNING"
 
 	ErrorSingboxAdapterConfigFailed = "SINGBOX_ADAPTER_CONFIG_FAILED"
 	ErrorSingboxAdapterStartFailed  = "SINGBOX_ADAPTER_START_FAILED"

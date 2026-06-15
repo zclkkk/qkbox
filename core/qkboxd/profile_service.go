@@ -3,6 +3,7 @@ package qkboxd
 import (
 	"context"
 	"database/sql"
+	"sync"
 	"time"
 
 	"github.com/zclkkk/qkbox/internal/persistence"
@@ -11,7 +12,9 @@ import (
 )
 
 type ProfileService struct {
-	db *persistence.DB
+	db     *persistence.DB
+	engine *EngineController
+	opMu   *sync.Mutex
 }
 
 func (s *ProfileService) CreateProfile(_ context.Context, req api.CreateProfileRequest) (api.CreateProfileReply, *api.StructuredError) {
@@ -39,36 +42,84 @@ func (s *ProfileService) CreateProfile(_ context.Context, req api.CreateProfileR
 	return api.CreateProfileReply{Profile: profile}, nil
 }
 
-func (s *ProfileService) UpdateProfileDraft(_ context.Context, req api.UpdateProfileDraftRequest) (api.UpdateProfileDraftReply, *api.StructuredError) {
+func (s *ProfileService) UpdateProfile(_ context.Context, req api.UpdateProfileRequest) (api.UpdateProfileReply, *api.StructuredError) {
 	if req.ProfileID == "" {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile ID is required.", "qkboxd", true)
+		return api.UpdateProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile ID is required.", "qkboxd", true)
 	}
-	if req.Content == "" {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileContentEmpty, "Profile content is required.", "qkboxd", true)
+	if req.Name == "" {
+		return api.UpdateProfileReply{}, api.NewStructuredError(api.ErrorProfileNameEmpty, "Profile name is required.", "qkboxd", true)
 	}
 
 	profile, err := s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
+		return api.UpdateProfileReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
+		return api.UpdateProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
+	}
+
+	if err := s.db.WithTx(func(tx *sql.Tx) error {
+		return s.db.UpdateProfileTx(tx, req.ProfileID, req.Name)
+	}); err != nil {
+		return api.UpdateProfileReply{}, qkboxdInternalError(err)
+	}
+
+	profile, err = s.db.GetProfile(req.ProfileID)
+	if err != nil {
+		return api.UpdateProfileReply{}, qkboxdInternalError(err)
+	}
+	if profile == nil {
+		return api.UpdateProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile disappeared after update.", "qkboxd", false)
+	}
+	return api.UpdateProfileReply{Profile: *profile}, nil
+}
+
+func (s *ProfileService) SaveProfileContent(_ context.Context, req api.SaveProfileContentRequest) (api.SaveProfileContentReply, *api.StructuredError) {
+	if req.ProfileID == "" {
+		return api.SaveProfileContentReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile ID is required.", "qkboxd", true)
+	}
+	if req.Content == "" {
+		return api.SaveProfileContentReply{}, api.NewStructuredError(api.ErrorProfileContentEmpty, "Profile content is required.", "qkboxd", true)
+	}
+
+	profile, err := s.db.GetProfile(req.ProfileID)
+	if err != nil {
+		return api.SaveProfileContentReply{}, qkboxdInternalError(err)
+	}
+	if profile == nil {
+		return api.SaveProfileContentReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
 	}
 
 	if err := s.db.WithTx(func(tx *sql.Tx) error {
 		return s.db.UpdateProfileContentTx(tx, req.ProfileID, req.Content)
 	}); err != nil {
-		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
+		return api.SaveProfileContentReply{}, qkboxdInternalError(err)
 	}
 
 	profile, err = s.db.GetProfile(req.ProfileID)
 	if err != nil {
-		return api.UpdateProfileDraftReply{}, qkboxdInternalError(err)
+		return api.SaveProfileContentReply{}, qkboxdInternalError(err)
 	}
 	if profile == nil {
-		return api.UpdateProfileDraftReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile disappeared after update.", "qkboxd", false)
+		return api.SaveProfileContentReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile disappeared after content save.", "qkboxd", false)
 	}
-	return api.UpdateProfileDraftReply{Profile: *profile}, nil
+	return api.SaveProfileContentReply{Profile: *profile}, nil
+}
+
+func (s *ProfileService) ValidateProfileContent(_ context.Context, req api.ValidateProfileContentRequest) (api.ValidateProfileContentReply, *api.StructuredError) {
+	if req.ProfileID != "" {
+		profile, err := s.db.GetProfile(req.ProfileID)
+		if err != nil {
+			return api.ValidateProfileContentReply{}, qkboxdInternalError(err)
+		}
+		if profile == nil {
+			return api.ValidateProfileContentReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
+		}
+	}
+
+	diag := validateContent(req.Content)
+	diag.ProfileID = req.ProfileID
+	return api.ValidateProfileContentReply{Diagnostics: diag}, nil
 }
 
 func (s *ProfileService) DeleteProfile(_ context.Context, req api.DeleteProfileRequest) (api.DeleteProfileReply, *api.StructuredError) {
@@ -118,4 +169,40 @@ func (s *ProfileService) GetProfile(_ context.Context, req api.GetProfileRequest
 	}
 	reply.Content = content
 	return reply, nil
+}
+
+func (s *ProfileService) ActivateProfile(_ context.Context, req api.ActivateProfileRequest) (api.ActivateProfileReply, *api.StructuredError) {
+	if req.ProfileID == "" {
+		return api.ActivateProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile ID is required.", "qkboxd", true)
+	}
+
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+
+	if err := s.engine.CheckProfileSelectionMutation(); err != nil {
+		return api.ActivateProfileReply{}, err
+	}
+
+	profile, err := s.db.GetProfile(req.ProfileID)
+	if err != nil {
+		return api.ActivateProfileReply{}, qkboxdInternalError(err)
+	}
+	if profile == nil {
+		return api.ActivateProfileReply{}, api.NewStructuredError(api.ErrorProfileNotFound, "Profile not found.", "qkboxd", true)
+	}
+
+	if err := s.db.WithTx(func(tx *sql.Tx) error {
+		return s.db.SetActiveProfileTx(tx, req.ProfileID)
+	}); err != nil {
+		return api.ActivateProfileReply{}, qkboxdInternalError(err)
+	}
+	return api.ActivateProfileReply{Profile: *profile}, nil
+}
+
+func (s *ProfileService) GetActiveProfile(_ context.Context, _ api.GetActiveProfileRequest) (api.GetActiveProfileReply, *api.StructuredError) {
+	profile, err := s.db.GetActiveProfile()
+	if err != nil {
+		return api.GetActiveProfileReply{}, qkboxdInternalError(err)
+	}
+	return api.GetActiveProfileReply{Profile: profile}, nil
 }

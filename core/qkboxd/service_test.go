@@ -3,7 +3,6 @@ package qkboxd
 import (
 	"archive/zip"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	qkboxcrypto "github.com/zclkkk/qkbox/internal/crypto"
 	"github.com/zclkkk/qkbox/internal/persistence"
 	"github.com/zclkkk/qkbox/internal/provideripc"
 	"github.com/zclkkk/qkbox/internal/runtimeapi"
@@ -46,11 +44,7 @@ func newTestServiceWithPlatformAndExtension(t *testing.T, proxy capability.Syste
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	key, err := qkboxcrypto.RandomBytes(qkboxcrypto.KeySize)
-	if err != nil {
-		t.Fatal(err)
-	}
-	svc := NewServiceWithNetworkExtension(context.Background(), db, key, proxy, privileged, extension)
+	svc := NewServiceWithNetworkExtension(context.Background(), db, proxy, privileged, extension)
 	t.Cleanup(func() { _ = svc.Close() })
 	return svc
 }
@@ -187,11 +181,11 @@ func (f *fakePrivilegedProvider) RuntimeStart(_ context.Context, req provideripc
 		return provideripc.RuntimeStartReply{}, f.runtimeStartErr
 	}
 	return provideripc.RuntimeStartReply{OwnerState: api.ProviderOwnerState{
-		Owned:      true,
-		SessionID:  req.SessionID,
-		RuntimeID:  req.RuntimeID,
-		SnapshotID: req.SnapshotID,
-		Mode:       req.Mode,
+		Owned:     true,
+		SessionID: req.SessionID,
+		RuntimeID: req.RuntimeID,
+		ProfileID: req.ProfileID,
+		Mode:      req.Mode,
 	}}, nil
 }
 
@@ -434,13 +428,51 @@ func TestProfileCRUD(t *testing.T) {
 		t.Fatal("expected content")
 	}
 
-	// update
-	_, err = svc.UpdateProfileDraft(ctx, api.UpdateProfileDraftRequest{
+	// update metadata
+	updateReply, err := svc.UpdateProfile(ctx, api.UpdateProfileRequest{
+		ProfileID: pid,
+		Name:      "renamed-profile",
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updateReply.Profile.Name != "renamed-profile" {
+		t.Fatalf("updated name = %s", updateReply.Profile.Name)
+	}
+
+	// save content
+	_, err = svc.SaveProfileContent(ctx, api.SaveProfileContentRequest{
 		ProfileID: pid,
 		Content:   `{"inbounds":[],"outbounds":[{"type":"block"}]}`,
 	})
 	if err != nil {
-		t.Fatalf("update: %v", err)
+		t.Fatalf("save content: %v", err)
+	}
+
+	validateReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{
+		ProfileID: pid,
+		Content:   `{"inbounds":[],"outbounds":[{"type":"block"}]}`,
+	})
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if validateReply.Diagnostics.Status != "valid" {
+		t.Fatalf("diagnostics = %+v", validateReply.Diagnostics)
+	}
+
+	activeReply, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: pid})
+	if err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+	if activeReply.Profile.ID != pid {
+		t.Fatalf("active profile = %+v", activeReply.Profile)
+	}
+	getActiveReply, err := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
+	if err != nil {
+		t.Fatalf("get active: %v", err)
+	}
+	if getActiveReply.Profile == nil || getActiveReply.Profile.ID != pid {
+		t.Fatalf("get active profile = %+v", getActiveReply.Profile)
 	}
 
 	// list
@@ -468,7 +500,7 @@ func TestProfileCRUD(t *testing.T) {
 	}
 }
 
-func TestProfileSubscriptionRefreshUpdatesDraftOnly(t *testing.T) {
+func TestProfileSubscriptionRefreshUpdatesProfileContent(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 
@@ -478,11 +510,7 @@ func TestProfileSubscriptionRefreshUpdatesDraftOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create profile: %v", err)
 	}
-	snapshotReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: createReply.Profile.ID})
-	if err != nil {
-		t.Fatalf("snapshot: %v", err)
-	}
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotReply.Snapshot.ID}); err != nil {
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: createReply.Profile.ID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
 
@@ -515,18 +543,18 @@ func TestProfileSubscriptionRefreshUpdatesDraftOnly(t *testing.T) {
 		t.Fatalf("get profile: %v", err)
 	}
 	if profileReply.Content != updated {
-		t.Fatalf("draft content = %s", profileReply.Content)
+		t.Fatalf("profile content = %s", profileReply.Content)
 	}
-	activeReply, err := svc.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
+	activeReply, err := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
 	if err != nil {
-		t.Fatalf("active snapshot: %v", err)
+		t.Fatalf("active profile: %v", err)
 	}
-	if activeReply.Snapshot == nil || activeReply.Snapshot.ID != snapshotReply.Snapshot.ID {
-		t.Fatalf("active snapshot changed: %+v", activeReply.Snapshot)
+	if activeReply.Profile == nil || activeReply.Profile.ID != createReply.Profile.ID {
+		t.Fatalf("active profile changed: %+v", activeReply.Profile)
 	}
 }
 
-func TestInvalidProfileSubscriptionRefreshDoesNotReplaceDraft(t *testing.T) {
+func TestInvalidProfileSubscriptionRefreshDoesNotReplaceContent(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 
@@ -558,7 +586,7 @@ func TestInvalidProfileSubscriptionRefreshDoesNotReplaceDraft(t *testing.T) {
 		t.Fatalf("get profile: %v", err)
 	}
 	if profileReply.Content != initial {
-		t.Fatalf("draft content changed: %s", profileReply.Content)
+		t.Fatalf("profile content changed: %s", profileReply.Content)
 	}
 	subsReply, err := svc.ListProfileSubscriptions(ctx, api.ListProfileSubscriptionsRequest{ProfileID: createReply.Profile.ID})
 	if err != nil {
@@ -707,22 +735,21 @@ func TestDebugBundleDoesNotIncludeProfileContentOrURLSecrets(t *testing.T) {
 	}
 }
 
-func TestSnapshotLifecycle(t *testing.T) {
+func TestProfileActivationLifecycle(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
+	content := `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`
 
-	// create profile
 	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "snap-test",
-		Content: `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`,
+		Name:    "profile-test",
+		Content: content,
 	})
 	if err != nil {
 		t.Fatalf("create profile: %v", err)
 	}
 	pid := createReply.Profile.ID
 
-	// validate
-	validReply, err := svc.ValidateProfileDraft(ctx, api.ValidateProfileDraftRequest{ProfileID: pid})
+	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: pid, Content: content})
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -730,90 +757,55 @@ func TestSnapshotLifecycle(t *testing.T) {
 		t.Fatalf("status = %s", validReply.Diagnostics.Status)
 	}
 
-	// create snapshot
-	snapReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
+	updated, err := svc.UpdateProfile(ctx, api.UpdateProfileRequest{ProfileID: pid, Name: "renamed"})
 	if err != nil {
-		t.Fatalf("create snapshot: %v", err)
+		t.Fatalf("update profile: %v", err)
 	}
-	sid := snapReply.Snapshot.ID
-
-	// list snapshots
-	listReply, err := svc.ListSnapshots(ctx, api.ListSnapshotsRequest{ProfileID: pid})
-	if err != nil {
-		t.Fatalf("list snapshots: %v", err)
-	}
-	if len(listReply.Snapshots) != 1 {
-		t.Fatalf("snapshot count = %d", len(listReply.Snapshots))
+	if updated.Profile.Name != "renamed" {
+		t.Fatalf("name = %s", updated.Profile.Name)
 	}
 
-	// activate
-	_, err = svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: sid})
+	savedContent := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"saved"}]}`
+	if _, err := svc.SaveProfileContent(ctx, api.SaveProfileContentRequest{ProfileID: pid, Content: savedContent}); err != nil {
+		t.Fatalf("save content: %v", err)
+	}
+
+	getReply, err := svc.GetProfile(ctx, api.GetProfileRequest{ProfileID: pid})
+	if err != nil {
+		t.Fatalf("get profile: %v", err)
+	}
+	if getReply.Content != savedContent {
+		t.Fatalf("content = %q", getReply.Content)
+	}
+
+	activeReply, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: pid})
 	if err != nil {
 		t.Fatalf("activate: %v", err)
 	}
+	if activeReply.Profile.ID != pid {
+		t.Fatalf("active reply profile id = %s", activeReply.Profile.ID)
+	}
 
-	// get active
-	activeReply, err := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
+	getActiveReply, err := svc.GetActiveProfile(ctx, api.GetActiveProfileRequest{})
 	if err != nil {
 		t.Fatalf("get active profile: %v", err)
 	}
-	if activeReply.Profile == nil {
-		t.Fatal("expected active profile")
-	}
-	if activeReply.Profile.ID != pid {
-		t.Fatalf("active profile id = %s", activeReply.Profile.ID)
-	}
-
-	activeSnapReply, err := svc.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
-	if err != nil {
-		t.Fatalf("get active snapshot: %v", err)
-	}
-	if activeSnapReply.Snapshot == nil {
-		t.Fatal("expected active snapshot")
-	}
-	if activeSnapReply.Snapshot.ID != sid {
-		t.Fatalf("active snapshot id = %s", activeSnapReply.Snapshot.ID)
-	}
-
-	// rollback (same snapshot)
-	_, err = svc.RollbackToSnapshot(ctx, api.RollbackToSnapshotRequest{SnapshotID: sid})
-	if err != nil {
-		t.Fatalf("rollback: %v", err)
+	if getActiveReply.Profile == nil || getActiveReply.Profile.ID != pid {
+		t.Fatalf("active profile = %+v", getActiveReply.Profile)
 	}
 }
 
-func TestActiveSnapshotSwitchesAcrossProfiles(t *testing.T) {
+func TestActiveProfileSwitchesAcrossProfiles(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 
-	first, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "first",
-		Content: `{"inbounds":[],"outbounds":[{"type":"direct"}]}`,
-	})
-	if err != nil {
-		t.Fatalf("create first: %v", err)
-	}
-	firstSnap, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: first.Profile.ID})
-	if err != nil {
-		t.Fatalf("snapshot first: %v", err)
-	}
+	first := createProfileWithContent(t, svc, ctx, "first", `{"inbounds":[],"outbounds":[{"type":"direct"}]}`)
+	second := createProfileWithContent(t, svc, ctx, "second", `{"inbounds":[],"outbounds":[{"type":"block"}]}`)
 
-	second, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "second",
-		Content: `{"inbounds":[],"outbounds":[{"type":"block"}]}`,
-	})
-	if err != nil {
-		t.Fatalf("create second: %v", err)
-	}
-	secondSnap, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: second.Profile.ID})
-	if err != nil {
-		t.Fatalf("snapshot second: %v", err)
-	}
-
-	if _, err = svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: firstSnap.Snapshot.ID}); err != nil {
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: first}); err != nil {
 		t.Fatalf("activate first: %v", err)
 	}
-	if _, err = svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: secondSnap.Snapshot.ID}); err != nil {
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: second}); err != nil {
 		t.Fatalf("activate second: %v", err)
 	}
 
@@ -821,149 +813,80 @@ func TestActiveSnapshotSwitchesAcrossProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get active profile: %v", err)
 	}
-	if activeProfile.Profile == nil || activeProfile.Profile.ID != second.Profile.ID {
+	if activeProfile.Profile == nil || activeProfile.Profile.ID != second {
 		t.Fatalf("active profile = %+v", activeProfile.Profile)
-	}
-
-	activeSnapshot, err := svc.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
-	if err != nil {
-		t.Fatalf("get active snapshot: %v", err)
-	}
-	if activeSnapshot.Snapshot == nil || activeSnapshot.Snapshot.ID != secondSnap.Snapshot.ID {
-		t.Fatalf("active snapshot = %+v", activeSnapshot.Snapshot)
 	}
 
 	profiles, err := svc.ListProfiles(ctx, api.ListProfilesRequest{})
 	if err != nil {
 		t.Fatalf("list profiles: %v", err)
 	}
-	activeCount := 0
-	for _, profile := range profiles.Profiles {
-		if profile.HasActiveSnapshot {
-			activeCount++
-			if profile.ID != second.Profile.ID {
-				t.Fatalf("unexpected active profile summary: %+v", profile)
-			}
-			if profile.ActiveSnapshotID == nil || *profile.ActiveSnapshotID != secondSnap.Snapshot.ID {
-				t.Fatalf("active snapshot id = %+v", profile.ActiveSnapshotID)
-			}
-		}
-	}
-	if activeCount != 1 {
-		t.Fatalf("active profile count = %d", activeCount)
+	if len(profiles.Profiles) != 2 {
+		t.Fatalf("profile count = %d", len(profiles.Profiles))
 	}
 }
 
-func TestValidationBlocksInvalidSnapshot(t *testing.T) {
+func TestValidateProfileContentReportsInvalidJSON(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
+	profileID := createProfileWithContent(t, svc, ctx, "bad-profile", `not json`)
 
-	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "bad-profile",
-		Content: `not json`,
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	pid := createReply.Profile.ID
-
-	// validate shows invalid
-	validReply, err := svc.ValidateProfileDraft(ctx, api.ValidateProfileDraftRequest{ProfileID: pid})
+	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: profileID, Content: `not json`})
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
 	if validReply.Diagnostics.Status != "invalid" {
 		t.Fatalf("expected invalid, got %s", validReply.Diagnostics.Status)
 	}
-
-	// snapshot blocked
-	_, err = svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
-	if err == nil {
-		t.Fatal("expected validation error")
-	}
-	if err.Code != api.ErrorConfigValidationFailed {
-		t.Fatalf("code = %s", err.Code)
-	}
 }
 
-func TestValidationBlocksEmptyObject(t *testing.T) {
+func TestValidateProfileContentReportsEmptyObject(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
+	profileID := createProfileWithContent(t, svc, ctx, "empty-obj", `{}`)
 
-	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "empty-obj",
-		Content: `{}`,
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	pid := createReply.Profile.ID
-
-	validReply, err := svc.ValidateProfileDraft(ctx, api.ValidateProfileDraftRequest{ProfileID: pid})
+	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: profileID, Content: `{}`})
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
 	if validReply.Diagnostics.Status != "invalid" {
 		t.Fatalf("expected invalid for empty object, got %s", validReply.Diagnostics.Status)
 	}
-
-	_, err = svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
-	if err == nil {
-		t.Fatal("expected snapshot blocked for empty object")
-	}
-	if err.Code != api.ErrorConfigValidationFailed {
-		t.Fatalf("code = %s", err.Code)
-	}
 }
 
-func TestValidationBlocksNonArrayFields(t *testing.T) {
+func TestValidateProfileContentReportsNonArrayFields(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
+	content := `{"inbounds":"not-an-array","outbounds":123}`
+	profileID := createProfileWithContent(t, svc, ctx, "non-array", content)
 
-	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "non-array",
-		Content: `{"inbounds":"not-an-array","outbounds":123}`,
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	pid := createReply.Profile.ID
-
-	validReply, err := svc.ValidateProfileDraft(ctx, api.ValidateProfileDraftRequest{ProfileID: pid})
+	validReply, err := svc.ValidateProfileContent(ctx, api.ValidateProfileContentRequest{ProfileID: profileID, Content: content})
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
 	if validReply.Diagnostics.Status != "invalid" {
 		t.Fatalf("expected invalid, got %s", validReply.Diagnostics.Status)
 	}
-
-	_, err = svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
-	if err == nil {
-		t.Fatal("expected snapshot blocked")
-	}
-	if err.Code != api.ErrorConfigValidationFailed {
-		t.Fatalf("code = %s", err.Code)
-	}
 }
 
-func TestEngineStartWithoutActiveSnapshot(t *testing.T) {
+func TestEngineStartWithoutActiveProfile(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 
 	_, err := svc.EngineStart(ctx, api.EngineStartRequest{})
-	if err == nil || err.Code != api.ErrorEngineNoActiveSnapshot {
-		t.Fatalf("expected ENGINE_NO_ACTIVE_SNAPSHOT, got %v", err)
+	if err == nil || err.Code != api.ErrorEngineNoActiveProfile {
+		t.Fatalf("expected ENGINE_NO_ACTIVE_PROFILE, got %v", err)
 	}
 	status, statusErr := svc.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
 	if statusErr != nil {
 		t.Fatalf("status: %v", statusErr)
 	}
-	if status.Status.LastErrorCode != api.ErrorEngineNoActiveSnapshot {
+	if status.Status.LastErrorCode != api.ErrorEngineNoActiveProfile {
 		t.Fatalf("last error = %s", status.Status.LastErrorCode)
 	}
 }
 
-func TestEngineStartUsesSnapshotContentNotDraft(t *testing.T) {
+func TestEngineStartUsesActiveProfileContent(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 	fake := &fakeRuntimeOwner{}
@@ -971,37 +894,28 @@ func TestEngineStartUsesSnapshotContentNotDraft(t *testing.T) {
 		return fake
 	}
 
-	snapshotContent := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"snapshot"}]}`
-	draftContent := `{"inbounds":[],"outbounds":[{"type":"block","tag":"draft"}]}`
-	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "engine-content",
-		Content: snapshotContent,
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
+	initialContent := `{"inbounds":[],"outbounds":[{"type":"direct","tag":"initial"}]}`
+	activeContent := `{"inbounds":[],"outbounds":[{"type":"block","tag":"active"}]}`
+	profileID := createProfileWithContent(t, svc, ctx, "engine-content", initialContent)
+	if _, err := svc.SaveProfileContent(ctx, api.SaveProfileContentRequest{ProfileID: profileID, Content: activeContent}); err != nil {
+		t.Fatalf("save content: %v", err)
 	}
-	pid := createReply.Profile.ID
-
-	snapReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: pid})
-	if err != nil {
-		t.Fatalf("snapshot: %v", err)
-	}
-	if _, err := svc.UpdateProfileDraft(ctx, api.UpdateProfileDraftRequest{ProfileID: pid, Content: draftContent}); err != nil {
-		t.Fatalf("update draft: %v", err)
-	}
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapReply.Snapshot.ID}); err != nil {
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
 
 	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
 		t.Fatalf("engine start: %v", err)
 	}
-	if fake.configJSON != snapshotContent {
-		t.Fatalf("engine used %q, want snapshot content %q", fake.configJSON, snapshotContent)
+	if fake.target.ProfileID != profileID {
+		t.Fatalf("target profile = %s, want %s", fake.target.ProfileID, profileID)
+	}
+	if fake.configJSON != activeContent {
+		t.Fatalf("engine used %q, want profile content %q", fake.configJSON, activeContent)
 	}
 }
 
-func TestEngineStartBlocksActiveSnapshotMutationWhileStarting(t *testing.T) {
+func TestEngineStartBlocksActiveProfileMutationWhileStarting(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
 	started := make(chan struct{})
@@ -1011,9 +925,9 @@ func TestEngineStartBlocksActiveSnapshotMutationWhileStarting(t *testing.T) {
 		return fake
 	}
 
-	first := createValidSnapshot(t, svc, ctx, "first")
-	second := createValidSnapshot(t, svc, ctx, "second")
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: first}); err != nil {
+	first := createValidProfile(t, svc, ctx, "first")
+	second := createValidProfile(t, svc, ctx, "second")
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: first}); err != nil {
 		t.Fatalf("activate first: %v", err)
 	}
 
@@ -1027,7 +941,7 @@ func TestEngineStartBlocksActiveSnapshotMutationWhileStarting(t *testing.T) {
 
 	activateDone := make(chan *api.StructuredError, 1)
 	go func() {
-		_, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: second})
+		_, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: second})
 		activateDone <- err
 	}()
 
@@ -1204,36 +1118,17 @@ func TestDarwinPlatformCapabilitiesReflectNetworkExtension(t *testing.T) {
 	}
 }
 
-func TestCreateSnapshotStoresRequiredCapabilities(t *testing.T) {
-	svc := newTestService(t)
-	ctx := context.Background()
-	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "tun",
-		Content: `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`,
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	snapReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: createReply.Profile.ID})
-	if err != nil {
-		t.Fatalf("snapshot: %v", err)
-	}
-	if len(snapReply.Snapshot.RequiredCapabilities) != 1 || snapReply.Snapshot.RequiredCapabilities[0] != api.CapabilityTunMode {
-		t.Fatalf("required capabilities = %+v", snapReply.Snapshot.RequiredCapabilities)
-	}
-}
-
 func TestLoadRuntimeStartTargetCarriesRequiredCapabilities(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	snapshotID := createSnapshotWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`)
+	profileID := createProfileWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct"}]}`)
 
-	target, err := svc.loadRuntimeStartTargetByID(snapshotID)
+	target, err := svc.loadRuntimeStartTargetByID(profileID)
 	if err != nil {
 		t.Fatalf("load target: %v", err)
 	}
-	if target.SnapshotID != snapshotID {
-		t.Fatalf("snapshot id = %s, want %s", target.SnapshotID, snapshotID)
+	if target.ProfileID != profileID {
+		t.Fatalf("profile id = %s, want %s", target.ProfileID, profileID)
 	}
 	if len(target.RequiredCapabilities) != 1 || target.RequiredCapabilities[0] != api.CapabilityTunMode {
 		t.Fatalf("required capabilities = %+v", target.RequiredCapabilities)
@@ -1250,8 +1145,8 @@ func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
 	}
 	svc := newTestServiceWithPlatform(t, nil, privileged)
 	ctx := context.Background()
-	snapshotID := createSnapshotWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotID}); err != nil {
+	profileID := createProfileWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
 
@@ -1262,7 +1157,7 @@ func TestEngineStartUsesProviderHostedOwnerForMachineRuntime(t *testing.T) {
 		t.Fatalf("runtime starts = %d, want provider-hosted start", len(privileged.runtimeStarts))
 	}
 	start := privileged.runtimeStarts[0]
-	if start.Mode != api.RuntimeModeMachineNetwork || start.SnapshotID != snapshotID {
+	if start.Mode != api.RuntimeModeMachineNetwork || start.ProfileID != profileID {
 		t.Fatalf("runtime start = %+v", start)
 	}
 	if start.ConfigJSON == "" {
@@ -1291,8 +1186,8 @@ func TestEngineStartUsesProviderHostedOwnerOnLinux(t *testing.T) {
 	}
 	svc := newTestServiceWithPlatform(t, nil, privileged)
 	ctx := context.Background()
-	snapshotID := createSnapshotWithContent(t, svc, ctx, "linux-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotID}); err != nil {
+	profileID := createProfileWithContent(t, svc, ctx, "linux-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
 
@@ -1302,7 +1197,7 @@ func TestEngineStartUsesProviderHostedOwnerOnLinux(t *testing.T) {
 	if len(privileged.runtimeStarts) != 1 {
 		t.Fatalf("runtime starts = %d, want provider-hosted start", len(privileged.runtimeStarts))
 	}
-	if start := privileged.runtimeStarts[0]; start.Mode != api.RuntimeModeMachineNetwork || start.SnapshotID != snapshotID {
+	if start := privileged.runtimeStarts[0]; start.Mode != api.RuntimeModeMachineNetwork || start.ProfileID != profileID {
 		t.Fatalf("runtime start = %+v", start)
 	}
 }
@@ -1325,8 +1220,8 @@ func TestEngineStartUsesNetworkExtensionOwnerOnDarwin(t *testing.T) {
 	}
 	svc := newTestServiceWithPlatformAndExtension(t, nil, privileged, extension)
 	ctx := context.Background()
-	snapshotID := createSnapshotWithContent(t, svc, ctx, "darwin-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotID}); err != nil {
+	profileID := createProfileWithContent(t, svc, ctx, "darwin-tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
 
@@ -1337,7 +1232,7 @@ func TestEngineStartUsesNetworkExtensionOwnerOnDarwin(t *testing.T) {
 		t.Fatalf("network extension starts = %d, want one", len(extension.starts))
 	}
 	start := extension.starts[0]
-	if start.Mode != api.RuntimeModeAppleNetworkExtension || start.SnapshotID != snapshotID {
+	if start.Mode != api.RuntimeModeAppleNetworkExtension || start.ProfileID != profileID {
 		t.Fatalf("network extension start = %+v", start)
 	}
 	if len(privileged.runtimeStarts) != 0 || len(privileged.prepared) != 0 {
@@ -1352,353 +1247,12 @@ func TestEngineStartUsesNetworkExtensionOwnerOnDarwin(t *testing.T) {
 	}
 }
 
-func TestEngineReloadSwitchesActiveSnapshotAfterTargetStarts(t *testing.T) {
-	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
-	ctx := context.Background()
-	adapters := installAdapterSequence(svc)
-
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeSuccess {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-	if reply.ActiveSnapshotID != target {
-		t.Fatalf("active in reply = %s, want %s", reply.ActiveSnapshotID, target)
-	}
-	active, err := svc.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
-	if err != nil {
-		t.Fatalf("active: %v", err)
-	}
-	if active.Snapshot == nil || active.Snapshot.ID != target {
-		t.Fatalf("active snapshot = %+v", active.Snapshot)
-	}
-	if len(*adapters) < 2 || (*adapters)[1].configJSON == "" || (*adapters)[1].configJSON == (*adapters)[0].configJSON {
-		t.Fatalf("adapter configs = %+v", *adapters)
-	}
-}
-
-func TestEngineReloadMissingTargetSnapshotIsValidationFailure(t *testing.T) {
-	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
-	ctx := context.Background()
-	installAdapterSequence(svc)
-
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: "snp_missing"})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeFailedValidation {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-	if reply.Failure == nil || reply.Failure.Code != api.ErrorSnapshotNotFound {
-		t.Fatalf("failure = %+v", reply.Failure)
-	}
-}
-
-func TestEngineReloadTargetLoadInternalFailureIsNotValidation(t *testing.T) {
-	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
-	ctx := context.Background()
-	installAdapterSequence(svc)
-
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	_, targetContentID, err := svc.db.GetSnapshot(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := svc.db.WithTx(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`UPDATE encrypted_content SET ciphertext = ? WHERE id = ?`, []byte("corrupt"), targetContentID)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeFailedTargetLoad {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-	if reply.Failure == nil || reply.Failure.Code != api.ErrorInternal {
-		t.Fatalf("failure = %+v", reply.Failure)
-	}
-}
-
-func TestEngineReloadTargetFailureRollsBackPreviousRuntime(t *testing.T) {
-	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
-	ctx := context.Background()
-	startErrs := []error{nil, errors.New("target failed"), nil}
-	installAdapterSequenceWithStartErrors(svc, startErrs)
-
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeRolledBack {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-	if reply.ActiveSnapshotID != previous {
-		t.Fatalf("active = %s, want previous %s", reply.ActiveSnapshotID, previous)
-	}
-	status, err := svc.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
-	if err != nil {
-		t.Fatalf("status: %v", err)
-	}
-	if status.Status.State != "STARTED" || status.Status.ActiveSnapshotID != previous {
-		t.Fatalf("status = %+v", status.Status)
-	}
-}
-
-func TestEngineReloadRollbackUsesPreparedStartPipeline(t *testing.T) {
-	privileged := readyFakePrivilegedProvider()
-	privileged.prepare = map[string]api.PrepareFeatureReply{
-		api.CapabilityTunMode: {Feature: api.CapabilityTunMode, State: api.CapabilityAvailable},
-	}
-	svc := newTestServiceWithPlatform(t, nil, privileged)
-	ctx := context.Background()
-	startErrs := []error{nil, errors.New("target failed"), nil}
-	installAdapterSequenceWithStartErrors(svc, startErrs)
-
-	previous := createSnapshotWithContent(t, svc, ctx, "tun-previous", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeRolledBack {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-
-	tunPrepareCount := 0
-	for _, feature := range privileged.prepared {
-		if feature == api.CapabilityTunMode {
-			tunPrepareCount++
-		}
-	}
-	if tunPrepareCount != 2 {
-		t.Fatalf("tun prepare count = %d, want initial start + rollback prepare; calls=%+v", tunPrepareCount, privileged.prepared)
-	}
-}
-
-func TestEngineReloadTargetAndRollbackFailureReportsDegraded(t *testing.T) {
-	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
-	ctx := context.Background()
-	startErrs := []error{nil, errors.New("target failed"), errors.New("rollback failed")}
-	installAdapterSequenceWithStartErrors(svc, startErrs)
-
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeDegraded {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-}
-
-func TestEngineReloadPlatformPrepareFailureDoesNotStopRuntime(t *testing.T) {
-	privileged := readyFakePrivilegedProvider()
-	svc := newTestServiceWithPlatform(t, nil, privileged)
-	ctx := context.Background()
-	installAdapterSequence(svc)
-
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "tun-target", `{"inbounds":[{"type":"tun"}],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeFailedPlatformPrepare {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-	status, err := svc.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
-	if err != nil {
-		t.Fatalf("status: %v", err)
-	}
-	if status.Status.State != "STARTED" || status.Status.ActiveSnapshotID != previous {
-		t.Fatalf("status = %+v", status.Status)
-	}
-	if len(privileged.prepared) != 1 || privileged.prepared[0] != api.CapabilityTunMode {
-		t.Fatalf("prepared = %+v", privileged.prepared)
-	}
-}
-
-func TestEngineReloadCleanupFailureDoesNotStopRuntime(t *testing.T) {
-	proxy := &fakeSystemProxy{
-		state:      capability.SystemProxyCurrentState{Enabled: true, Addr: "127.0.0.1", Port: 7890},
-		restoreErr: errors.New("restore failed"),
-	}
-	svc := newTestServiceWithPlatform(t, proxy, readyFakePrivilegedProvider())
-	ctx := context.Background()
-	installAdapterSequence(svc)
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-	if err := saveProxyOwner(svc.db, &proxyOwnerRecord{
-		QKBoxOwned: true,
-		Snapshot:   &capability.SystemProxySnapshot{Raw: json.RawMessage(`{"baseline":"old"}`)},
-		ProxyAddr:  "127.0.0.1",
-		ProxyPort:  7890,
-		EnabledAt:  1,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-	if structured != nil {
-		t.Fatalf("reload: %v", structured)
-	}
-	if reply.Outcome != api.ReloadOutcomeCleanupFailed {
-		t.Fatalf("outcome = %s", reply.Outcome)
-	}
-	status, err := svc.EngineGetStatus(ctx, api.EngineGetStatusRequest{})
-	if err != nil {
-		t.Fatalf("status: %v", err)
-	}
-	if status.Status.State != "STARTED" || status.Status.ActiveSnapshotID != previous {
-		t.Fatalf("status = %+v", status.Status)
-	}
-}
-
-func TestEngineReloadSerializesActiveSnapshotMutation(t *testing.T) {
-	svc := newTestServiceWithPlatform(t, nil, readyFakePrivilegedProvider())
-	ctx := context.Background()
-
-	targetStarted := make(chan struct{})
-	releaseTarget := make(chan struct{})
-	var adapters []*fakeRuntimeOwner
-	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
-		adapter := &fakeRuntimeOwner{}
-		if len(adapters) == 1 {
-			adapter.startedCh = targetStarted
-			adapter.releaseStart = releaseTarget
-		}
-		adapters = append(adapters, adapter)
-		return adapter
-	}
-
-	previous := createSnapshotWithContent(t, svc, ctx, "previous", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"previous"}]}`)
-	target := createSnapshotWithContent(t, svc, ctx, "target", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"target"}]}`)
-	other := createSnapshotWithContent(t, svc, ctx, "other", `{"inbounds":[],"outbounds":[{"type":"direct","tag":"other"}]}`)
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: previous}); err != nil {
-		t.Fatalf("activate previous: %v", err)
-	}
-	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	reloadDone := make(chan api.EngineReloadReply, 1)
-	go func() {
-		reply, structured := svc.EngineReload(ctx, api.EngineReloadRequest{SnapshotID: target})
-		if structured != nil {
-			t.Errorf("reload structured error: %v", structured)
-		}
-		reloadDone <- reply
-	}()
-
-	select {
-	case <-targetStarted:
-	case <-time.After(time.Second):
-		t.Fatal("target runtime did not begin starting")
-	}
-
-	activateDone := make(chan *api.StructuredError, 1)
-	go func() {
-		_, structured := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: other})
-		activateDone <- structured
-	}()
-
-	select {
-	case err := <-activateDone:
-		t.Fatalf("activate completed during reload window: %v", err)
-	case <-time.After(50 * time.Millisecond):
-	}
-
-	close(releaseTarget)
-	reply := <-reloadDone
-	if reply.Outcome != api.ReloadOutcomeSuccess {
-		t.Fatalf("reload outcome = %s", reply.Outcome)
-	}
-	err := <-activateDone
-	if err == nil || err.Code != api.ErrorEngineRunning {
-		t.Fatalf("activate error = %+v, want ENGINE_RUNNING", err)
-	}
-	active, activeErr := svc.GetActiveSnapshot(ctx, api.GetActiveSnapshotRequest{})
-	if activeErr != nil {
-		t.Fatalf("active: %v", activeErr)
-	}
-	if active.Snapshot == nil || active.Snapshot.ID != target {
-		t.Fatalf("active snapshot = %+v, want target", active.Snapshot)
-	}
-}
-
-func createValidSnapshot(t *testing.T, svc *Service, ctx context.Context, name string) string {
+func createValidProfile(t *testing.T, svc *Service, ctx context.Context, name string) string {
 	t.Helper()
-	return createSnapshotWithContent(t, svc, ctx, name, `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	return createProfileWithContent(t, svc, ctx, name, `{"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}`)
 }
 
-func createSnapshotWithContent(t *testing.T, svc *Service, ctx context.Context, name, content string) string {
+func createProfileWithContent(t *testing.T, svc *Service, ctx context.Context, name, content string) string {
 	t.Helper()
 	createReply, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
 		Name:    name,
@@ -1707,28 +1261,7 @@ func createSnapshotWithContent(t *testing.T, svc *Service, ctx context.Context, 
 	if err != nil {
 		t.Fatalf("create %s: %v", name, err)
 	}
-	snapReply, err := svc.CreateProfileSnapshot(ctx, api.CreateProfileSnapshotRequest{ProfileID: createReply.Profile.ID})
-	if err != nil {
-		t.Fatalf("snapshot %s: %v", name, err)
-	}
-	return snapReply.Snapshot.ID
-}
-
-func installAdapterSequence(svc *Service) *[]*fakeRuntimeOwner {
-	return installAdapterSequenceWithStartErrors(svc, nil)
-}
-
-func installAdapterSequenceWithStartErrors(svc *Service, startErrs []error) *[]*fakeRuntimeOwner {
-	var adapters []*fakeRuntimeOwner
-	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
-		adapter := &fakeRuntimeOwner{}
-		if len(startErrs) > len(adapters) {
-			adapter.startErr = startErrs[len(adapters)]
-		}
-		adapters = append(adapters, adapter)
-		return adapter
-	}
-	return &adapters
+	return createReply.Profile.ID
 }
 
 func startEngineForProxyTest(t *testing.T, svc *Service) {
@@ -1738,55 +1271,11 @@ func startEngineForProxyTest(t *testing.T, svc *Service) {
 	svc.engine.runtimeOwnerFactory = func(RuntimeStartTarget) RuntimeOwner {
 		return fake
 	}
-	snapshotID := createValidSnapshot(t, svc, ctx, "proxy-engine")
-	if _, err := svc.ActivateProfileSnapshot(ctx, api.ActivateProfileSnapshotRequest{SnapshotID: snapshotID}); err != nil {
+	profileID := createValidProfile(t, svc, ctx, "proxy-engine")
+	if _, err := svc.ActivateProfile(ctx, api.ActivateProfileRequest{ProfileID: profileID}); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
 	if _, err := svc.EngineStart(ctx, api.EngineStartRequest{}); err != nil {
 		t.Fatalf("engine start: %v", err)
-	}
-}
-
-func TestContentIsEncrypted(t *testing.T) {
-	svc := newTestService(t)
-	ctx := context.Background()
-
-	content := `{"secret":"my-password-123"}`
-	_, err := svc.CreateProfile(ctx, api.CreateProfileRequest{
-		Name:    "encrypted-test",
-		Content: content,
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-
-	// retrieve encrypted content via repo and verify it's not plaintext
-	contents, listErr := svc.db.ListAllContent()
-	if listErr != nil {
-		t.Fatalf("list content: %v", listErr)
-	}
-	if len(contents) == 0 {
-		t.Fatal("no content stored")
-	}
-	for _, c := range contents {
-		raw := string(c.Ciphertext)
-		if raw == content {
-			t.Fatal("content stored in plaintext")
-		}
-		if len(c.Ciphertext) == 0 {
-			t.Fatal("empty ciphertext")
-		}
-		if len(c.IV) == 0 {
-			t.Fatal("empty IV")
-		}
-	}
-
-	// verify we can still decrypt and get the original content
-	getReply, err := svc.GetProfile(ctx, api.GetProfileRequest{ProfileID: contents[0].SourceID})
-	if err != nil {
-		t.Fatalf("get: %v", err)
-	}
-	if getReply.Content != content {
-		t.Fatalf("decrypted content mismatch: got %q", getReply.Content)
 	}
 }

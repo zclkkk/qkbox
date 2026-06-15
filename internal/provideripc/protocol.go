@@ -62,7 +62,7 @@ type StatusReply struct {
 type RuntimeStartRequest struct {
 	SessionID            string   `json:"session_id"`
 	RuntimeID            string   `json:"runtime_id"`
-	SnapshotID           string   `json:"snapshot_id"`
+	ProfileID            string   `json:"profile_id"`
 	Mode                 string   `json:"mode"`
 	ConfigJSON           string   `json:"config_json"`
 	RequiredCapabilities []string `json:"required_capabilities,omitempty"`

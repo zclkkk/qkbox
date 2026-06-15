@@ -49,7 +49,7 @@ func TestEngineControllerPublishesStatusEvents(t *testing.T) {
 
 	expectStatus(t, events, model.EngineStateIdle)
 	err := ctrl.Start(func() (RuntimeStartTarget, *api.StructuredError) {
-		return RuntimeStartTarget{SnapshotID: "snap", ConfigJSON: "{}"}, nil
+		return RuntimeStartTarget{ProfileID: "profile", ConfigJSON: "{}"}, nil
 	})
 	if err != nil {
 		t.Fatalf("start: %v", err)

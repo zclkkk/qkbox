@@ -82,10 +82,10 @@
           </span>
         </button>
         <div class="button-row">
-          {#if profile.active_snapshot_id}
+          {#if profileState.activeProfile?.id === profile.id}
             <StateBadge state="available" label="active" />
           {/if}
-          <button type="button" onclick={() => (deleteProfileID = profile.id)} disabled={profileState.busy || !!profile.active_snapshot_id}>Delete</button>
+          <button type="button" onclick={() => (deleteProfileID = profile.id)} disabled={profileState.busy}>Delete</button>
         </div>
       </div>
     {:else}
@@ -96,22 +96,22 @@
 
 <section class="panel editor-panel">
   <div class="panel-title">
-    <h2>Draft JSON</h2>
+    <h2>Content JSON</h2>
     <div class="button-row">
-      <button type="button" onclick={() => profileState.saveDraft()} disabled={!profileState.selectedProfileID || profileState.busy || !profileState.draftDirty}>Save draft</button>
-      <button type="button" onclick={() => profileState.validateDraft()} disabled={!profileState.selectedProfileID || profileState.busy}>Validate</button>
-      <button type="button" onclick={() => profileState.createSnapshot()} disabled={!profileState.selectedProfileID || profileState.busy}>Create snapshot</button>
+      <button type="button" onclick={() => profileState.saveContent()} disabled={!profileState.selectedProfileID || profileState.busy || !profileState.contentDirty}>Save content</button>
+      <button type="button" onclick={() => profileState.validateContent()} disabled={!profileState.selectedProfileID || profileState.busy}>Validate</button>
+      <button type="button" onclick={() => profileState.activateProfile(profileState.selectedProfileID)} disabled={!profileState.selectedProfileID || profileState.busy}>Activate</button>
     </div>
   </div>
   {#if profileState.selectedProfileID}
     <div class="editor-meta">
       <span class="label">{profileState.selectedProfileName}</span>
-      {#if profileState.draftDirty}
+      {#if profileState.contentDirty}
         <StateBadge state="pending" label="unsaved" />
       {/if}
     </div>
     {#if JsonEditor}
-      <JsonEditor value={profileState.draftContent} onchange={(value) => (profileState.draftContent = value)} />
+      <JsonEditor value={profileState.content} onchange={(value) => (profileState.content = value)} />
     {:else}
       <EmptyState message="Loading editor..." />
     {/if}
@@ -143,49 +143,20 @@
 
 <section class="panel">
   <h2>Active Runtime Target</h2>
-  {#if profileState.activeSnapshot}
+  {#if profileState.activeProfile}
     <div class="metrics">
       <div>
-        <span class="label">Snapshot</span>
-        <strong>{profileState.activeSnapshot.id}</strong>
-      </div>
-      <div>
         <span class="label">Profile</span>
-        <strong>{profileState.activeSnapshot.profile_id}</strong>
+        <strong>{profileState.activeProfile.id}</strong>
       </div>
       <div>
-        <span class="label">Validation</span>
-        <StateBadge state={profileState.activeSnapshot.validation_status} label={profileState.activeSnapshot.validation_status ?? "unknown"} />
+        <span class="label">Name</span>
+        <strong>{profileState.activeProfile.name}</strong>
       </div>
     </div>
   {:else}
-    <EmptyState message="No active snapshot" />
+    <EmptyState message="No active profile" />
   {/if}
-</section>
-
-<section class="panel diagnostics">
-  <h2>Snapshots</h2>
-  <div class="asset-list">
-    {#each profileState.snapshots as snapshot}
-      <div class="asset-row">
-        <div>
-          <strong>{snapshot.id}</strong>
-          <span>{new Date(snapshot.created_at).toLocaleString()}</span>
-        </div>
-        <div class="button-row">
-          <StateBadge state={snapshot.validation_status} label={snapshot.validation_status ?? "unknown"} />
-          {#if snapshot.id === profileState.activeSnapshot?.id}
-            <StateBadge state="available" label="active" />
-          {:else}
-            <button type="button" onclick={() => profileState.activateSnapshot(snapshot.id)} disabled={profileState.busy}>Activate</button>
-            <button type="button" onclick={() => profileState.rollbackToSnapshot(snapshot.id)} disabled={profileState.busy}>Rollback</button>
-          {/if}
-        </div>
-      </div>
-    {:else}
-      <EmptyState message="No snapshots for selected profile" />
-    {/each}
-  </div>
 </section>
 
 <section class="panel diagnostics">
@@ -277,7 +248,7 @@
 <ConfirmDialog
   open={deleteProfileID !== null}
   title="Delete profile"
-  message="Delete this profile and its draft data? Active profiles cannot be deleted."
+  message="Delete this profile and its content?"
   confirmLabel="Delete"
   onconfirm={deleteSelectedProfile}
   oncancel={() => (deleteProfileID = null)}
