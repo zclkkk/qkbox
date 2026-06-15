@@ -97,6 +97,20 @@ engine 只管理 runtime owner 生命周期，不读取数据库，不持有 Pro
 
 节点列表由 content 静态解析和 active runtime groups 动态状态按 tag 合并。
 
+### UX Structure
+
+主窗口使用五个顶层页面：
+
+| Page | Primary responsibility |
+|------|------------------------|
+| Proxy | runtime status, start/stop, node list, group selection, mode switch |
+| Subscribe | profiles, subscriptions, imports, JSON editor |
+| Rules | rule templates and routing-oriented controls |
+| Settings | platform, app, window, language, theme settings |
+| Diagnostics | diagnostics report, logs, traffic, connections, recovery actions |
+
+五页面导航是信息架构骨架，可以和后端 profile/config reset 并行推进。它不是旧 Phase 切分的一部分，也不依赖旧 Profile Snapshot 模型。
+
 ---
 
 ## 3. Removed Legacy Shapes
@@ -339,7 +353,40 @@ CREATE TABLE settings (
 - inactive Profile 能显示节点结构。
 - active Profile 能显示当前选择和 runtime 状态。
 
-### Milestone H: Frontend Reset
+### Milestone H: Navigation Restructure
+
+目标：建立五页面主窗口信息架构，让后续功能进入正确页面，而不是继续堆叠旧视图。
+
+交付物：
+
+- `routing.svelte.ts` 路由收敛为：
+  - `proxy`
+  - `subscribe`
+  - `rules`
+  - `settings`
+  - `diagnostics`
+- `AppShell.svelte` 导航更新为五项。
+- `App.svelte` 按五页面渲染。
+- 新建或重组五个顶层视图：
+  - `ProxyView`
+  - `SubscribeView`
+  - `RulesView`
+  - `SettingsView`
+  - `DiagnosticsView`
+- 迁移现有视图内容到正确页面：
+  - Engine controls -> Proxy。
+  - Profile/subscription/editor -> Subscribe。
+  - Platform controls -> Settings。
+  - diagnostics/logs/traffic/connections -> Diagnostics。
+
+验收：
+
+- 主窗口只有五个顶层导航项。
+- 页面路由和状态单例解耦。
+- 旧视图不再作为顶层页面继续扩张。
+- 页面骨架不依赖 Profile Snapshot、Managed/Raw 或旧 draft state。
+
+### Milestone I: Frontend Feature Reset
 
 目标：前端状态和 UI 只反映新模型。
 
@@ -353,10 +400,12 @@ CREATE TABLE settings (
   - active profile
   - subscriptions
   - runtime groups
-- Profiles view 收敛为三块：
+- Subscribe page 收敛为：
   - Profile list/import/subscription。
   - JSON editor/save/validate。
-  - Runtime controls/nodes/status。
+- Proxy page 收敛为：
+  - Runtime status/start/stop。
+  - Node list/group selection/mode switch。
 - 删除 snapshot panel、draft state、managed/raw 分支。
 
 验收：
@@ -366,7 +415,7 @@ CREATE TABLE settings (
 - Activate 表示启动 Profile。
 - 运行时选择和模式切换不修改 editor content。
 
-### Milestone I: Release Hardening
+### Milestone J: Release Hardening
 
 目标：进入可发布客户端质量线。
 
@@ -417,6 +466,7 @@ Only delete profile-config snapshot concepts. Do not delete OS proxy snapshot or
 | API/IPC | method names, DTOs, server/client/bridge registration |
 | Profile service | CRUD, validate, save content, activate |
 | Engine integration | runtime target identity and status |
+| Navigation shell | routing, AppShell, App, top-level views |
 | Frontend Profile UX | state, view, validation display, activation controls |
 
 ### Add
@@ -453,6 +503,7 @@ Before starting product feature expansion beyond the reset, the following must b
 - All config writes validate through sing-box.
 - Subscriptions are separate channels.
 - Runtime controls do not mutate config.
+- Navigation exposes the five top-level pages.
 - Frontend has no old profile lifecycle UI.
 - Packaging exposes only supported user entry points.
 
@@ -478,12 +529,13 @@ v1.0 is releasable when a fresh user can:
 1. Install qkbox.
 2. Launch `qkbox`.
 3. Open the window from tray.
-4. Create or import a Profile.
-5. Save only valid sing-box config.
-6. Activate the Profile.
-7. See runtime status.
-8. Select node and mode where supported by the active config.
-9. Stop runtime.
-10. Quit cleanly.
+4. Navigate Proxy, Subscribe, Rules, Settings, and Diagnostics.
+5. Create or import a Profile.
+6. Save only valid sing-box config.
+7. Activate the Profile.
+8. See runtime status.
+9. Select node and mode where supported by the active config.
+10. Stop runtime.
+11. Quit cleanly.
 
 No unsupported helper entry point needs to be user-friendly. Unsupported paths should fail clearly and stay private.
